@@ -1,0 +1,40 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# Visual Studio / Rider caches
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# SPA build output (produced by `npm run build` into LF.WebApi/wwwroot, not source)
+LF.WebApi/wwwroot/*
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Node (belt-and-suspenders on top of lf.webapp/.gitignore)
+node_modules/
+dist/
+dist-ssr/
+
+# User-specific secrets never belong in the repo (use `dotnet user-secrets` locally,
+# environment variables / a secret manager in deployed environments)
+**/secrets.json
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

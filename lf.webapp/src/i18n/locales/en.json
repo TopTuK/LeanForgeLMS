@@ -1,0 +1,240 @@
+{
+    "common": {
+        "brand_name": "Lean Forge LMS",
+        "author_name": "Sergey Sidorov",
+        "created_date": "2026"
+    },
+    "home_view_title": "Lean Forge LMS — Online School for Developers",
+    "nav": {
+        "courses": "Courses",
+        "reviews": "Reviews",
+        "contacts": "Contacts",
+        "login": "Enter school",
+        "menu_toggle": "Toggle menu",
+        "theme_light": "Switch to light theme",
+        "theme_dark": "Switch to dark theme"
+    },
+    "footer": {
+        "privacy": "Privacy policy",
+        "offer": "Terms of service",
+        "cookies": "Cookie policy"
+    },
+    "login_view_title": "Enter school — Lean Forge LMS",
+    "login": {
+        "eyebrow": "Student access",
+        "title": "Enter the school",
+        "subtitle": "Choose the account you use for learning. You will continue through the selected identity provider.",
+        "pmi": {
+            "title": "Continue with PMI Club",
+            "description": "Use your PMI Club account to enter the learning platform."
+        },
+        "google": {
+            "title": "Continue with Google",
+            "description": "Use your Google account to enter the learning platform."
+        },
+        "note": "Authentication is provided securely by the selected service."
+    },
+    "home": {
+        "hero": {
+            "brand_line": "Lean Forge LMS",
+            "headline": "Become more valuable on the job market",
+            "subheadline": "We help developers write code and design systems that survive production.",
+            "cta_primary": "Browse courses",
+            "trust_line": "Practice in every course · no fluff · real code review"
+        },
+        "stats": {
+            "completion_value": "70%",
+            "completion_label": "of students finish each course on average",
+            "practice_value": "1",
+            "practice_label": "hands-on practice with every expert",
+            "courses_value": "8",
+            "courses_label": "author-led courses, not a factory line",
+            "rating_value": "4.9",
+            "rating_label": "average graduate rating"
+        },
+        "courses": {
+            "title": "Our courses",
+            "show_more": "{n} more courses",
+            "show_less": "Show less",
+            "filters": {
+                "all": "All",
+                "backend": "Backend",
+                "frontend": "Frontend",
+                "devops": "DevOps",
+                "architecture": "Design",
+                "career": "Career"
+            },
+            "items": {
+                "backend": {
+                    "title": ".NET Backend Engineering",
+                    "description": "A 5-week course on APIs that hold under load: ASP.NET Core, EF Core, clean architecture.",
+                    "duration": "5 weeks",
+                    "category": "Backend",
+                    "filter": "backend"
+                },
+                "frontend": {
+                    "title": "Vue 3 Frontend Engineering",
+                    "description": "Composition API, state management, and component architecture for real SPAs.",
+                    "duration": "5 weeks",
+                    "category": "Frontend",
+                    "filter": "frontend"
+                },
+                "devops": {
+                    "title": "DevOps & CI/CD",
+                    "description": "A 4-week course on Docker, pipelines, and deploys without 2 a.m. pages.",
+                    "duration": "4 weeks",
+                    "category": "DevOps",
+                    "filter": "devops"
+                },
+                "databases": {
+                    "title": "Databases in Practice",
+                    "description": "Schema design, indexing, and queries that do not choke on real data.",
+                    "duration": "4 weeks",
+                    "category": "Backend",
+                    "filter": "backend"
+                },
+                "architecture": {
+                    "title": "Systems Analysis",
+                    "description": "A 5-week course on designing systems — new ones you will not rewrite, old ones you can untangle and speed up.",
+                    "duration": "5 weeks",
+                    "category": "Design",
+                    "filter": "architecture"
+                },
+                "communications": {
+                    "title": "System Communications",
+                    "description": "A 7-week course on designing service boundaries so you do not end up with a distributed monolith.",
+                    "duration": "7 weeks",
+                    "category": "Design",
+                    "filter": "architecture"
+                },
+                "simple_code": {
+                    "title": "Simple Code",
+                    "description": "A 5-week course on writing simple code that solves hard problems and stays maintainable.",
+                    "duration": "5 weeks",
+                    "category": "Design",
+                    "filter": "architecture"
+                },
+                "career": {
+                    "title": "Professional Growth",
+                    "description": "A 4-week course on growing yourself and building systemic growth for your team.",
+                    "duration": "4 weeks",
+                    "category": "Career",
+                    "filter": "career"
+                }
+            }
+        },
+        "testimonials": {
+            "title": "Reviews after the course",
+            "show_more": "More reviews",
+            "show_less": "Show less",
+            "filters": {
+                "all": "All",
+                "difference": "How we differ",
+                "audience": "Who it is for",
+                "after": "What changed"
+            },
+            "items": {
+                "1": {
+                    "quote": "Finally a course without the fluff. I finished the DevOps track and used it at work the same week.",
+                    "name": "Dmitry Volkov",
+                    "role": "Backend Developer",
+                    "tag": "What changed",
+                    "filter": "after"
+                },
+                "2": {
+                    "quote": "The depth of the material stands out. Theory and practice stay aligned — they show how to do it, not just talk about it.",
+                    "name": "Anna Kravtsova",
+                    "role": "Frontend Developer",
+                    "tag": "How we differ",
+                    "filter": "difference"
+                },
+                "3": {
+                    "quote": "For mid-level+ developers who want to grow further — not another “learn a framework in a month” factory.",
+                    "name": "Igor Plotnikov",
+                    "role": "Fullstack Developer",
+                    "tag": "Who it is for",
+                    "filter": "audience"
+                },
+                "4": {
+                    "quote": "I systematized what I knew and found a role with more responsibility right after the course.",
+                    "name": "Maria Orlova",
+                    "role": "Senior Developer",
+                    "tag": "What changed",
+                    "filter": "after"
+                },
+                "5": {
+                    "quote": "Little fluff, advanced topics. First school where I actually finish every homework — and enjoy it.",
+                    "name": "Pavel Nesterov",
+                    "role": "Tech Lead",
+                    "tag": "How we differ",
+                    "filter": "difference"
+                },
+                "6": {
+                    "quote": "For people ready for the next step — mid to senior, or into team leadership.",
+                    "name": "Elena Savelyeva",
+                    "role": "Engineering Manager",
+                    "tag": "Who it is for",
+                    "filter": "audience"
+                }
+            }
+        },
+        "experts": {
+            "title": "School experts",
+            "subtitle": "We invite people for professional craft, not for big logos on a resume.",
+            "items": {
+                "1": {
+                    "name": "Sergey Sidorov",
+                    "role": "School author, .NET and systems architecture"
+                },
+                "2": {
+                    "name": "Anna Belova",
+                    "role": "Frontend engineer, Vue and developer experience"
+                },
+                "3": {
+                    "name": "Maxim Kozlov",
+                    "role": "DevOps and platform engineering"
+                },
+                "4": {
+                    "name": "Olga Petrova",
+                    "role": "Databases and query performance"
+                }
+            }
+        },
+        "faq": {
+            "title": "Questions and answers",
+            "items": {
+                "1": {
+                    "question": "Do you work with companies?",
+                    "answer": "Yes. Employees can join current cohorts, or we can run a dedicated stream for your team. Company pricing is slightly higher due to contracts and paperwork."
+                },
+                "2": {
+                    "question": "What payment methods do you accept?",
+                    "answer": "Pay online by card or via internet banking. Need something else — write to support and we will figure it out."
+                },
+                "3": {
+                    "question": "Is installment payment available?",
+                    "answer": "Yes, you can split payment into parts. Terms depend on the course — details are on the payment screen."
+                },
+                "4": {
+                    "question": "What if the course is not a fit?",
+                    "answer": "If within the first week you realize the format is not for you, we refund without a hassle."
+                },
+                "5": {
+                    "question": "I want to suggest a course topic. How?",
+                    "answer": "Email support{'@'}leanforge.dev — we will keep the request. If we have expertise in that area, we will launch a cohort."
+                }
+            }
+        },
+        "contacts": {
+            "title": "Contacts",
+            "subtitle": "Questions? Write us — we reply within a day.",
+            "email_label": "Email",
+            "email_placeholder": "you{'@'}example.com",
+            "consent": "By clicking the button I agree to the personal data processing rules",
+            "subscribe": "Subscribe",
+            "support": "support{'@'}leanforge.dev",
+            "newsletter_title": "We will write about new courses",
+            "newsletter_subtitle": "And offer a discount. No more than once a month."
+        }
+    }
+}

@@ -1,0 +1,6 @@
+@LF.WebApi_HostAddress = http://localhost:5207
+
+GET {{LF.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
