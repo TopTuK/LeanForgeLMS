@@ -1,0 +1,26 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vs/
+**/*.user
+.git/
+.github/
+.vscode/
+
+# Fresh SPA build only comes from the Dockerfile's node-build stage —
+# never let a stale local `npm run build` output leak into the image
+# (COPY merges directories rather than replacing them).
+LF.WebApi/wwwroot/
+
+# Never ship dev-only secrets/config into any image — LF.WebApi/Program.cs
+# unconditionally loads appsettings.Development.json after AddServiceDefaults(),
+# which would out-rank container env vars if this file were present.
+**/appsettings.Development.json
+
+.env
+.env.*
+
+*.md
+LeanForgeLMS.AppHost/

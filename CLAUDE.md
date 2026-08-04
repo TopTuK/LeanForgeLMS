@@ -4,7 +4,7 @@
 
 LeanForgeLMS is a Learning Management System built as a .NET 10 application. The domain has moderate business rules (enrollment, progress tracking, grading, course lifecycle) — not CRUD-only, but not a rich DDD domain either. It's a solo-developer project.
 
-The application runs as a single deployable unit (`LF.WebApi`) orchestrated by .NET Aspire, fronted by a Vue 3 SPA. A second Aspire-managed project, `LF.IdentityService`, exists alongside it but is still an unfinished scaffold — see [IdentityService status](#identityservice-status) below before building conventions around it.
+The application runs as two Aspire-managed services fronted by a Vue 3 SPA: `LF.WebApi` (MVC auth controllers + the growing Minimal API surface) and `LF.IdentityService`, a gRPC service that owns user identity data and is called from `LF.WebApi` as a gRPC client (shared `user_service.proto`) — see [IdentityService status](#identityservice-status) below.
 
 **Migration note:** this project originally started as a Modular Monolith (`LF.Modules.[Module]` class libraries). That direction has been abandoned in favor of layered Clean Architecture — `LF.AppDomain` (Domain), `LF.Application` (Application), `LF.Infrastructure` (Infrastructure), `LF.WebApi` (Api). If you find references to `LF.Modules.*` anywhere, they're stale.
 
@@ -12,13 +12,13 @@ The application runs as a single deployable unit (`LF.WebApi`) orchestrated by .
 
 ```
 LeanForgeLMS.slnx
-LeanForgeLMS.AppHost/            # .NET Aspire orchestration — registers lf-identityservice; lf-webapi registration is commented out (see AppHost.cs)
+LeanForgeLMS.AppHost/            # .NET Aspire orchestration — postgres wired to lf-identityservice; lf-webapi references lf-identityservice (gRPC client) and waits for it
 LeanForgeLMS.ServiceDefaults/    # Aspire service defaults — OpenTelemetry, resilience, service discovery
-LF.AppDomain/                    # Domain layer — currently empty, no project references (by design)
-LF.Application/                  # Application layer — currently empty
-LF.Infrastructure/                # Infrastructure layer — has AppDbContext (Npgsql referenced, not yet registered in DI, no connection string configured)
-LF.WebApi/                       # Host project (Microsoft.NET.Sdk.Web) — MVC controllers + JWT/Cookie/OIDC auth, references ServiceDefaults only
-LF.IdentityService/              # Separate Aspire project — still the default gRPC "Greeter" template, purpose undecided (see below)
+LF.AppDomain/                    # Domain layer — has real content: Entities/User/DbUser.cs, Models/User/Enums/UserRole.cs; zero project references (by design)
+LF.Application/                  # Application layer — Services/Authentication (AuthenticationService, TokenService), Services/User/UserService, ModelDto/*, Common/Interfaces/IAppDbContext.cs
+LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs (Npgsql), DI registered via AddInfrastructureDatabase() — but only wired up in LF.IdentityService/Program.cs, not LF.WebApi
+LF.WebApi/                       # Host project (Microsoft.NET.Sdk.Web) — MVC controllers + JWT/Cookie/OIDC auth; references ServiceDefaults, LF.Application, AND LF.Infrastructure directly; no LF.WebApi/Endpoints/ yet (still all MVC)
+LF.IdentityService/              # Separate Aspire project — real gRPC identity/user service (RpcUserService), owns AppDbContext registration; leftover unused Protos/greet.proto (see below)
 lf.webapp/                       # Vue 3 + Vite SPA (esproj), proxied in dev via UseSpa
 ```
 
@@ -70,11 +70,11 @@ LF.WebApi/
 
 ### IdentityService Status
 
-`LF.IdentityService` is scaffolded (Aspire + gRPC `Greeter` template) but its role hasn't been decided — it may become a real separate identity/auth service, or get folded back into `LF.WebApi`. Until that's settled:
+`LF.IdentityService` has moved past the scaffold stage: it's a real gRPC service (`RpcUserService : UserServiceRpc.UserServiceRpcBase`, `GetOrCreateUser`) that owns the Postgres-backed `AppDbContext` and user identity data. `LF.WebApi` talks to it as a gRPC client over the shared `user_service.proto` contract. The original default-template `Protos/greet.proto` is still present but unused — cleanup candidate, not a pattern to extend.
 
-- Don't build architectural conventions (module boundaries, event contracts, etc.) around it.
-- Don't wire real business logic into it without checking first.
-- Note `AppHost.cs` currently has `lf-webapi` commented out and `lf-identityservice` registered twice — worth cleaning up whenever this project is picked back up, but don't touch it as a drive-by edit.
+- Treat it as a real service boundary now — module/contract conventions can be built around it.
+- The gRPC contract (`user_service.proto`) is a cross-service boundary; changes to it affect both `LF.WebApi` and `LF.IdentityService` — check both call sites before editing messages/RPCs.
+- `AppDbContext` DI registration lives only in `LF.IdentityService/Program.cs` (via `AddInfrastructureDatabase()`); `LF.WebApi` does not register it despite referencing `LF.Infrastructure` — don't assume `AppDbContext` is resolvable in `LF.WebApi` without checking first.
 
 ## API Style
 
@@ -106,7 +106,7 @@ public sealed class CourseEndpoints : IEndpointGroup
 - **ASP.NET Core** — Minimal APIs for new endpoints (`IEndpointGroup` + auto-discovery); existing auth stays MVC controllers
 - **.NET Aspire** — AppHost + ServiceDefaults already wired up; OpenTelemetry, resilience, service discovery come from ServiceDefaults
 - **Authentication** — JWT Bearer (primary scheme) + Cookie + OpenID Connect via Duende.IdentityModel, already implemented in `LF.WebApi/Program.cs`. Do not change the auth scheme wiring without discussing it first — it has specific cookie/OIDC/JWT interplay (temp cookie sign-in scheme, authorization code redemption).
-- **Entity Framework Core + PostgreSQL (Npgsql)** — `Npgsql.EntityFrameworkCore.PostgreSQL` already referenced in `LF.Infrastructure`; `AppDbContext` exists but isn't registered in DI yet and has no connection string configured. Aspire AppHost already provisions a Postgres resource (`postgres`, database `aiquill`).
+- **Entity Framework Core + PostgreSQL (Npgsql)** — `Npgsql.EntityFrameworkCore.PostgreSQL` referenced in `LF.Infrastructure`; `AppDbContext` (in `Persistence/`) is registered via `AddInfrastructureDatabase()`, but only in `LF.IdentityService/Program.cs` — `LF.WebApi` does not call it. Aspire AppHost provisions a Postgres resource (`postgres`, database `leanforge`) wired only to `lf-identityservice`.
 - **Mediator** (source-generated, MIT) — command/query dispatch for Application-layer use cases; not yet added as a package reference.
 - **FluentValidation** — request validation
 - **Serilog** — structured logging (`Serilog.AspNetCore` already referenced in `LF.WebApi`, bootstrap logger configured in `Program.cs`)
@@ -118,7 +118,7 @@ public sealed class CourseEndpoints : IEndpointGroup
 ## Coding Standards
 
 - **C# 14 features** — primary constructors, collection expressions, `field` keyword, records, pattern matching
-- **File-scoped namespaces** — always (note: `LF.Infrastructure/db/AppDbContext.cs` still uses block-scoped namespace — fix opportunistically, don't leave as a pattern to copy)
+- **File-scoped namespaces** — always
 - **`var` for obvious types** — explicit types when the type isn't clear from context
 - **Naming** — PascalCase for public members, `_camelCase` for private fields, suffix async methods with `Async`
 - **No regions** — ever
@@ -215,4 +215,5 @@ Do NOT generate code that:
 - Catches bare `Exception` — catch specific types, let the global handler catch the rest
 - Uses string interpolation in log messages — use structured logging templates
 - Modifies the existing JWT/Cookie/OIDC scheme wiring in `LF.WebApi/Program.cs` without explicit discussion — it has specific interplay between the temp cookie sign-in scheme and OIDC code redemption
-- Builds real functionality into `LF.IdentityService` or wires it into `AppHost.cs` beyond cleanup, without checking first — its role isn't decided yet
+- Changes `user_service.proto` or the gRPC contract between `LF.WebApi` and `LF.IdentityService` without checking both call sites — it's a real cross-service boundary now
+- Assumes `AppDbContext` is DI-resolvable in `LF.WebApi` — it's only registered in `LF.IdentityService/Program.cs` today

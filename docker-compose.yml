@@ -1,0 +1,68 @@
+name: leanforgelms
+
+networks:
+  leanforge-public:
+    driver: bridge
+  leanforge-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  leanforge-postgres-data:
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks:
+      - leanforge-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leanforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-leanforge}
+    volumes:
+      - leanforge-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leanforge} -d ${POSTGRES_DB:-leanforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No ports: — internal-only, not host-exposed.
+
+  lf-identityservice:
+    build:
+      context: .
+      dockerfile: LF.IdentityService/Dockerfile
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — no egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    # No ports: — not reachable from the host.
+
+  lf-webapi:
+    build:
+      context: .
+      dockerfile: LF.WebApi/Dockerfile
+    restart: unless-stopped
+    networks:
+      - leanforge-public     # internet access for PmiAuth OIDC
+      - leanforge-internal   # reach lf-identityservice via gRPC
+    depends_on:
+      - lf-identityservice
+    ports:
+      - "${WEBAPI_HOST_PORT:-8081}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
+      # Microsoft.Extensions.ServiceDiscovery resolves "https+http://lf-identityservice"
+      # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
+      Services__lf-identityservice__http__0: "lf-identityservice:8080"
+    env_file:
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl
