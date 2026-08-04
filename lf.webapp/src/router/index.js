@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
+const CoursesView = () => import('@/views/CoursesView.vue');
 
 const routes = [
     {
@@ -22,6 +23,15 @@ const routes = [
         meta: {
             title: 'login_view_title',
             requiresAuth: false,
+        }
+    },
+    {
+        path: '/courses',
+        name: 'Courses',
+        component: CoursesView,
+        meta: {
+            title: 'courses_view_title',
+            requiresAuth: true,
         }
     },
 ];
@@ -43,14 +53,14 @@ router.beforeEach(async (to, from) => {
     console.log('Router::beforeEach: isAuthenticated=', isAuthenticated.value)
 
     if (isAuthenticated.value) {
-        if (!to.meta.requireAuth) {
-            console.log('Router::beforeEach: route does not require auth. Redirecting to Projects')
-            return { name: 'Projects' }
+        if (!to.meta.requiresAuth) {
+            console.log('Router::beforeEach: route does not require auth. Redirecting to Courses')
+            return { name: 'Courses' }
         }
     }
     else {
         // Allow access to routes that don't require auth
-        if (to.meta.requireAuth) {
+        if (to.meta.requiresAuth) {
             console.log('Router::beforeEach: route requires auth. Block navigation')
             return {
                 name: 'Login',

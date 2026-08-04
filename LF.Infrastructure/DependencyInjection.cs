@@ -2,6 +2,7 @@ using LF.Application.Common.Interfaces;
 using LF.Application.Services.User;
 using LF.IdentityService;
 using LF.Infrastructure.Persistence;
+using LF.Infrastructure.Persistence.Seed;
 using LF.Infrastructure.Services.Identity;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.Configure<List<DefaultAdminEntry>>(configuration.GetSection("DefaultAdmins"));
 
         return services;
     }

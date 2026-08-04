@@ -20,6 +20,7 @@
         "cookies": "Cookie policy"
     },
     "login_view_title": "Enter school — Lean Forge LMS",
+    "courses_view_title": "Courses — Lean Forge LMS",
     "login": {
         "eyebrow": "Student access",
         "title": "Enter the school",
@@ -27,10 +28,6 @@
         "pmi": {
             "title": "Continue with PMI Club",
             "description": "Use your PMI Club account to enter the learning platform."
-        },
-        "google": {
-            "title": "Continue with Google",
-            "description": "Use your Google account to enter the learning platform."
         },
         "note": "Authentication is provided securely by the selected service."
     },

@@ -1,3 +1,9 @@
+<script setup>
+function signInWithPmi() {
+  window.location.href = '/api/Auth/SignInPmi';
+}
+</script>
+
 <template>
   <section class="login-page">
     <div class="login-page__curve login-page__curve--top" aria-hidden="true" />
@@ -16,6 +22,7 @@
         <button
           type="button"
           class="login-tile login-tile--pmi"
+          @click="signInWithPmi"
         >
           <span class="login-tile__index" aria-hidden="true">01</span>
           <span class="login-tile__icon login-tile__icon--pmi" aria-hidden="true">
@@ -24,43 +31,6 @@
           <span class="login-tile__copy">
             <strong>{{ $t('login.pmi.title') }}</strong>
             <span>{{ $t('login.pmi.description') }}</span>
-          </span>
-          <span class="login-tile__arrow" aria-hidden="true">→</span>
-        </button>
-
-        <button
-          type="button"
-          class="login-tile login-tile--google"
-        >
-          <span class="login-tile__index" aria-hidden="true">02</span>
-          <span class="login-tile__icon login-tile__icon--google" aria-hidden="true">
-            <svg
-              width="30"
-              height="30"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <path
-                d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.98-4.33 2.98-7.39Z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 22c2.7 0 4.98-.9 6.63-2.43l-3.24-2.52c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.05v2.6A10 10 0 0 0 12 22Z"
-                fill="#34A853"
-              />
-              <path
-                d="M6.39 13.88A6 6 0 0 1 6.08 12c0-.65.11-1.28.31-1.88v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.39 3.14 1.05 4.48l3.34-2.6Z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.99c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.95 5.52l3.34 2.6C7.18 7.75 9.39 5.99 12 5.99Z"
-                fill="#EA4335"
-              />
-            </svg>
-          </span>
-          <span class="login-tile__copy">
-            <strong>{{ $t('login.google.title') }}</strong>
-            <span>{{ $t('login.google.description') }}</span>
           </span>
           <span class="login-tile__arrow" aria-hidden="true">→</span>
         </button>
@@ -129,10 +99,10 @@
 
 .login-options {
   display: grid;
-  max-width: 58rem;
+  max-width: 28rem;
   margin: 3rem auto 0;
   gap: 1.25rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .login-tile {
@@ -208,11 +178,6 @@
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-}
-
-.login-tile__icon--google {
-  background: var(--color-surface-950);
-  border: 1px solid var(--color-border-subtle);
 }
 
 .login-tile__copy {

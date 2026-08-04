@@ -19,7 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
         // We need this because useAuth may be called before router is initialized
         if (!router) return; 
 
-        if (router.currentRoute.value.meta.requireAuth && !newVal) {
+        if (router.currentRoute.value.meta.requiresAuth && !newVal) {
             router.push({ name: 'Login' })
         }
     });

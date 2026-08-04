@@ -9,7 +9,7 @@ using LFAppAuth = LF.Application.Services.Authentication;
 
 namespace LF.WebApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     public class AuthController(ILogger<AuthController> logger,
         IOptionsSnapshot<DefaultAuthOptions> authOptions,
@@ -47,6 +47,7 @@ namespace LF.WebApi.Controllers
             return Challenge(props, schemeName);
         }
 
+        [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> SingInPmiCallback()
         {
@@ -130,6 +131,7 @@ namespace LF.WebApi.Controllers
             }
         }
 
+        [HttpGet]
         [Authorize]
         public async Task<IActionResult> Logout()
         {

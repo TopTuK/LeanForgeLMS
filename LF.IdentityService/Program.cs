@@ -1,6 +1,7 @@
 using Lf.IdentityService.Services;
 using LF.Application;
 using LF.Infrastructure;
+using LF.Infrastructure.Persistence.Seed;
 using Mapster;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,8 @@ builder.Services.AddUserApplication();
 builder.Services.AddInfrastructureDatabase(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.InitializeDatabaseAsync();
 
 app.MapDefaultEndpoints();
 

@@ -9,7 +9,7 @@ var postgres = builder
     .WithEnvironment("POSTGRES_DB", "leanforge") // for scripts
     .WithUserName(pgUser)
     .WithPassword(pgPassword)
-    //.WithDataVolume("quill_postgres") // for debug do not save datavolume
+    //.WithDataVolume("leanforge-db") // for debug do not save datavolume
     .AddDatabase("leanforge");
 
 var identityService = builder
@@ -17,16 +17,17 @@ var identityService = builder
     .WithReference(postgres)
     .WaitFor(postgres);
 
-var webApi = builder
-    .AddProject<Projects.LF_WebApi>("lf-webapi")
-    .WithReference(identityService)
-    .WaitFor(identityService);
-
-builder
+var webApp = builder
     .AddViteApp("lf-webapp", "../lf.webapp")
     .WithNpm()
-    .WithHttpEndpoint(port: 5173, env: "PORT")
-    .WaitFor(webApi);
+    .WithHttpEndpoint(port: 5173, env: "PORT");
+
+builder
+    .AddProject<Projects.LF_WebApi>("lf-webapi")
+    .WithReference(identityService)
+    .WaitFor(identityService)
+    .WithReference(webApp)
+    .WaitFor(webApp);
 
 builder
     .Build()

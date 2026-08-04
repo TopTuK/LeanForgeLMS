@@ -20,6 +20,7 @@
         "cookies": "Политика cookie"
     },
     "login_view_title": "Войти в школу — Lean Forge LMS",
+    "courses_view_title": "Курсы — Lean Forge LMS",
     "login": {
         "eyebrow": "Доступ для учеников",
         "title": "Войти в школу",
@@ -27,10 +28,6 @@
         "pmi": {
             "title": "Войти через PMI Club",
             "description": "Используйте аккаунт PMI Club для входа в учебную платформу."
-        },
-        "google": {
-            "title": "Войти через Google",
-            "description": "Используйте аккаунт Google для входа в учебную платформу."
         },
         "note": "Безопасный вход выполняется на стороне выбранного сервиса."
     },

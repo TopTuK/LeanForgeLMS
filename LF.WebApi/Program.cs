@@ -18,7 +18,8 @@ Log.Logger = new LoggerConfiguration()
 static void ConfigureServices(IServiceCollection services)
 {
     services.AddAuthenticationApplication();
-    services.AddInfrastructureGrpcClient("https+http://lf-identityservice");
+    // GrpcChannel rejects Aspire's https+http scheme; http:// works with service discovery.
+    services.AddInfrastructureGrpcClient("http://lf-identityservice");
 }
 
 static void ConfigureOptions(IServiceCollection services)
@@ -38,8 +39,8 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
     builder.AddServiceDefaults();
-    builder.Configuration
-        .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+    //builder.Configuration
+    //    .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
 
     var configuration = builder.Configuration;
 
@@ -94,7 +95,10 @@ try
         .AddCookie(defaultAuth.TempAuthCookieName)
         .AddOpenIdConnect(pmiAuth.SchemeName, options =>
         {
-            options.Authority = pmiAuth.OpenIdConfigurationUrl;
+            // OpenIdConfigurationUrl is the full discovery document URL; Authority is the issuer base.
+            var metadataUri = new Uri(pmiAuth.OpenIdConfigurationUrl);
+            options.MetadataAddress = pmiAuth.OpenIdConfigurationUrl;
+            options.Authority = $"{metadataUri.Scheme}://{metadataUri.Authority}";
             options.ClientId = pmiAuth.ClientId;
             options.ClientSecret = pmiAuth.ClientSecret;
 
@@ -188,9 +192,13 @@ try
 
     if (env.IsDevelopment())
     {
+        // "services:lf-webapp:http:0" is injected by Aspire's WithReference(webApp) in AppHost.cs.
+        // Falls back to Vite's default dev port when running LF.WebApi standalone (without Aspire).
+        var webAppUri = configuration["services:lf-webapp:http:0"] ?? "http://localhost:5173";
+
         app.UseSpa(spa =>
         {
-            spa.UseProxyToSpaDevelopmentServer("http://localhost:5173");
+            spa.UseProxyToSpaDevelopmentServer(webAppUri);
         });
     }
     else
