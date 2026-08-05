@@ -1,12 +1,10 @@
 ﻿using LF.Application.ModelDto.User;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace LF.Application.Services.User
+namespace LF.Application.Services.User;
+
+public interface IUserService
 {
-    public interface IUserService
-    {
-        Task<UserDto> GetOrCreateUserAsync(GetOrCreateUserDto userRequestDto);
-    }
+    Task<UserDto> GetOrCreateUserAsync(GetOrCreateUserDto userRequestDto);
+    Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto);
 }
+

@@ -30,4 +30,21 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
 
         return getUserReply.Adapt<UserDto>();
     }
+
+    public async Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto)
+    {
+        _logger.LogInformation(
+            "GrpcIdentityService::EnsureUserWithRole: called with Email={Email} Role={Role}",
+            userRequestDto.Email,
+            userRequestDto.Role);
+
+        var request = userRequestDto.Adapt<EnsureUserWithRoleRequest>();
+        _logger.LogInformation("GrpcIdentityService::EnsureUserWithRole: sending EnsureUserWithRoleRequest: {@request}", request);
+
+        var reply = await _userServiceRpcClient.EnsureUserWithRoleAsync(request);
+        _logger.LogInformation("GrpcIdentityService::EnsureUserWithRole: received GetUserReply: {@reply}", reply);
+
+        return reply.Adapt<UserDto>();
+    }
 }
+

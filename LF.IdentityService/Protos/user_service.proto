@@ -11,6 +11,8 @@ package user_service;
 service UserServiceRpc {
   // Get or create user
   rpc GetOrCreateUser (GetUserRequest) returns (GetUserReply);
+  // Get or create user and ensure the given role
+  rpc EnsureUserWithRole (EnsureUserWithRoleRequest) returns (GetUserReply);
 }
 
 message GetUserRequest {
@@ -18,6 +20,14 @@ message GetUserRequest {
   string first_name = 2;
   google.protobuf.StringValue last_name = 3;
 }
+
+message EnsureUserWithRoleRequest {
+  string email = 1;
+  string first_name = 2;
+  google.protobuf.StringValue last_name = 3;
+  UserRole role = 4;
+}
+
 
 message GetUserReply {
   int32 id = 1;

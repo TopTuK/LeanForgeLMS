@@ -32,6 +32,17 @@
             "title": "Continue with Google",
             "description": "Use your Google account to enter the learning platform."
         },
+        "dev": {
+            "eyebrow": "Local development only",
+            "student": {
+                "title": "Login as Student",
+                "description": "Sign in with a fixed local student account. Available only in development."
+            },
+            "courseCreator": {
+                "title": "Login as Course Creator",
+                "description": "Sign in with a fixed local course creator account. Available only in development."
+            }
+        },
         "note": "Authentication is provided securely by the selected service."
     },
     "home": {

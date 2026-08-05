@@ -12,6 +12,9 @@ internal sealed class RpcUserMappingConfig : IRegister
         config.NewConfig<GetUserRequest, GetOrCreateUserDto>();
 
         // domain UserRole and proto UserRole share numeric values but not member names, so name-based mapping can't be trusted.
+        config.NewConfig<EnsureUserWithRoleRequest, EnsureUserWithRoleDto>()
+            .Map(dest => dest.Role, src => (LF.AppDomain.Models.User.Enums.UserRole)(int)src.Role);
+
         config.NewConfig<UserDto, GetUserReply>()
             .Map(dest => dest.Role, src => (UserRole)(int)src.Role)
             .Map(dest => dest.CreatedAt, src => Timestamp.FromDateTime(src.CreatedAt.ToUniversalTime()));

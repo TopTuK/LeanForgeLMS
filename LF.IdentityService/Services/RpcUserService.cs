@@ -24,4 +24,24 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
 
         return userDto.Adapt<GetUserReply>();
     }
+
+    public override async Task<GetUserReply> EnsureUserWithRole(EnsureUserWithRoleRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation(
+            "RpcUserService::EnsureUserWithRole: called with Email={usrEmail} FirstName={usrFirstName} Role={usrRole}",
+            request.Email,
+            request.FirstName,
+            request.Role);
+
+        var userDto = await _userService.EnsureUserWithRoleAsync(request.Adapt<EnsureUserWithRoleDto>());
+
+        _logger.LogInformation(
+            "RpcUserService::EnsureUserWithRole: user ensured Id={usrId} Email={usrEmail} Role={usrRole}",
+            userDto.Id,
+            userDto.Email,
+            userDto.Role);
+
+        return userDto.Adapt<GetUserReply>();
+    }
 }
+

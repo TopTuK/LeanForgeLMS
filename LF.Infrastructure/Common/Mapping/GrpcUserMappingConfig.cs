@@ -14,6 +14,10 @@ internal sealed class GrpcUserMappingConfig : IRegister
         config.NewConfig<UserAuthentificationDto, GetUserRequest>()
             .Map(dest => dest.FirstName, src => src.FirstName ?? string.Empty);
 
+        config.NewConfig<EnsureUserWithRoleDto, EnsureUserWithRoleRequest>()
+            .Map(dest => dest.FirstName, src => src.FirstName ?? string.Empty)
+            .Map(dest => dest.Role, src => (UserRole)(int)src.Role);
+
         // domain UserRole and proto UserRole share numeric values but not member names, so name-based mapping can't be trusted.
         config.NewConfig<GetUserReply, UserDto>()
             .Map(dest => dest.Role, src => (DomainUserRole)(int)src.Role)

@@ -1,3 +1,11 @@
+<script setup>
+const isDev = import.meta.env.DEV
+
+const loginAsDev = (role) => {
+  window.location.assign(`/api/Auth/DevLogin?role=${encodeURIComponent(role)}`)
+}
+</script>
+
 <template>
   <section class="login-page">
     <div class="login-page__curve login-page__curve--top" aria-hidden="true" />
@@ -64,6 +72,46 @@
           </span>
           <span class="login-tile__arrow" aria-hidden="true">→</span>
         </button>
+      </div>
+
+      <div
+        v-if="isDev"
+        class="login-dev"
+      >
+        <span class="login-dev__eyebrow">{{ $t('login.dev.eyebrow') }}</span>
+        <div class="login-options login-options--dev">
+          <button
+            type="button"
+            class="login-tile login-tile--dev"
+            @click="loginAsDev('Student')"
+          >
+            <span class="login-tile__index" aria-hidden="true">D1</span>
+            <span class="login-tile__icon login-tile__icon--dev" aria-hidden="true">
+              ST
+            </span>
+            <span class="login-tile__copy">
+              <strong>{{ $t('login.dev.student.title') }}</strong>
+              <span>{{ $t('login.dev.student.description') }}</span>
+            </span>
+            <span class="login-tile__arrow" aria-hidden="true">→</span>
+          </button>
+
+          <button
+            type="button"
+            class="login-tile login-tile--dev"
+            @click="loginAsDev('CourseCreator')"
+          >
+            <span class="login-tile__index" aria-hidden="true">D2</span>
+            <span class="login-tile__icon login-tile__icon--dev" aria-hidden="true">
+              CC
+            </span>
+            <span class="login-tile__copy">
+              <strong>{{ $t('login.dev.courseCreator.title') }}</strong>
+              <span>{{ $t('login.dev.courseCreator.description') }}</span>
+            </span>
+            <span class="login-tile__arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
       </div>
 
       <p class="login-page__note">
@@ -133,6 +181,35 @@
   margin: 3rem auto 0;
   gap: 1.25rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-dev {
+  max-width: 58rem;
+  margin: 2.5rem auto 0;
+}
+
+.login-dev__eyebrow {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--color-ink-faint);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.login-options--dev {
+  margin-top: 0;
+}
+
+.login-tile__icon--dev {
+  color: var(--color-ink);
+  background: var(--color-surface-950);
+  border: 1px solid var(--color-border-subtle);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .login-tile {

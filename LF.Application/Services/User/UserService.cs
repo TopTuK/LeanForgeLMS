@@ -34,4 +34,52 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
 
         return dbUser.Adapt<UserDto>();
     }
+
+    public async Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto)
+    {
+        _logger.LogInformation(
+            "UserService::EnsureUserWithRoleAsync: called with Email={Email} Role={Role}",
+            userRequestDto.Email,
+            userRequestDto.Role);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == userRequestDto.Email);
+        if (dbUser is null)
+        {
+            _logger.LogInformation(
+                "UserService::EnsureUserWithRoleAsync: user with email {Email} not found, creating with Role={Role}",
+                userRequestDto.Email,
+                userRequestDto.Role);
+
+            dbUser = new DbUser
+            {
+                Email = userRequestDto.Email,
+                FirstName = userRequestDto.FirstName,
+                LastName = userRequestDto.LastName ?? string.Empty,
+                Role = userRequestDto.Role,
+            };
+
+            _dbContext.Users.Add(dbUser);
+            await _dbContext.SaveChangesAsync();
+        }
+        else if (dbUser.Role != userRequestDto.Role)
+        {
+            _logger.LogInformation(
+                "UserService::EnsureUserWithRoleAsync: updating Role for Email={Email} from {OldRole} to {NewRole}",
+                userRequestDto.Email,
+                dbUser.Role,
+                userRequestDto.Role);
+
+            dbUser.Role = userRequestDto.Role;
+            await _dbContext.SaveChangesAsync();
+        }
+
+        _logger.LogInformation(
+            "UserService::EnsureUserWithRoleAsync: User ensured. UserId={UserId}, Email={Email}, Role={Role}",
+            dbUser.Id,
+            dbUser.Email,
+            dbUser.Role);
+
+        return dbUser.Adapt<UserDto>();
+    }
 }
+
