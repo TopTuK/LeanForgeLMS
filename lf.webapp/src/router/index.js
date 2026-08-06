@@ -5,6 +5,7 @@ import { storeToRefs } from "pinia";
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
+const ProfileView = () => import('@/views/ProfileView.vue');
 
 const routes = [
     {
@@ -31,6 +32,15 @@ const routes = [
         component: CoursesView,
         meta: {
             title: 'courses_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/profile',
+        name: 'Profile',
+        component: ProfileView,
+        meta: {
+            title: 'profile_view_title',
             requiresAuth: true,
         }
     },

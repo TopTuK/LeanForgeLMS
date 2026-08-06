@@ -97,6 +97,7 @@ namespace LF.WebApi.Controllers
                 // Create JWT token
                 var claims = new List<Claim>()
                 {
+                    new(ClaimTypes.NameIdentifier, userDto.Id.ToString()),
                     new("email", userDto.Email),
                     new("role", userDto.Role.ToString())
                 };

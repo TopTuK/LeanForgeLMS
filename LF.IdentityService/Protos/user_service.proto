@@ -11,6 +11,10 @@ package user_service;
 service UserServiceRpc {
   // Get or create user
   rpc GetOrCreateUser (GetUserRequest) returns (GetUserReply);
+  // Get a user's profile by id
+  rpc GetUserProfile (GetUserProfileRequest) returns (GetUserReply);
+  // Update a user's first/last name
+  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (GetUserReply);
 }
 
 message GetUserRequest {
@@ -19,6 +23,7 @@ message GetUserRequest {
   google.protobuf.StringValue last_name = 3;
 }
 
+// Canonical "full user" reply shape, reused by GetOrCreateUser, GetUserProfile and UpdateUserProfile.
 message GetUserReply {
   int32 id = 1;
   string email = 2;
@@ -26,6 +31,16 @@ message GetUserReply {
   google.protobuf.StringValue last_name = 4;
   UserRole role = 5;
   google.protobuf.Timestamp created_at = 6;
+}
+
+message GetUserProfileRequest {
+  int32 id = 1;
+}
+
+message UpdateUserProfileRequest {
+  int32 id = 1;
+  string first_name = 2;
+  google.protobuf.StringValue last_name = 3;
 }
 
 enum UserRole {

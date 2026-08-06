@@ -24,4 +24,27 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
 
         return userDto.Adapt<GetUserReply>();
     }
+
+    public override async Task<GetUserReply> GetUserProfile(GetUserProfileRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcUserService::GetUserProfile: called with Id={usrId}", request.Id);
+
+        var userDto = await _userService.GetUserByIdAsync(request.Id);
+        if (userDto is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"User {request.Id} not found"));
+
+        return userDto.Adapt<GetUserReply>();
+    }
+
+    public override async Task<GetUserReply> UpdateUserProfile(UpdateUserProfileRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcUserService::UpdateUserProfile: called with Id={usrId} FirstName={usrFirstName} LastName={usrLastName}",
+            request.Id, request.FirstName, request.LastName);
+
+        var userDto = await _userService.UpdateUserNameAsync(request.Id, request.Adapt<UpdateUserNameDto>());
+        if (userDto is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"User {request.Id} not found"));
+
+        return userDto.Adapt<GetUserReply>();
+    }
 }

@@ -1,4 +1,5 @@
 using LF.Application.Services.Authentication;
+using LF.Application.Services.Profile;
 using LF.Application.Services.User;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IProfileService, ProfileService>();
 
         return services;
     }

@@ -1,0 +1,139 @@
+using LF.AppDomain.Entities.User;
+using LF.AppDomain.Models.User.Enums;
+using LF.Application.Common.Interfaces;
+using LF.Application.ModelDto.User;
+using LF.Application.Services.User;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using MockQueryable.Moq;
+using Moq;
+
+namespace LF.ApplicationTests.Services.User;
+
+public class UserServiceTests
+{
+    private static UserService CreateService(
+        IReadOnlyCollection<DbUser> users,
+        out Mock<IAppDbContext> dbContextMock,
+        out Mock<DbSet<DbUser>> usersMock)
+    {
+        usersMock = users.ToList().BuildMockDbSet();
+
+        dbContextMock = new Mock<IAppDbContext>();
+        dbContextMock.SetupGet(c => c.Users).Returns(usersMock.Object);
+        dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        return new UserService(NullLogger<UserService>.Instance, dbContextMock.Object);
+    }
+
+    [Fact]
+    public async Task GetOrCreateUserAsync_UserDoesNotExist_CreatesUserWithStudentRole()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out var usersMock);
+        var request = new GetOrCreateUserDto { Email = "new@example.com", FirstName = "Ada", LastName = "Lovelace" };
+
+        // Act
+        var result = await service.GetOrCreateUserAsync(request);
+
+        // Assert
+        Assert.Equal(request.Email, result.Email);
+        Assert.Equal(request.FirstName, result.FirstName);
+        Assert.Equal(request.LastName, result.LastName);
+        Assert.Equal(UserRole.Student, result.Role);
+        usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Once);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOrCreateUserAsync_UserExists_ReturnsExistingWithoutInserting()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 1, Email = "existing@example.com", FirstName = "Grace", LastName = "Hopper", Role = UserRole.Instructor };
+        var service = CreateService([existing], out var dbContextMock, out var usersMock);
+        var request = new GetOrCreateUserDto { Email = existing.Email, FirstName = "Ignored", LastName = "Ignored" };
+
+        // Act
+        var result = await service.GetOrCreateUserAsync(request);
+
+        // Assert
+        Assert.Equal(existing.Id, result.Id);
+        Assert.Equal(existing.FirstName, result.FirstName);
+        Assert.Equal(UserRole.Instructor, result.Role);
+        usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Never);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetUserByIdAsync_UserExists_ReturnsDto()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 42, Email = "a@b.com", FirstName = "A", LastName = "B", Role = UserRole.Admin };
+        var service = CreateService([existing], out _, out _);
+
+        // Act
+        var result = await service.GetUserByIdAsync(42);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(existing.Email, result!.Email);
+        Assert.Equal(existing.Role, result.Role);
+    }
+
+    [Fact]
+    public async Task GetUserByIdAsync_UserDoesNotExist_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], out _, out _);
+
+        // Act
+        var result = await service.GetUserByIdAsync(999);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpdateUserNameAsync_UserExists_UpdatesNameAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Old", LastName = "Name", Role = UserRole.Student };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserNameDto { FirstName = "New", LastName = "Name2" };
+
+        // Act
+        var result = await service.UpdateUserNameAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("New", result!.FirstName);
+        Assert.Equal("Name2", result.LastName);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserNameAsync_UserDoesNotExist_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.UpdateUserNameAsync(123, new UpdateUserNameDto { FirstName = "X" });
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserNameAsync_EmptyFirstName_ThrowsArgumentException()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 1, Email = "a@b.com", FirstName = "Old", LastName = "Name" };
+        var service = CreateService([existing], out _, out _);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.UpdateUserNameAsync(1, new UpdateUserNameDto { FirstName = "   " }));
+    }
+}

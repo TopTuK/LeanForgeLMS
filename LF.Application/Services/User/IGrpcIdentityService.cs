@@ -9,5 +9,7 @@ namespace LF.Application.Services.User
     public interface IGrpcIdentityService
     {
         Task<UserDto> GetOrCreateUserAsync(UserAuthentificationDto userAuthentification);
+        Task<UserDto?> GetUserProfileAsync(int userId);
+        Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserNameDto dto);
     }
 }

@@ -10,6 +10,8 @@
         "reviews": "Reviews",
         "contacts": "Contacts",
         "login": "Enter school",
+        "profile": "Profile",
+        "logout": "Log out",
         "menu_toggle": "Toggle menu",
         "theme_light": "Switch to light theme",
         "theme_dark": "Switch to dark theme"
@@ -21,6 +23,16 @@
     },
     "login_view_title": "Enter school — Lean Forge LMS",
     "courses_view_title": "Courses — Lean Forge LMS",
+    "profile_view_title": "Profile — Lean Forge LMS",
+    "profile": {
+        "title": "Profile",
+        "email_label": "Email",
+        "first_name_label": "First name",
+        "last_name_label": "Last name",
+        "save": "Save changes",
+        "saved_confirmation": "Profile updated.",
+        "error_generic": "Something went wrong. Please try again."
+    },
     "login": {
         "eyebrow": "Student access",
         "title": "Enter the school",

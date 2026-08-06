@@ -1,6 +1,7 @@
 using Duende.IdentityModel.Client;
 using LF.Application;
 using LF.Infrastructure;
+using LF.WebApi.Endpoints;
 using LF.WebApi.Models.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -20,6 +21,19 @@ static void ConfigureServices(IServiceCollection services)
     services.AddAuthenticationApplication();
     // GrpcChannel rejects Aspire's https+http scheme; http:// works with service discovery.
     services.AddInfrastructureGrpcClient("http://lf-identityservice");
+}
+
+static void MapEndpointGroups(WebApplication app)
+{
+    var groups = typeof(Program).Assembly
+        .GetTypes()
+        .Where(t => t is { IsAbstract: false, IsInterface: false } && typeof(IEndpointGroup).IsAssignableFrom(t))
+        .Select(t => (IEndpointGroup)Activator.CreateInstance(t)!);
+
+    foreach (var group in groups)
+    {
+        group.Map(app);
+    }
 }
 
 static void ConfigureOptions(IServiceCollection services)
@@ -179,6 +193,8 @@ try
     // https://habr.com/ru/articles/468401/
     app.UseAuthentication();
     app.UseAuthorization();
+
+    MapEndpointGroups(app);
 
 #pragma warning disable ASP0014 // Suggest using top level route registrations
     app.UseEndpoints(ep =>

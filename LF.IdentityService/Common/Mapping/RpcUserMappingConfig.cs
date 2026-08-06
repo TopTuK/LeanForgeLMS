@@ -10,6 +10,7 @@ internal sealed class RpcUserMappingConfig : IRegister
     public void Register(TypeAdapterConfig config)
     {
         config.NewConfig<GetUserRequest, GetOrCreateUserDto>();
+        config.NewConfig<UpdateUserProfileRequest, UpdateUserNameDto>();
 
         // domain UserRole and proto UserRole share numeric values but not member names, so name-based mapping can't be trusted.
         config.NewConfig<UserDto, GetUserReply>()

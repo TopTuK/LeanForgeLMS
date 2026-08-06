@@ -34,4 +34,29 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
 
         return dbUser.Adapt<UserDto>();
     }
+
+    public async Task<UserDto?> GetUserByIdAsync(int id)
+    {
+        _logger.LogInformation("UserService::GetUserByIdAsync: called with Id={usrId}", id);
+
+        var dbUser = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+        return dbUser?.Adapt<UserDto>();
+    }
+
+    public async Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserNameDto dto)
+    {
+        _logger.LogInformation("UserService::UpdateUserNameAsync: called with Id={usrId}", id);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (dbUser is null)
+        {
+            _logger.LogInformation("UserService::UpdateUserNameAsync: user with Id={usrId} not found", id);
+            return null;
+        }
+
+        dbUser.UpdateName(dto.FirstName, dto.LastName);
+        await _dbContext.SaveChangesAsync();
+
+        return dbUser.Adapt<UserDto>();
+    }
 }

@@ -10,6 +10,8 @@
         "reviews": "Отзывы",
         "contacts": "Контакты",
         "login": "Войти в школу",
+        "profile": "Профиль",
+        "logout": "Выйти",
         "menu_toggle": "Открыть меню",
         "theme_light": "Включить светлую тему",
         "theme_dark": "Включить тёмную тему"
@@ -21,6 +23,16 @@
     },
     "login_view_title": "Войти в школу — Lean Forge LMS",
     "courses_view_title": "Курсы — Lean Forge LMS",
+    "profile_view_title": "Профиль — Lean Forge LMS",
+    "profile": {
+        "title": "Профиль",
+        "email_label": "Email",
+        "first_name_label": "Имя",
+        "last_name_label": "Фамилия",
+        "save": "Сохранить изменения",
+        "saved_confirmation": "Профиль обновлён.",
+        "error_generic": "Что-то пошло не так. Попробуйте ещё раз."
+    },
     "login": {
         "eyebrow": "Доступ для учеников",
         "title": "Войти в школу",

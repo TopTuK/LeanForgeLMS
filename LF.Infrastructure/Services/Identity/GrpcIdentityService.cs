@@ -1,3 +1,4 @@
+using Grpc.Core;
 using LF.Application.ModelDto.Authentication;
 using LF.Application.ModelDto.User;
 using LF.Application.Services.User;
@@ -29,5 +30,42 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
         _logger.LogInformation("GrpcIdentityService::GetOrCreateUser: received GetUserResponse: {@getUserReply}", getUserReply);
 
         return getUserReply.Adapt<UserDto>();
+    }
+
+    public async Task<UserDto?> GetUserProfileAsync(int userId)
+    {
+        _logger.LogInformation("GrpcIdentityService::GetUserProfileAsync: called with UserId={usrId}", userId);
+
+        try
+        {
+            var reply = await _userServiceRpcClient.GetUserProfileAsync(new GetUserProfileRequest { Id = userId });
+            return reply.Adapt<UserDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserNameDto dto)
+    {
+        _logger.LogInformation("GrpcIdentityService::UpdateUserProfileAsync: called with UserId={usrId}", userId);
+
+        var request = new UpdateUserProfileRequest
+        {
+            Id = userId,
+            FirstName = dto.FirstName,
+            LastName = dto.LastName ?? string.Empty,
+        };
+
+        try
+        {
+            var reply = await _userServiceRpcClient.UpdateUserProfileAsync(request);
+            return reply.Adapt<UserDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
     }
 }
