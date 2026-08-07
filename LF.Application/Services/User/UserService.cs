@@ -54,7 +54,34 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
             return null;
         }
 
-        dbUser.UpdateName(dto.FirstName, dto.LastName);
+        if (dbUser.UpdateName(dto.FirstName, dto.LastName))
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        else
+        {
+            _logger.LogInformation("UserService::UpdateUserNameAsync: no changes for Id={usrId}, skipping save", id);
+        }
+
+        return dbUser.Adapt<UserDto>();
+    }
+
+    public async Task<UserDto?> UpdateUserAvatarAsync(int id, UpdateUserAvatarDto dto)
+    {
+        _logger.LogInformation("UserService::UpdateUserAvatarAsync: called with Id={usrId}", id);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (dbUser is null)
+        {
+            _logger.LogInformation("UserService::UpdateUserAvatarAsync: user with Id={usrId} not found", id);
+            return null;
+        }
+
+        if (dto.AvatarKey is null)
+            dbUser.ClearAvatar();
+        else
+            dbUser.SetAvatar(dto.AvatarKey);
+
         await _dbContext.SaveChangesAsync();
 
         return dbUser.Adapt<UserDto>();

@@ -16,11 +16,12 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-static void ConfigureServices(IServiceCollection services)
+static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
 {
     services.AddAuthenticationApplication();
     // GrpcChannel rejects Aspire's https+http scheme; http:// works with service discovery.
     services.AddInfrastructureGrpcClient("http://lf-identityservice");
+    services.AddInfrastructureFileStorage(configuration);
 }
 
 static void MapEndpointGroups(WebApplication app)
@@ -53,6 +54,7 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
     builder.AddServiceDefaults();
+    builder.AddMinioClient("minio");
     //builder.Configuration
     //    .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
 
@@ -166,7 +168,7 @@ try
         });
 
     // Configure application services
-    ConfigureServices(builder.Services);
+    ConfigureServices(builder.Services, configuration);
 
     var env = builder.Environment;
 

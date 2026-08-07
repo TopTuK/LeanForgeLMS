@@ -1,99 +1,201 @@
-# LeanForgeLMS
+# Lean Forge LMS
 
-A Learning Management System (enrollment, progress tracking, grading, course lifecycle) built with .NET 10, Clean Architecture, and a Vue 3 SPA frontend.
+Lean Forge LMS is a Learning Management System for an online school for developers. It's a solo-developer project built on **.NET 10** with a **Vue 3** SPA frontend, orchestrated locally with **.NET Aspire** and deployed to production as plain **Docker Compose** services.
 
-## Tech Stack
-
-- **.NET 10** / C# 14, **ASP.NET Core** (Minimal APIs for new endpoints; existing auth stays MVC controllers)
-- **.NET Aspire** — local orchestration (Postgres in Docker, service discovery, OpenTelemetry, dashboard)
-- **Entity Framework Core + PostgreSQL** (Npgsql)
-- **gRPC** — `LF.WebApi` talks to `LF.IdentityService` over gRPC for user identity
-- **Mapster** — DTO ↔ domain object mapping
-- **JWT Bearer + Cookie + OpenID Connect** (Duende.IdentityModel) authentication
-- **Serilog** — structured logging
-- **Frontend**: Vue 3 + Vite, Pinia, vue-router, vue-i18n, Vuestic UI, Tailwind CSS v4
+The domain has moderate business rules (enrollment, progress tracking, grading, course lifecycle) — not CRUD-only, but not a rich DDD domain either. Today the implemented slice covers authentication, user identity, and profile/avatar management; the course/enrollment domain is not yet built out.
 
 ## Architecture
 
-Clean Architecture with dependencies pointing inward:
+### Service topology
 
+The system runs as **two independently deployable ASP.NET Core processes** plus the SPA, not a single monolith:
+
+- **`LF.WebApi`** — the only public-facing process. Hosts the Vue SPA, the JWT/Cookie/OIDC authentication pipeline (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s). It never touches Postgres directly.
+- **`LF.IdentityService`** — an internal gRPC-only service that owns the Postgres-backed `AppDbContext` and all user identity data. It is not reachable from outside the deployment network.
+- **MinIO** — S3-compatible object storage for user avatar uploads. Only `LF.WebApi` talks to it; it is never exposed to the browser.
+
+```mermaid
+graph LR
+    Browser["Browser<br/>(Vue 3 SPA)"]
+    PMI["PMI Club<br/>(OpenID Connect provider)"]
+
+    subgraph Public["Public network"]
+        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC"]
+    end
+
+    subgraph Internal["Internal-only network"]
+        IdentitySvc["LF.IdentityService<br/>gRPC (UserServiceRpc)"]
+        Postgres[("PostgreSQL<br/>leanforge")]
+        Minio[("MinIO<br/>avatars bucket")]
+    end
+
+    Browser -- "HTTPS / JSON (JWT Bearer)" --> WebApi
+    WebApi -- "OIDC redirect" --> PMI
+    WebApi -- "gRPC: user_service.proto" --> IdentitySvc
+    WebApi -- "S3 API (upload/download avatar bytes)" --> Minio
+    IdentitySvc --> Postgres
 ```
-LF.AppDomain          Domain layer — entities, enums. Zero project/framework references.
-    ↑
-LF.Application        Use cases, DTOs, service interfaces. References AppDomain only.
-    ↑
-LF.Infrastructure     EF Core persistence, gRPC clients, external services.
-    ↑
-LF.WebApi / LF.IdentityService   Hosts. Reference all three, depend on abstractions.
+
+Why the split exists: `LF.IdentityService` is the single owner of user identity data and the Postgres connection. `LF.WebApi` reaches it exclusively through the shared `user_service.proto` gRPC contract — it has no `AppDbContext` registration of its own, even though it references `LF.Infrastructure`. Avatar files are the one exception to "WebApi never touches infrastructure directly": since MinIO needs no schema/migrations and `LF.WebApi` is the only process handling HTTP file uploads, it talks to MinIO directly via `IFileStorageService`, and only the resulting **object key** (not the file) is persisted in Postgres through the existing gRPC round-trip.
+
+### Clean Architecture layers
+
+Within each service, code follows Clean Architecture with dependencies pointing strictly inward:
+
+```mermaid
+graph BT
+    Domain["LF.AppDomain<br/>(Domain)<br/>zero project references"]
+    App["LF.Application<br/>(Application)"]
+    Infra["LF.Infrastructure<br/>(Infrastructure)"]
+    WebApi["LF.WebApi (Api)"]
+    IdentitySvc["LF.IdentityService (Api)"]
+
+    App --> Domain
+    Infra --> App
+    Infra --> Domain
+    WebApi --> Infra
+    WebApi --> App
+    WebApi --> Domain
+    IdentitySvc --> Infra
+    IdentitySvc --> App
+    IdentitySvc --> Domain
 ```
+
+| Layer | Project | Responsibility |
+|---|---|---|
+| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`), enums (`UserRole`). Zero project or framework references by design. |
+| Application | `LF.Application` | Use-case services (`UserService`, `ProfileService`, `AuthenticationService`, `TokenService`), DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IGrpcIdentityService`). |
+| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql), the gRPC client to `LF.IdentityService`, and the MinIO-backed `IFileStorageService` implementation. Split into narrow DI extensions (`AddInfrastructureDatabase`, `AddInfrastructureGrpcClient`, `AddInfrastructureFileStorage`) so each host wires up only what it needs. |
+| Api | `LF.WebApi`, `LF.IdentityService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (existing auth) + Minimal API (`IEndpointGroup`, auto-discovered, new features). `LF.IdentityService` is a bare gRPC host. |
+
+Two intentional deviations from "textbook" Clean Architecture, worth knowing about:
+
+- **`AppDbContext` is registered in only one host.** `LF.WebApi` references `LF.Infrastructure` but never calls `AddInfrastructureDatabase()` — it has no direct database access. `LF.IdentityService` is the only process where `AppDbContext`/`IAppDbContext` are resolvable.
+- **`LF.Application`'s DI is split by host, not one `AddApplication()`.** `AddAuthenticationApplication()` (auth/token/profile services, needs `IGrpcIdentityService`) is called only by `LF.WebApi`; `AddUserApplication()` (`UserService`, needs `IAppDbContext`) is called only by `LF.IdentityService`. ASP.NET Core validates the whole DI graph at `Build()`, so a single umbrella registration would crash whichever host doesn't have all the dependencies wired up.
+
+### Authentication flow
+
+Login is PMI Club (OpenID Connect) only today; a `GoogleAuthOptions` type exists but isn't wired into the pipeline yet.
+
+1. Browser hits `GET /api/Auth/SignInPmi` → `LF.WebApi` issues an OIDC `Challenge` against the PMI Club provider, using a **temporary cookie sign-in scheme** to hold the handshake state.
+2. PMI redirects back to `GET /api/Auth/SingInPmiCallback` with an authorization code. `AuthController` reads the temp-cookie principal, extracts `sub`/`email`/`name` claims, and calls `AuthenticationService.AuthenticatePmiUserAsync`.
+3. That call goes over gRPC to `LF.IdentityService` (`GetOrCreateUser`), which looks up or creates the `DbUser` row (`Role = Student` by default for new users).
+4. `LF.WebApi` mints its **own JWT** (`TokenService.CreateWebJwtToken`) from the returned user, containing `NameIdentifier`, `email`, and `role` claims, and stores it in a **non-`HttpOnly` cookie** (`LfAuthCookie`) — deliberately readable by client-side JS.
+5. The Vue SPA reads that cookie value directly (`js-cookie`) and attaches it as an `Authorization: Bearer` header on every `axios` call (see `lf.webapp/src/services/api.js`). This is why authenticated resources meant for `<img>`/direct browser navigation (like the avatar endpoint) have to be fetched as a blob via `axios` and turned into an object URL — a plain `<img src>` request carries no bearer header.
+
+JWT Bearer is the default authenticate/challenge scheme for the rest of the API; the OIDC and temp-cookie schemes exist solely to complete the PMI handshake. This wiring in `LF.WebApi/Program.cs` is deliberately fragile (specific cookie/OIDC/JWT interplay) and isn't changed casually.
+
+### Avatar storage
+
+- Bucket `avatars` in MinIO, provisioned by a small `IHostedService` (`MinioBucketInitializer`) on `LF.WebApi` startup.
+- Upload (`POST /api/profile/avatar`) validates content-type (PNG/JPEG/WEBP) and size (≤5 MB), stores the file under a fresh `avatars/{userId}/{guid}{ext}` key, persists the key via `ProfileService.UpdateAvatarAsync` → gRPC → Postgres, and deletes the previous object.
+- Download (`GET /api/profile/avatar`) streams the stored object, or falls back to a bundled default SVG (`LF.WebApi/wwwroot/images/default-avatar.svg`) when the user has no custom avatar — so "new users get a default avatar" requires no seeding step.
+- `DELETE /api/profile/avatar` clears the reference and reverts to the default image.
+- MinIO is never reachable from the browser, in Aspire dev orchestration or in `docker-compose.yml` — the same internal-only-network posture as Postgres.
+
+## Project structure
 
 ```
 LeanForgeLMS.slnx
-LeanForgeLMS.AppHost/            .NET Aspire orchestration (Postgres, WebApi, IdentityService, SPA dev server)
-LeanForgeLMS.ServiceDefaults/    Aspire service defaults — OpenTelemetry, resilience, service discovery
-LF.AppDomain/                    Domain layer — entities, enums
-LF.Application/                  Application layer — use cases, DTOs, Mapster config, IAppDbContext
-LF.Infrastructure/                Infrastructure layer — EF Core (AppDbContext), gRPC client
-LF.WebApi/                       Host — MVC auth controllers + Minimal API endpoints, serves the SPA
-LF.IdentityService/              gRPC service — owns the Postgres-backed user store
-lf.webapp/                       Vue 3 + Vite SPA
+LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), lf-identityservice, lf-webapi
+LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: OpenTelemetry, health checks, service discovery, HTTP resilience
+LF.AppDomain/                    # Domain layer — Entities/User/DbUser.cs, Models/User/Enums/UserRole.cs
+LF.Application/                  # Application layer — Services/{Authentication,Profile,User}, ModelDto/*, Common/Interfaces, Common/Mapping
+LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs, Services/Identity (gRPC client), Services/Storage (MinIO)
+LF.WebApi/                       # Public host — MVC auth controllers, Endpoints/ (Minimal API), Program.cs auth pipeline
+LF.IdentityService/              # Internal gRPC host — Services/RpcUserService.cs, Protos/user_service.proto
+LF.ApplicationTests/             # xUnit v3 unit tests for LF.Application (Moq + MockQueryable.Moq)
+lf.webapp/                       # Vue 3 + Vite SPA
+docker-compose.yml               # Production deployment (postgres, minio, lf-identityservice, lf-webapi)
 ```
 
-See [CLAUDE.md](CLAUDE.md) for detailed conventions and target structure (this repo is set up for AI-assisted development with Claude Code).
+## Tech stack
 
-## Prerequisites
+| Concern | Choice |
+|---|---|
+| Runtime | .NET 10 / C# 14 |
+| Web framework | ASP.NET Core — MVC (existing auth) + Minimal APIs (`IEndpointGroup`, new features) |
+| Local orchestration | .NET Aspire (AppHost + ServiceDefaults) |
+| Inter-service RPC | gRPC (`Grpc.AspNetCore` / `Grpc.Net.Client`), contract in `LF.IdentityService/Protos/user_service.proto` |
+| Database | PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`, owned solely by `LF.IdentityService` |
+| Object storage | MinIO (`CommunityToolkit.Aspire.Hosting.Minio` + `.Minio.Client`), owned solely by `LF.WebApi`, for avatar uploads |
+| Authentication | JWT Bearer (primary scheme) + Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club |
+| Object mapping | Mapster |
+| Validation | FluentValidation (referenced in `LF.WebApi` today) |
+| Logging | Serilog (`Serilog.AspNetCore`) |
+| Observability | OpenTelemetry (traces + metrics) via `LeanForgeLMS.ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
+| Testing | xUnit v3 + Moq + MockQueryable.Moq (unit tests only today — Testcontainers/WebApplicationFactory integration testing is planned, not yet built) |
+| Frontend | Vue 3 (Composition API) + Vite, Pinia, vue-router, vue-i18n (en/ru), Vuestic UI, Tailwind CSS v4, axios |
+| Containerization | Multi-stage Dockerfiles (Node build → .NET SDK build → ASP.NET runtime), Docker Compose for production |
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Node.js](https://nodejs.org/) `^22.18.0 || >=24.12.0`
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — Aspire provisions Postgres as a container
+**Not yet decided / explicitly deferred:** caching (no HybridCache/Redis), inter-service messaging (no Wolverine/MassTransit — gRPC direct calls only), the course/enrollment domain itself.
 
-## Getting Started
+## Getting started
 
-1. Clone the repo.
-2. Configure secrets for `LF.WebApi` (see [Configuration & Secrets](#configuration--secrets) below).
-3. Run everything via Aspire:
+### Prerequisites
 
-   ```bash
-   dotnet run --project LeanForgeLMS.AppHost
-   ```
+- .NET 10 SDK
+- Node.js 22.18+ (or 24.12+)
+- Docker (for the Aspire-managed Postgres/MinIO containers, or for `docker-compose.yml`)
 
-   This starts Postgres (Docker), `LF.IdentityService`, `LF.WebApi`, and the Vite dev server for `lf.webapp`, and prints an Aspire dashboard URL where you can see all resources, logs, and traces.
-
-## Configuration & Secrets
-
-`LF.WebApi/appsettings.json` contains placeholder values for `PmiAuth:ClientSecret` — **never commit real secrets to this file.** For local development, use [.NET User Secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets):
+### Run everything via Aspire (recommended)
 
 ```bash
-cd LF.WebApi
-dotnet user-secrets set "PmiAuth:ClientSecret" "<real-secret>"
+dotnet run --project LeanForgeLMS.AppHost
 ```
 
-In deployed environments, set secrets via environment variables (`PmiAuth__ClientSecret`) or a secret manager — never bake them into `appsettings.json`. The same applies to `DefaultAuth:JwtKey` before any production deployment.
+This starts Postgres, MinIO, the Vite dev server, `LF.IdentityService`, and `LF.WebApi`, wires connection strings/service discovery between them automatically, and opens the Aspire dashboard (OpenTelemetry traces/metrics/logs for every resource).
 
-The Postgres connection string (`ConnectionStrings:leanforge`) is injected automatically when running via the AppHost. `LF.IdentityService/appsettings.Development.json` has a local-only fallback (`leanforge`/`leanforge`) for running `LF.IdentityService` standalone without Aspire.
-
-## Other Commands
+### Run services standalone (without Aspire)
 
 ```bash
-# Build entire solution
+# Identity service — needs its own Postgres connection string configured
+dotnet run --project LF.IdentityService     # http://localhost:5296
+
+# Web API — needs LF.IdentityService and MinIO reachable, and PmiAuth/DefaultAuth config set
+dotnet run --project LF.WebApi              # http://localhost:5207
+
+# Frontend dev server, proxied by LF.WebApi in Development
+cd lf.webapp && npm run dev                 # http://localhost:5173
+```
+
+### Build & test
+
+```bash
 dotnet build LeanForgeLMS.slnx
+dotnet test
+cd lf.webapp && npm run lint
+```
 
-# Run the API directly (without Aspire — gRPC calls to IdentityService won't resolve)
-dotnet run --project LF.WebApi
+### Database migrations
 
-# Run the frontend dev server standalone
-cd lf.webapp && npm run dev
+`AppDbContext` is registered **only** in `LF.IdentityService` — use it as the startup project:
 
-# Add an EF Core migration
+```bash
 dotnet ef migrations add <Name> \
   --project LF.Infrastructure \
   --startup-project LF.IdentityService \
   --context AppDbContext
-
-# Format check
-dotnet format --verify-no-changes
 ```
 
-## Testing
+## Production deployment (Docker Compose)
 
-No test projects exist yet. The intended stack is xUnit v3 + Testcontainers (real PostgreSQL, not in-memory) + WebApplicationFactory for integration tests.
+`docker-compose.yml` defines four services across two Docker networks:
+
+| Service | Network(s) | Host-exposed? |
+|---|---|---|
+| `postgres` | `leanforge-internal` | No |
+| `minio` | `leanforge-internal` | No — avatar bytes are always proxied through `lf-webapi` |
+| `lf-identityservice` | `leanforge-internal` | No — gRPC only, reached by `lf-webapi` |
+| `lf-webapi` | `leanforge-public` + `leanforge-internal` | Yes (`${WEBAPI_HOST_PORT:-8081}` → `8080`) |
+
+`lf-webapi` is the only container with a published port and the only one on the public network (it needs outbound internet access for the PMI OIDC handshake). Everything else is internal-only and unreachable from the host or the internet.
+
+```bash
+cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey, PmiAuth__*
+docker compose up --build
+```
+
+## Coding conventions
+
+Architecture rules, anti-patterns, and detailed conventions for contributing (Clean Architecture layering, Minimal API endpoint groups, gRPC contract-change discipline, auth-wiring cautions, etc.) live in [`CLAUDE.md`](./CLAUDE.md).

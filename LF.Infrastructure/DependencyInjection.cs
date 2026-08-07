@@ -4,10 +4,12 @@ using LF.IdentityService;
 using LF.Infrastructure.Persistence;
 using LF.Infrastructure.Persistence.Seed;
 using LF.Infrastructure.Services.Identity;
+using LF.Infrastructure.Services.Storage;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace LF.Infrastructure;
 
@@ -34,6 +36,15 @@ public static class DependencyInjection
             options.Address = new Uri(identityServiceAddress);
         });
         services.AddScoped<IGrpcIdentityService, GrpcIdentityService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddInfrastructureFileStorage(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<MinioStorageOptions>(configuration.GetSection("Minio"));
+        services.AddScoped<IFileStorageService, MinioFileStorageService>();
+        services.AddHostedService<MinioBucketInitializer>();
 
         return services;
     }

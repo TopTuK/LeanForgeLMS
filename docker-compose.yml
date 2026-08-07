@@ -9,6 +9,7 @@ networks:
 
 volumes:
   leanforge-postgres-data:
+  leanforge-minio-data:
 
 services:
   postgres:
@@ -28,6 +29,24 @@ services:
       timeout: 5s
       retries: 10
     # No ports: — internal-only, not host-exposed.
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-internal
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - leanforge-minio-data:/data
+    command: server /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No ports: — internal-only; avatar bytes are proxied through lf-webapi.
 
   lf-identityservice:
     build:
@@ -54,7 +73,10 @@ services:
       - leanforge-public     # internet access for PmiAuth OIDC
       - leanforge-internal   # reach lf-identityservice via gRPC
     depends_on:
-      - lf-identityservice
+      lf-identityservice:
+        condition: service_started
+      minio:
+        condition: service_healthy
     ports:
       - "${WEBAPI_HOST_PORT:-8081}:8080"
     environment:
@@ -64,5 +86,6 @@ services:
       # Microsoft.Extensions.ServiceDiscovery resolves "https+http://lf-identityservice"
       # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
       Services__lf-identityservice__http__0: "lf-identityservice:8080"
+      ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl

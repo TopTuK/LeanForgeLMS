@@ -12,6 +12,11 @@ var postgres = builder
     //.WithDataVolume("leanforge-db") // for debug do not save datavolume
     .AddDatabase("leanforge");
 
+var minioUser = builder.AddParameter("minio-user", "minioadmin");
+var minioPassword = builder.AddParameter("minio-password", "minioadmin", secret: true);
+
+var minio = builder.AddMinioContainer("minio", minioUser, minioPassword, port: 9000);
+
 var identityService = builder
     .AddProject<Projects.LF_IdentityService>("lf-identityservice")
     .WithReference(postgres)
@@ -27,7 +32,9 @@ builder
     .WithReference(identityService)
     .WaitFor(identityService)
     .WithReference(webApp)
-    .WaitFor(webApp);
+    .WaitFor(webApp)
+    .WithReference(minio)
+    .WaitFor(minio);
 
 builder
     .Build()

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
-import { updateProfile } from '@/services/profileService';
+import { updateProfile, uploadAvatar, deleteAvatar } from '@/services/profileService';
 
 const authStore = useAuthStore();
 
@@ -10,6 +10,10 @@ const fieldErrors = ref({});
 const isSaving = ref(false);
 const isSaved = ref(false);
 const errorMessage = ref('');
+
+const avatarInput = ref(null);
+const isUpdatingAvatar = ref(false);
+const avatarError = ref('');
 
 const email = computed(() => authStore.user?.email ?? '');
 
@@ -21,9 +25,42 @@ function syncFormFromUser() {
 onMounted(async () => {
   if (!authStore.user) {
     await authStore.fetchUser();
+    await authStore.refreshAvatar();
   }
   syncFormFromUser();
 });
+
+async function onAvatarFileSelected(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+
+  avatarError.value = '';
+  isUpdatingAvatar.value = true;
+  try {
+    const updated = await uploadAvatar(file);
+    authStore.updateUser(updated);
+    await authStore.refreshAvatar();
+  } catch (err) {
+    avatarError.value = err.response?.data?.errors?.file?.[0] ?? 'profile.avatar_error_generic';
+  } finally {
+    isUpdatingAvatar.value = false;
+  }
+}
+
+async function onRemoveAvatar() {
+  avatarError.value = '';
+  isUpdatingAvatar.value = true;
+  try {
+    const updated = await deleteAvatar();
+    authStore.updateUser(updated);
+    await authStore.refreshAvatar();
+  } catch {
+    avatarError.value = 'profile.avatar_error_generic';
+  } finally {
+    isUpdatingAvatar.value = false;
+  }
+}
 
 async function onSave() {
   isSaving.value = true;
@@ -54,6 +91,44 @@ async function onSave() {
     <div class="container mx-auto px-6 py-16 md:py-24 relative z-10">
       <div class="profile-card">
         <h1>{{ $t('profile.title') }}</h1>
+
+        <div class="profile-avatar">
+          <img
+            v-if="authStore.avatarUrl"
+            :src="authStore.avatarUrl"
+            alt=""
+            class="profile-avatar__image"
+          >
+          <div class="profile-avatar__actions">
+            <button
+              type="button"
+              class="profile-avatar__button"
+              :disabled="isUpdatingAvatar"
+              @click="avatarInput.click()"
+            >
+              {{ $t('profile.avatar_change') }}
+            </button>
+            <button
+              type="button"
+              class="profile-avatar__button profile-avatar__button--ghost"
+              :disabled="isUpdatingAvatar"
+              @click="onRemoveAvatar"
+            >
+              {{ $t('profile.avatar_remove') }}
+            </button>
+            <input
+              ref="avatarInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              class="profile-avatar__input"
+              @change="onAvatarFileSelected"
+            >
+          </div>
+          <span
+            v-if="avatarError"
+            class="profile-field__error"
+          >{{ $t(avatarError) }}</span>
+        </div>
 
         <form @submit.prevent="onSave">
           <div class="profile-field">
@@ -143,6 +218,58 @@ async function onSave() {
     font-size: 1.75rem;
     font-weight: 800;
     letter-spacing: -0.02em;
+}
+
+.profile-avatar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.profile-avatar__image {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid var(--color-border-subtle);
+}
+
+.profile-avatar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.profile-avatar__input {
+    display: none;
+}
+
+.profile-avatar__button {
+    padding: 0.5rem 1rem;
+    color: var(--color-ink);
+    background: var(--color-surface-950);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.profile-avatar__button:hover:not(:disabled) {
+    border-color: var(--color-ink-faint);
+}
+
+.profile-avatar__button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.profile-avatar__button--ghost {
+    color: var(--color-ink-muted);
+    background: transparent;
 }
 
 .profile-field {

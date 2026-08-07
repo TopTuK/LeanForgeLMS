@@ -4,12 +4,13 @@ import { COOKIE_NAME } from '@/config';
 import Cookies from 'js-cookie';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
-import { fetchProfile } from '@/services/profileService';
+import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
 
 export const useAuthStore = defineStore('auth', () => {
     // State
     const hasCookie = ref(Boolean(Cookies.get(COOKIE_NAME)))
     const user = ref(null) // { firstName, lastName, email }
+    const avatarUrl = ref(null) // object URL for the current user's avatar image
 
     // Getters
     const isAuthenticated = computed(() => {
@@ -42,6 +43,19 @@ export const useAuthStore = defineStore('auth', () => {
         }
     };
 
+    const refreshAvatar = async () => {
+        if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
+        avatarUrl.value = null;
+
+        if (!hasCookie.value) return;
+
+        try {
+            avatarUrl.value = await fetchAvatarObjectUrl()
+        } catch {
+            avatarUrl.value = null
+        }
+    };
+
     const updateUser = (updated) => {
         user.value = { ...user.value, ...updated }
     };
@@ -56,10 +70,13 @@ export const useAuthStore = defineStore('auth', () => {
         Cookies.remove(COOKIE_NAME)
         hasCookie.value = false
         user.value = null
+
+        if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
+        avatarUrl.value = null
     };
 
     return {
-        hasCookie, isAuthenticated, user, fetchUser, updateUser, logout,
+        hasCookie, isAuthenticated, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
     }
 });
 

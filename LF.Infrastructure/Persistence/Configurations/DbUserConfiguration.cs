@@ -14,5 +14,6 @@ internal sealed class DbUserConfiguration : IEntityTypeConfiguration<DbUser>
         builder.Property(u => u.Id).ValueGeneratedOnAdd();
 
         builder.Property(u => u.Email).IsRequired();
+        builder.Property(u => u.AvatarKey).HasMaxLength(260);
     }
 }

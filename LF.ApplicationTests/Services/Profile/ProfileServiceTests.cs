@@ -57,4 +57,38 @@ public class ProfileServiceTests
         Assert.Same(expected, result);
         identityMock.Verify(s => s.UpdateUserProfileAsync(1, dto), Times.Once);
     }
+
+    [Fact]
+    public async Task UpdateAvatarAsync_DelegatesToIdentityService()
+    {
+        // Arrange
+        var expected = new UserDto { Id = 1, Email = "a@b.com", FirstName = "A", AvatarKey = "avatars/1/new.png" };
+        var identityMock = new Mock<IGrpcIdentityService>();
+        identityMock.Setup(s => s.UpdateUserAvatarAsync(1, "avatars/1/new.png")).ReturnsAsync(expected);
+        var service = new ProfileService(NullLogger<ProfileService>.Instance, identityMock.Object);
+
+        // Act
+        var result = await service.UpdateAvatarAsync(1, "avatars/1/new.png");
+
+        // Assert
+        Assert.Same(expected, result);
+        identityMock.Verify(s => s.UpdateUserAvatarAsync(1, "avatars/1/new.png"), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAvatarAsync_NullAvatarKey_DelegatesToIdentityServiceToClearAvatar()
+    {
+        // Arrange
+        var expected = new UserDto { Id = 1, Email = "a@b.com", FirstName = "A", AvatarKey = null };
+        var identityMock = new Mock<IGrpcIdentityService>();
+        identityMock.Setup(s => s.UpdateUserAvatarAsync(1, null)).ReturnsAsync(expected);
+        var service = new ProfileService(NullLogger<ProfileService>.Instance, identityMock.Object);
+
+        // Act
+        var result = await service.UpdateAvatarAsync(1, null);
+
+        // Assert
+        Assert.Same(expected, result);
+        identityMock.Verify(s => s.UpdateUserAvatarAsync(1, null), Times.Once);
+    }
 }

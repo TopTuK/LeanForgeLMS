@@ -126,6 +126,40 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task UpdateUserNameAsync_NoChanges_DoesNotSave()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = "Lovelace", Role = UserRole.Student };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserNameDto { FirstName = "Ada", LastName = "Lovelace" };
+
+        // Act
+        var result = await service.UpdateUserNameAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Ada", result!.FirstName);
+        Assert.Equal("Lovelace", result.LastName);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserNameAsync_NullLastNameMatchingEmptyString_DoesNotSave()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = string.Empty };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserNameDto { FirstName = "Ada", LastName = null };
+
+        // Act
+        var result = await service.UpdateUserNameAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task UpdateUserNameAsync_EmptyFirstName_ThrowsArgumentException()
     {
         // Arrange
@@ -135,5 +169,65 @@ public class UserServiceTests
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
             () => service.UpdateUserNameAsync(1, new UpdateUserNameDto { FirstName = "   " }));
+    }
+
+    [Fact]
+    public async Task UpdateUserAvatarAsync_UserExists_SetsAvatarKeyAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", AvatarKey = null };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserAvatarDto { AvatarKey = "avatars/7/new.png" };
+
+        // Act
+        var result = await service.UpdateUserAvatarAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("avatars/7/new.png", result!.AvatarKey);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserAvatarAsync_NullAvatarKey_ClearsAvatarAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", AvatarKey = "avatars/7/old.png" };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserAvatarDto { AvatarKey = null };
+
+        // Act
+        var result = await service.UpdateUserAvatarAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Null(result!.AvatarKey);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserAvatarAsync_UserDoesNotExist_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.UpdateUserAvatarAsync(123, new UpdateUserAvatarDto { AvatarKey = "avatars/123/x.png" });
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserAvatarAsync_WhitespaceAvatarKey_ThrowsArgumentException()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 1, Email = "a@b.com", FirstName = "Ada" };
+        var service = CreateService([existing], out _, out _);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.UpdateUserAvatarAsync(1, new UpdateUserAvatarDto { AvatarKey = "   " }));
     }
 }

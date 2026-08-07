@@ -12,13 +12,14 @@ The application runs as two Aspire-managed services fronted by a Vue 3 SPA: `LF.
 
 ```
 LeanForgeLMS.slnx
-LeanForgeLMS.AppHost/            # .NET Aspire orchestration — postgres wired to lf-identityservice; lf-webapi references lf-identityservice (gRPC client) and waits for it
+LeanForgeLMS.AppHost/            # .NET Aspire orchestration — postgres wired to lf-identityservice; minio (avatar storage) and the lf-webapp Vite dev server wired to lf-webapi; lf-webapi references lf-identityservice (gRPC client) and waits for it
 LeanForgeLMS.ServiceDefaults/    # Aspire service defaults — OpenTelemetry, resilience, service discovery
 LF.AppDomain/                    # Domain layer — has real content: Entities/User/DbUser.cs, Models/User/Enums/UserRole.cs; zero project references (by design)
-LF.Application/                  # Application layer — Services/Authentication (AuthenticationService, TokenService), Services/User/UserService, ModelDto/*, Common/Interfaces/IAppDbContext.cs
-LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs (Npgsql), DI registered via AddInfrastructureDatabase() — but only wired up in LF.IdentityService/Program.cs, not LF.WebApi
-LF.WebApi/                       # Host project (Microsoft.NET.Sdk.Web) — MVC controllers + JWT/Cookie/OIDC auth; references ServiceDefaults, LF.Application, AND LF.Infrastructure directly; no LF.WebApi/Endpoints/ yet (still all MVC)
+LF.Application/                  # Application layer — Services/Authentication (AuthenticationService, TokenService), Services/User/UserService, Services/Profile/ProfileService, ModelDto/*, Common/Interfaces/IAppDbContext.cs + IFileStorageService.cs
+LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs (Npgsql), DI registered via AddInfrastructureDatabase() — but only wired up in LF.IdentityService/Program.cs, not LF.WebApi; Services/Storage/MinioFileStorageService.cs (avatar uploads), DI via AddInfrastructureFileStorage(), wired up only in LF.WebApi/Program.cs
+LF.WebApi/                       # Host project (Microsoft.NET.Sdk.Web) — MVC controllers + JWT/Cookie/OIDC auth + growing Minimal API surface in Endpoints/ (e.g. ProfileEndpoints); references ServiceDefaults, LF.Application, AND LF.Infrastructure directly; also talks directly to MinIO (via CommunityToolkit.Aspire.Minio.Client) for avatar upload/download — a second external dependency alongside the gRPC call to LF.IdentityService
 LF.IdentityService/              # Separate Aspire project — real gRPC identity/user service (RpcUserService), owns AppDbContext registration; leftover unused Protos/greet.proto (see below)
+LF.ApplicationTests/             # xUnit v3 unit tests for LF.Application services (Moq + MockQueryable.Moq for IAppDbContext/DbSet mocking) — see Tech Stack below for what this does and doesn't cover yet
 lf.webapp/                       # Vue 3 + Vite SPA (esproj), proxied in dev via UseSpa
 ```
 
@@ -108,9 +109,10 @@ public sealed class CourseEndpoints : IEndpointGroup
 - **Authentication** — JWT Bearer (primary scheme) + Cookie + OpenID Connect via Duende.IdentityModel, already implemented in `LF.WebApi/Program.cs`. Do not change the auth scheme wiring without discussing it first — it has specific cookie/OIDC/JWT interplay (temp cookie sign-in scheme, authorization code redemption).
 - **Entity Framework Core + PostgreSQL (Npgsql)** — `Npgsql.EntityFrameworkCore.PostgreSQL` referenced in `LF.Infrastructure`; `AppDbContext` (in `Persistence/`) is registered via `AddInfrastructureDatabase()`, but only in `LF.IdentityService/Program.cs` — `LF.WebApi` does not call it. Aspire AppHost provisions a Postgres resource (`postgres`, database `leanforge`) wired only to `lf-identityservice`.
 - **Mediator** (source-generated, MIT) — command/query dispatch for Application-layer use cases; not yet added as a package reference.
-- **FluentValidation** — request validation
+- **FluentValidation** — request validation (referenced in `LF.WebApi` only; not yet in `LF.Application`)
 - **Serilog** — structured logging (`Serilog.AspNetCore` already referenced in `LF.WebApi`, bootstrap logger configured in `Program.cs`)
-- **xUnit v3 + Testcontainers + WebApplicationFactory** — testing (Testcontainers for real PostgreSQL in integration tests); no test projects exist yet
+- **MinIO** — object storage for user avatar uploads. AppHost provisions a `minio` container (`CommunityToolkit.Aspire.Hosting.Minio`) referenced by `lf-webapi`; `LF.WebApi/Program.cs` calls `builder.AddMinioClient("minio")` (`CommunityToolkit.Aspire.Minio.Client`) directly — `IMinioClient` is only resolvable in `LF.WebApi`, not `LF.IdentityService`. `LF.Infrastructure`'s `MinioFileStorageService` (behind `IFileStorageService`) does the actual upload/download/delete; the avatar *key* (not the file) is persisted in Postgres via the existing gRPC round-trip to `LF.IdentityService`. Avatar bytes are always proxied through `LF.WebApi` — MinIO itself is never exposed to the browser (internal-only network in `docker-compose.yml`, matching `postgres`).
+- **xUnit v3** — `LF.ApplicationTests` unit-tests `LF.Application` services (`UserService`, `ProfileService`, `AuthenticationService`, `TokenService`, mapping configs, DI registration) using Moq + `MockQueryable.Moq` to mock `IAppDbContext`/`DbSet<T>`. Testcontainers + WebApplicationFactory-based integration testing (real PostgreSQL, real HTTP pipeline) is still aspirational — no integration test project exists yet.
 - **Frontend: Vue 3 + Vite** (`lf.webapp`) — Pinia for state, vue-router, vue-i18n, Vuestic UI, Tailwind CSS v4, axios for HTTP. Proxied to `http://localhost:5173` in dev via `UseSpa`/`UseProxyToSpaDevelopmentServer`; served from `wwwroot`/`MapFallbackToFile("index.html")` in production.
 
 **Not yet decided / explicitly deferred:** caching (no HybridCache/Redis yet) and inter-service messaging (no Wolverine/MassTransit yet — `LF.IdentityService` currently would only be reachable via gRPC direct call, not a bus).
@@ -176,10 +178,10 @@ cd lf.webapp && npm run dev
 # Run all tests
 dotnet test
 
-# Add EF migration (once AppDbContext is registered in DI)
+# Add EF migration (AppDbContext is only registered in LF.IdentityService's DI container — use it as the startup project, not LF.WebApi)
 dotnet ef migrations add [Name] \
   --project LF.Infrastructure \
-  --startup-project LF.WebApi \
+  --startup-project LF.IdentityService \
   --context AppDbContext
 
 # Format check

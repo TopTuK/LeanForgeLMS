@@ -31,6 +31,7 @@ public class UserMappingConfigTests
         Assert.Equal(dto.LastName, result.LastName);
         Assert.Equal(0, result.Id);
         Assert.Equal(UserRole.None, result.Role);
+        Assert.Null(result.AvatarKey);
     }
 
     [Fact]
@@ -60,6 +61,7 @@ public class UserMappingConfigTests
             LastName = "Lovelace",
             Role = UserRole.Instructor,
             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            AvatarKey = "avatars/3/photo.png",
         };
 
         // Act
@@ -72,5 +74,20 @@ public class UserMappingConfigTests
         Assert.Equal(user.LastName, result.LastName);
         Assert.Equal(user.Role, result.Role);
         Assert.Equal(user.CreatedAt, result.CreatedAt);
+        Assert.Equal(user.AvatarKey, result.AvatarKey);
+    }
+
+    [Fact]
+    public void Adapt_DbUserToUserDto_NoAvatar_MapsNull()
+    {
+        // Arrange
+        var config = CreateConfig();
+        var user = new DbUser { Id = 3, Email = "a@b.com", FirstName = "Ada", AvatarKey = null };
+
+        // Act
+        var result = user.Adapt<UserDto>(config);
+
+        // Assert
+        Assert.Null(result.AvatarKey);
     }
 }

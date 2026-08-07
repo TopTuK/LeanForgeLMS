@@ -23,4 +23,11 @@ internal sealed class ProfileService(ILogger<ProfileService> logger, IGrpcIdenti
 
         return await _identityService.UpdateUserProfileAsync(userId, dto);
     }
+
+    public async Task<UserDto?> UpdateAvatarAsync(int userId, string? avatarKey)
+    {
+        _logger.LogInformation("ProfileService::UpdateAvatarAsync: called with UserId={usrId}", userId);
+
+        return await _identityService.UpdateUserAvatarAsync(userId, avatarKey);
+    }
 }

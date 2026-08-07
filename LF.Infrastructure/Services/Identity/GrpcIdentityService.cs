@@ -68,4 +68,25 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
             return null;
         }
     }
+
+    public async Task<UserDto?> UpdateUserAvatarAsync(int userId, string? avatarKey)
+    {
+        _logger.LogInformation("GrpcIdentityService::UpdateUserAvatarAsync: called with UserId={usrId}", userId);
+
+        var request = new UpdateUserAvatarRequest
+        {
+            Id = userId,
+            AvatarKey = avatarKey,
+        };
+
+        try
+        {
+            var reply = await _userServiceRpcClient.UpdateUserAvatarAsync(request);
+            return reply.Adapt<UserDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
 }

@@ -47,4 +47,15 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
 
         return userDto.Adapt<GetUserReply>();
     }
+
+    public override async Task<GetUserReply> UpdateUserAvatar(UpdateUserAvatarRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcUserService::UpdateUserAvatar: called with Id={usrId}", request.Id);
+
+        var userDto = await _userService.UpdateUserAvatarAsync(request.Id, request.Adapt<UpdateUserAvatarDto>());
+        if (userDto is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"User {request.Id} not found"));
+
+        return userDto.Adapt<GetUserReply>();
+    }
 }

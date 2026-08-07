@@ -31,7 +31,10 @@
         "last_name_label": "Last name",
         "save": "Save changes",
         "saved_confirmation": "Profile updated.",
-        "error_generic": "Something went wrong. Please try again."
+        "error_generic": "Something went wrong. Please try again.",
+        "avatar_change": "Change avatar",
+        "avatar_remove": "Remove avatar",
+        "avatar_error_generic": "Could not update the avatar. Please try again."
     },
     "login": {
         "eyebrow": "Student access",

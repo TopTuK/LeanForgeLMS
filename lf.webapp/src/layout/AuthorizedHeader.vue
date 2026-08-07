@@ -111,8 +111,14 @@ async function onLogout() {
         </button>
         <router-link
           :to="{ name: 'Profile' }"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+          class="app-header__profile-link"
         >
+          <img
+            v-if="authStore.avatarUrl"
+            :src="authStore.avatarUrl"
+            alt=""
+            class="app-header__avatar"
+          >
           {{ authStore.user?.firstName ?? $t('nav.profile') }}
         </router-link>
         <button
@@ -261,6 +267,27 @@ async function onLogout() {
 
 .app-header__nav--mobile {
     background: var(--color-surface-950);
+}
+
+.app-header__profile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+    transition: color 0.15s ease;
+}
+
+.app-header__profile-link:hover {
+    color: var(--color-ink);
+}
+
+.app-header__avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    object-fit: cover;
 }
 
 .theme-toggle {
