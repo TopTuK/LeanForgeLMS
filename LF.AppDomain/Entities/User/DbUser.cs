@@ -27,6 +27,16 @@ public sealed class DbUser
         return true;
     }
 
+    /// <returns>true if the role actually changed; false if it already matched.</returns>
+    public bool EnsureRole(UserRole role)
+    {
+        if (Role == role)
+            return false;
+
+        Role = role;
+        return true;
+    }
+
     public void SetAvatar(string avatarKey)
     {
         if (string.IsNullOrWhiteSpace(avatarKey))

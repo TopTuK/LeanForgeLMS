@@ -230,4 +230,57 @@ public class UserServiceTests
         await Assert.ThrowsAsync<ArgumentException>(
             () => service.UpdateUserAvatarAsync(1, new UpdateUserAvatarDto { AvatarKey = "   " }));
     }
+
+    [Fact]
+    public async Task EnsureUserWithRoleAsync_UserDoesNotExist_CreatesUserWithGivenRole()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out var usersMock);
+        var request = new EnsureUserWithRoleDto { Email = "dev.instructor@leanforge.local", FirstName = "Dev", LastName = "Instructor", Role = UserRole.Instructor };
+
+        // Act
+        var result = await service.EnsureUserWithRoleAsync(request);
+
+        // Assert
+        Assert.Equal(request.Email, result.Email);
+        Assert.Equal(request.FirstName, result.FirstName);
+        Assert.Equal(UserRole.Instructor, result.Role);
+        usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Once);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnsureUserWithRoleAsync_UserExistsWithDifferentRole_UpdatesRoleAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 3, Email = "dev.student@leanforge.local", FirstName = "Dev", LastName = "Student", Role = UserRole.Student };
+        var service = CreateService([existing], out var dbContextMock, out var usersMock);
+        var request = new EnsureUserWithRoleDto { Email = existing.Email, FirstName = "Ignored", LastName = "Ignored", Role = UserRole.CourseCreator };
+
+        // Act
+        var result = await service.EnsureUserWithRoleAsync(request);
+
+        // Assert
+        Assert.Equal(existing.Id, result.Id);
+        Assert.Equal(UserRole.CourseCreator, result.Role);
+        usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Never);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnsureUserWithRoleAsync_UserExistsWithSameRole_DoesNotSave()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 3, Email = "dev.student@leanforge.local", FirstName = "Dev", LastName = "Student", Role = UserRole.Student };
+        var service = CreateService([existing], out var dbContextMock, out var usersMock);
+        var request = new EnsureUserWithRoleDto { Email = existing.Email, FirstName = "Dev", LastName = "Student", Role = UserRole.Student };
+
+        // Act
+        var result = await service.EnsureUserWithRoleAsync(request);
+
+        // Assert
+        Assert.Equal(UserRole.Student, result.Role);
+        usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Never);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
