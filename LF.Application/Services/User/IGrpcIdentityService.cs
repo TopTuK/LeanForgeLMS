@@ -12,5 +12,6 @@ namespace LF.Application.Services.User
         Task<UserDto?> GetUserProfileAsync(int userId);
         Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserNameDto dto);
         Task<UserDto?> UpdateUserAvatarAsync(int userId, string? avatarKey);
+        Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto);
     }
 }

@@ -17,6 +17,8 @@ service UserServiceRpc {
   rpc UpdateUserProfile (UpdateUserProfileRequest) returns (GetUserReply);
   // Update (or clear) a user's avatar object key
   rpc UpdateUserAvatar (UpdateUserAvatarRequest) returns (GetUserReply);
+  // Get or create user and force-set the given role (development/testing use only)
+  rpc EnsureUserWithRole (EnsureUserWithRoleRequest) returns (GetUserReply);
 }
 
 message GetUserRequest {
@@ -50,6 +52,13 @@ message UpdateUserAvatarRequest {
   int32 id = 1;
   // Unset (null) clears the avatar, reverting the user to the default image.
   google.protobuf.StringValue avatar_key = 2;
+}
+
+message EnsureUserWithRoleRequest {
+  string email = 1;
+  string first_name = 2;
+  google.protobuf.StringValue last_name = 3;
+  UserRole role = 4;
 }
 
 enum UserRole {

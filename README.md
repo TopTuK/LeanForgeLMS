@@ -85,6 +85,16 @@ Login is PMI Club (OpenID Connect) only today; a `GoogleAuthOptions` type exists
 
 JWT Bearer is the default authenticate/challenge scheme for the rest of the API; the OIDC and temp-cookie schemes exist solely to complete the PMI handshake. This wiring in `LF.WebApi/Program.cs` is deliberately fragile (specific cookie/OIDC/JWT interplay) and isn't changed casually.
 
+### Development-only login shortcuts
+
+`GET /api/dev-auth/{role}` (`role` = `Student`, `Instructor`, or `CourseCreator`) is a **local development and testing convenience** — it ensures a fixed test persona (email/first/last name configured under `DevAuth` in `appsettings.Development.json`) exists with the requested role, mints the same JWT cookie the real PMI login issues, and redirects to `/courses` — reproducing a real login without needing a working OIDC provider. There is no UI for it; it's meant to be hit directly (browser address bar, curl, or an automated/E2E test).
+
+**This is excluded from production, not just hidden:**
+
+- `DevAuthEndpoints.Map()` (`LF.WebApi/Endpoints/DevAuthEndpoints.cs`) checks `IHostEnvironment.IsDevelopment()` and simply never calls `MapGet` when it's `false` — the route doesn't exist in the endpoint routing table at all outside Development (confirmed empirically: building the app with `EnvironmentName = "Production"` registers zero routes under `/api/dev-auth`, vs. one in `"Development"`). It's a structural absence, not a guarded 404.
+- `docker-compose.yml` (the production deployment) explicitly sets `ASPNETCORE_ENVIRONMENT: Production` for both `lf-webapi` and `lf-identityservice`. Even without that, ASP.NET Core's own default when `ASPNETCORE_ENVIRONMENT` is unset is `Production` — so a misconfigured deploy fails closed, not open.
+- The `DevAuth` persona configuration itself only exists in `appsettings.Development.json`, never in `appsettings.json` (the file that ships in the production image) or `docker-compose.yml`.
+
 ### Avatar storage
 
 - Bucket `avatars` in MinIO, provisioned by a small `IHostedService` (`MinioBucketInitializer`) on `LF.WebApi` startup.

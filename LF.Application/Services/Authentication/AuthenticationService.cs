@@ -22,4 +22,21 @@ internal sealed class AuthenticationService(ILogger<AuthenticationService> logge
 
         return userDto;
     }
+
+    public async Task<UserDto> AuthenticateDevUserAsync(EnsureUserWithRoleDto userRequestDto)
+    {
+        _logger.LogInformation(
+            "AuthenticationService::AuthenticateDevUserAsync: Authenticating dev user Email={Email} Role={Role}",
+            userRequestDto.Email,
+            userRequestDto.Role);
+
+        var userDto = await _identityService.EnsureUserWithRoleAsync(userRequestDto);
+
+        _logger.LogInformation(
+            "AuthenticationService::AuthenticateDevUserAsync: Successfully authenticated dev user Email={Email} Role={Role}",
+            userDto.Email,
+            userDto.Role);
+
+        return userDto;
+    }
 }

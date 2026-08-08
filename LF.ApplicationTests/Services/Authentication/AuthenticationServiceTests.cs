@@ -1,3 +1,4 @@
+using LF.AppDomain.Models.User.Enums;
 using LF.Application.ModelDto.Authentication;
 using LF.Application.ModelDto.User;
 using LF.Application.Services.Authentication;
@@ -25,5 +26,23 @@ public class AuthenticationServiceTests
         // Assert
         Assert.Same(expected, result);
         identityMock.Verify(s => s.GetOrCreateUserAsync(request), Times.Once);
+    }
+
+    [Fact]
+    public async Task AuthenticateDevUserAsync_DelegatesToIdentityService()
+    {
+        // Arrange
+        var request = new EnsureUserWithRoleDto { Email = "dev.student@leanforge.local", FirstName = "Dev", LastName = "Student", Role = UserRole.Student };
+        var expected = new UserDto { Id = 9, Email = request.Email, FirstName = "Dev", LastName = "Student", Role = UserRole.Student };
+        var identityMock = new Mock<IGrpcIdentityService>();
+        identityMock.Setup(s => s.EnsureUserWithRoleAsync(request)).ReturnsAsync(expected);
+        var service = new AuthenticationService(NullLogger<AuthenticationService>.Instance, identityMock.Object);
+
+        // Act
+        var result = await service.AuthenticateDevUserAsync(request);
+
+        // Assert
+        Assert.Same(expected, result);
+        identityMock.Verify(s => s.EnsureUserWithRoleAsync(request), Times.Once);
     }
 }

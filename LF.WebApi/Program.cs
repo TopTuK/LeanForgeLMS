@@ -48,6 +48,9 @@ static void ConfigureOptions(IServiceCollection services)
         .BindConfiguration(PmiAuthOptions.SectionName)
         .ValidateDataAnnotations()
         .ValidateOnStart();
+
+    services.AddOptions<DevAuthOptions>()
+        .BindConfiguration(DevAuthOptions.SectionName);
 }
 
 try
