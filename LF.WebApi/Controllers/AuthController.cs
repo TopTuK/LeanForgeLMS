@@ -1,4 +1,5 @@
 ﻿using LF.Application.ModelDto.Authentication;
+using LF.Application.ModelDto.User;
 using LF.WebApi.Models.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -50,87 +51,36 @@ namespace LF.WebApi.Controllers
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> SingInPmiCallback()
+            => await HandleExternalSignInCallbackAsync(
+                "SingInPmiCallback",
+                _authenticationService.AuthenticatePmiUserAsync);
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult SignInGoogle()
         {
-            _logger.LogInformation("AuthController::SingInPmiCallback: Start authentication callback");
+            _logger.LogInformation("AuthController::SignInGoogle: Start Google authentication");
 
-            // Read the outcome of external auth
-            _logger.LogInformation("AuthController::SingInPmiCallback: begin read external authentication");
-            var authResult = await HttpContext.AuthenticateAsync(_authOptions.TempAuthCookieName);
-
-            if (!authResult.Succeeded)
+            var schemeName = _googleAuthOptions.SchemeName;
+            var props = new AuthenticationProperties
             {
-                _logger.LogError("AuthController::SingInPmiCallback: Can't read the outcome of external authentication");
-                return LocalRedirect(new PathString("/"));
-            }
-
-            try
-            {
-                string? firstName = null, lastName = string.Empty;
-                var name = authResult.Principal
-                    .Claims
-                    .FirstOrDefault(c => c.Type == "name")?
-                    .Value;
-                if (name is not null)
+                RedirectUri = new PathString(_googleAuthOptions.RedirectUri),
+                Items =
                 {
-                    var splitName = name.Split(' ');
-                    firstName = splitName[0];
-                    lastName = string.Empty;
-
-                    if (splitName.Length > 1)
-                    {
-                        lastName = splitName[1].Trim();
-                    }
+                    { "scheme", schemeName }
                 }
+            };
 
-                var userAuthDto = new UserAuthentificationDto
-                {
-                    Sub = authResult.Principal.Claims.FirstOrDefault(c => c.Type == "sub")?.Value,
-                    Email = authResult.Principal.Claims.FirstOrDefault(c => c.Type == "email")?.Value,
-                    FirstName = firstName,
-                    LastName = lastName,
-                };
-                
-                var userDto = await _authenticationService.AuthenticatePmiUserAsync(userAuthDto);
-                _logger.LogInformation("AuthController::SingInPmiCallback: Authenticated user {usrEmail} {usrFirstName}",
-                    userDto.Email, userDto.FirstName);
-
-                // Create JWT token
-                var claims = new List<Claim>()
-                {
-                    new(ClaimTypes.NameIdentifier, userDto.Id.ToString()),
-                    new("email", userDto.Email),
-                    new("role", userDto.Role.ToString())
-                };
-                var jwtToken = _tokenService.CreateWebJwtToken(claims, new()
-                {
-                    Issuer = _authOptions.JwtIssuer,
-                    Audience = _authOptions.JwtAudience,
-                    Key = _authOptions.JwtKey,
-                    ExpiresDays = _authOptions.JwtExpiresDays,
-                });
-
-                HttpContext.Response
-                    .Cookies
-                    .Append(
-                        key: _authOptions.AuthCookieName,
-                        value: jwtToken.Token,
-                        options: new CookieOptions()
-                        {
-                            MaxAge = TimeSpan.FromDays(_authOptions.AuthMaxAgeDays)
-                        }
-                    );
-                // SignOut from temp cookie
-                await HttpContext.SignOutAsync(_authOptions.TempAuthCookieName);
-
-                _logger.LogInformation("AuthController::SinginCallback: Success SignIn user");
-                return LocalRedirect(new PathString("/courses"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex, "AuthController::SingInPmiCallback: Can't authentificate user");
-                return LocalRedirect(new PathString("/"));
-            }
+            _logger.LogInformation("AuthController::SignInGoogle: Start Oidc challenge with scheme name {schemeName}", schemeName);
+            return Challenge(props, schemeName);
         }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> SignInGoogleCallback()
+            => await HandleExternalSignInCallbackAsync(
+                "SignInGoogleCallback",
+                _authenticationService.AuthenticateGoogleUserAsync);
 
         [HttpGet]
         [Authorize]
@@ -143,6 +93,95 @@ namespace LF.WebApi.Controllers
                 .Delete(_authOptions.AuthCookieName);
 
             return await Task.FromResult(LocalRedirect(new PathString("/")));
+        }
+
+        private async Task<IActionResult> HandleExternalSignInCallbackAsync(
+            string actionName,
+            Func<UserAuthentificationDto, Task<UserDto>> authenticateAsync)
+        {
+            _logger.LogInformation("AuthController::{actionName}: Start authentication callback", actionName);
+
+            // Read the outcome of external auth
+            var authResult = await HttpContext.AuthenticateAsync(_authOptions.TempAuthCookieName);
+
+            if (!authResult.Succeeded)
+            {
+                _logger.LogError("AuthController::{actionName}: Can't read the outcome of external authentication", actionName);
+                return LocalRedirect(new PathString("/"));
+            }
+
+            try
+            {
+                var userAuthDto = ParseUserAuthDto(authResult.Principal);
+                var userDto = await authenticateAsync(userAuthDto);
+                _logger.LogInformation("AuthController::{actionName}: Authenticated user {usrEmail} {usrFirstName}",
+                    actionName, userDto.Email, userDto.FirstName);
+
+                await IssueSessionCookieAsync(userDto);
+
+                _logger.LogInformation("AuthController::{actionName}: Success SignIn user", actionName);
+                return LocalRedirect(new PathString("/courses"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ex, "AuthController::{actionName}: Can't authentificate user", actionName);
+                return LocalRedirect(new PathString("/"));
+            }
+        }
+
+        private static UserAuthentificationDto ParseUserAuthDto(ClaimsPrincipal principal)
+        {
+            string? firstName = null, lastName = string.Empty;
+            var name = principal.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+            if (name is not null)
+            {
+                var splitName = name.Split(' ');
+                firstName = splitName[0];
+                lastName = string.Empty;
+
+                if (splitName.Length > 1)
+                {
+                    lastName = splitName[1].Trim();
+                }
+            }
+
+            return new UserAuthentificationDto
+            {
+                Sub = principal.Claims.FirstOrDefault(c => c.Type == "sub")?.Value,
+                Email = principal.Claims.FirstOrDefault(c => c.Type == "email")?.Value,
+                FirstName = firstName,
+                LastName = lastName,
+            };
+        }
+
+        private async Task IssueSessionCookieAsync(UserDto userDto)
+        {
+            var claims = new List<Claim>()
+            {
+                new(ClaimTypes.NameIdentifier, userDto.Id.ToString()),
+                new("email", userDto.Email),
+                new("role", userDto.Role.ToString())
+            };
+            var jwtToken = _tokenService.CreateWebJwtToken(claims, new()
+            {
+                Issuer = _authOptions.JwtIssuer,
+                Audience = _authOptions.JwtAudience,
+                Key = _authOptions.JwtKey,
+                ExpiresDays = _authOptions.JwtExpiresDays,
+            });
+
+            HttpContext.Response
+                .Cookies
+                .Append(
+                    key: _authOptions.AuthCookieName,
+                    value: jwtToken.Token,
+                    options: new CookieOptions()
+                    {
+                        MaxAge = TimeSpan.FromDays(_authOptions.AuthMaxAgeDays)
+                    }
+                );
+            // SignOut from temp cookie
+            await HttpContext.SignOutAsync(_authOptions.TempAuthCookieName);
         }
     }
 }

@@ -23,6 +23,18 @@ internal sealed class AuthenticationService(ILogger<AuthenticationService> logge
         return userDto;
     }
 
+    public async Task<UserDto> AuthenticateGoogleUserAsync(UserAuthentificationDto userAuthentification)
+    {
+        _logger.LogInformation("AuthenticationService::AuthenticateGoogleUserAsync:Authenticating Google user with email: {Email}",
+            userAuthentification.Email);
+
+        var userDto = await _identityService.GetOrCreateUserAsync(userAuthentification);
+        _logger.LogInformation("AuthenticationService::AuthenticateGoogleUserAsync:Successfully authenticated Google user with email: {Email}",
+            userAuthentification.Email);
+
+        return userDto;
+    }
+
     public async Task<UserDto> AuthenticateDevUserAsync(EnsureUserWithRoleDto userRequestDto)
     {
         _logger.LogInformation(

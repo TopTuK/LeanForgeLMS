@@ -17,6 +17,15 @@ const avatarError = ref('');
 
 const email = computed(() => authStore.user?.email ?? '');
 
+const ROLE_I18N_KEYS = {
+  Student: 'student',
+  Instructor: 'instructor',
+  CourseCreator: 'course_creator',
+  Admin: 'admin',
+  None: 'none',
+};
+const roleKey = computed(() => ROLE_I18N_KEYS[authStore.user?.role] ?? 'student');
+
 const displayName = computed(() => {
   const first = form.firstName.trim();
   const last = form.lastName.trim();
@@ -148,6 +157,7 @@ async function onSave() {
             <div class="profile-avatar__meta">
               <strong>{{ displayName || $t('profile.title') }}</strong>
               <span>{{ email }}</span>
+              <span class="profile-role-badge">{{ $t(`profile.roles.${roleKey}`) }}</span>
             </div>
           </div>
 
@@ -465,6 +475,21 @@ async function onSave() {
   color: var(--color-ink-muted);
   font-size: 0.85rem;
   word-break: break-all;
+}
+
+.profile-avatar__meta .profile-role-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-coral);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  word-break: normal;
 }
 
 .profile-avatar__actions {
