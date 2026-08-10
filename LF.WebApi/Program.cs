@@ -3,7 +3,10 @@ using LF.Application;
 using LF.Infrastructure;
 using LF.WebApi.Endpoints;
 using LF.WebApi.Models.Options;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -49,6 +52,11 @@ static void ConfigureOptions(IServiceCollection services)
         .ValidateDataAnnotations()
         .ValidateOnStart();
 
+    services.AddOptions<GoogleAuthOptions>()
+        .BindConfiguration(GoogleAuthOptions.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
     services.AddOptions<DevAuthOptions>()
         .BindConfiguration(DevAuthOptions.SectionName);
 }
@@ -69,6 +77,8 @@ try
         ?? throw new InvalidOperationException("DefaultAuth configuration is missing.");
     var pmiAuth = configuration.GetSection(PmiAuthOptions.SectionName).Get<PmiAuthOptions>()
         ?? throw new InvalidOperationException("PmiAuth configuration is missing.");
+    var googleAuth = configuration.GetSection(GoogleAuthOptions.SectionName).Get<GoogleAuthOptions>()
+        ?? throw new InvalidOperationException("GoogleAuth configuration is missing.");
 
     /* ADD AUTHENTICATION */
     builder.Services
@@ -145,19 +155,30 @@ try
                 using var client = new HttpClient();
                 var discoResponsee = await client.GetDiscoveryDocumentAsync(options.Authority);
 
-                var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(new()
+                var tokenRequest = new AuthorizationCodeTokenRequest
                 {
                     Address = discoResponsee.TokenEndpoint,
                     ClientId = options.ClientId!,
                     ClientSecret = options.ClientSecret,
                     Code = code,
                     RedirectUri = redirectUri,
-                });
+                };
+
+                // PKCE: the challenge request included a code_challenge (options.UsePkce defaults to true),
+                // so the token endpoint requires the matching code_verifier or it rejects the exchange.
+                if (context.Properties?.Items.TryGetValue(OAuthConstants.CodeVerifierKey, out var codeVerifier) is true
+                    && codeVerifier is not null)
+                {
+                    tokenRequest.Parameters.Add(OAuthConstants.CodeVerifierKey, codeVerifier);
+                }
+
+                var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(tokenRequest);
 
                 if (tokenResponse.IsError)
                 {
                     // Error handler
-                    throw new Exception("OpenIdConnect::Bad auth. Can't exchange code for access token and id token");
+                    throw new Exception(
+                        $"OpenIdConnect::Bad auth. Can't exchange code for access token and id token: {tokenResponse.Error} - {tokenResponse.ErrorDescription}");
                 }
 
                 var accessToken = tokenResponse.AccessToken ?? string.Empty;
@@ -167,6 +188,27 @@ try
             };
 
             options.MapInboundClaims = false;
+            options.SignInScheme = defaultAuth.TempAuthCookieName;
+        })
+        .AddGoogle(googleAuth.SchemeName, options =>
+        {
+            options.ClientId = googleAuth.ClientId;
+            options.ClientSecret = googleAuth.ClientSecret;
+
+            // Set the callback path, so it will call back to.
+            options.CallbackPath = new PathString(googleAuth.CallbackPath);
+
+            // save tokens
+            options.SaveTokens = true;
+
+            // Google's default ClaimActions map to the long ClaimTypes.* URIs; remap to the short
+            // "sub"/"email"/"name" claim types PMI's OIDC handler produces, so the shared claim-parsing
+            // logic in AuthController doesn't need to special-case providers.
+            options.ClaimActions.Clear();
+            options.ClaimActions.MapJsonKey("sub", "sub");
+            options.ClaimActions.MapJsonKey("email", "email");
+            options.ClaimActions.MapJsonKey("name", "name");
+
             options.SignInScheme = defaultAuth.TempAuthCookieName;
         });
 

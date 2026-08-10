@@ -41,7 +41,14 @@
         "avatar_change": "Upload photo",
         "avatar_remove": "Remove",
         "avatar_hint": "PNG, JPEG, or WebP. Shown as a circle — center the subject when cropping.",
-        "avatar_error_generic": "Could not update the avatar. Please try again."
+        "avatar_error_generic": "Could not update the avatar. Please try again.",
+        "roles": {
+            "student": "Student",
+            "instructor": "Instructor",
+            "course_creator": "Course creator",
+            "admin": "Administrator",
+            "none": "No role"
+        }
     },
     "login": {
         "eyebrow": "Student access",
@@ -50,6 +57,10 @@
         "pmi": {
             "title": "Continue with PMI Club",
             "description": "Use your PMI Club account to enter the learning platform."
+        },
+        "google": {
+            "title": "Continue with Google",
+            "description": "Use your Google account to enter the learning platform."
         },
         "note": "Authentication is provided securely by the selected service."
     },
@@ -197,23 +208,35 @@
                 }
             }
         },
+        "author": {
+            "title": "About the author",
+            "subtitle": "The school is run by a practitioner, not a slide-deck theorist.",
+            "name": "Sergey Sidorov",
+            "role": "School author · project lead and product manager",
+            "bio": "A professional in project management and IT product development. Much of his career was spent on flagship projects at Kaspersky Lab. He removes uncertainty, drives initiatives to completion, and designs systems that survive production. .NET, architecture, systems analysis, and AI — in one skill set.",
+            "highlights": [
+                "Project management",
+                "Product management",
+                "Systems analysis",
+                ".NET and architecture",
+                "AI and agents"
+            ],
+            "cta": "Read full bio",
+            "url": "https://s-sidorov.ru"
+        },
         "experts": {
             "title": "School experts",
             "subtitle": "We invite people for professional craft, not for big logos on a resume.",
             "items": {
                 "1": {
-                    "name": "Sergey Sidorov",
-                    "role": "School author, .NET and systems architecture"
-                },
-                "2": {
                     "name": "Anna Belova",
                     "role": "Frontend engineer, Vue and developer experience"
                 },
-                "3": {
+                "2": {
                     "name": "Maxim Kozlov",
                     "role": "DevOps and platform engineering"
                 },
-                "4": {
+                "3": {
                     "name": "Olga Petrova",
                     "role": "Databases and query performance"
                 }

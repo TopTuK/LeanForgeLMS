@@ -18,9 +18,10 @@ The system runs as **two independently deployable ASP.NET Core processes** plus 
 graph LR
     Browser["Browser<br/>(Vue 3 SPA)"]
     PMI["PMI Club<br/>(OpenID Connect provider)"]
+    Google["Google<br/>(OAuth 2.0 provider)"]
 
     subgraph Public["Public network"]
-        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC"]
+        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth"]
     end
 
     subgraph Internal["Internal-only network"]
@@ -31,6 +32,7 @@ graph LR
 
     Browser -- "HTTPS / JSON (JWT Bearer)" --> WebApi
     WebApi -- "OIDC redirect" --> PMI
+    WebApi -- "OAuth redirect" --> Google
     WebApi -- "gRPC: user_service.proto" --> IdentitySvc
     WebApi -- "S3 API (upload/download avatar bytes)" --> Minio
     IdentitySvc --> Postgres
@@ -75,15 +77,18 @@ Two intentional deviations from "textbook" Clean Architecture, worth knowing abo
 
 ### Authentication flow
 
-Login is PMI Club (OpenID Connect) only today; a `GoogleAuthOptions` type exists but isn't wired into the pipeline yet.
+The Login page offers two external identity providers — PMI Club and Google — both funneling into the same temp-cookie handshake and the same JWT-minting step, but wired up with different ASP.NET Core auth handlers:
 
-1. Browser hits `GET /api/Auth/SignInPmi` → `LF.WebApi` issues an OIDC `Challenge` against the PMI Club provider, using a **temporary cookie sign-in scheme** to hold the handshake state.
-2. PMI redirects back to `GET /api/Auth/SingInPmiCallback` with an authorization code. `AuthController` reads the temp-cookie principal, extracts `sub`/`email`/`name` claims, and calls `AuthenticationService.AuthenticatePmiUserAsync`.
-3. That call goes over gRPC to `LF.IdentityService` (`GetOrCreateUser`), which looks up or creates the `DbUser` row (`Role = Student` by default for new users).
+- **PMI Club** uses a generic `AddOpenIdConnect` scheme (`LFPmiOidc`), because PMI is a custom OIDC provider with no dedicated ASP.NET Core package. The code exchange is done manually in an `OnAuthorizationCodeReceived` event handler (discovery document lookup + `Duende.IdentityModel.Client`), including manually forwarding the PKCE `code_verifier` the handler generated during the challenge — `AddOpenIdConnect` defaults `UsePkce = true`, and skipping this step is a real failure mode (`invalid_grant` from a provider that enforces PKCE, like Google would if it used this path).
+- **Google** uses the dedicated `AddGoogle` handler (`Microsoft.AspNetCore.Authentication.Google`, scheme `LFGoogleOAuth`), which does its own PKCE + token exchange + userinfo lookup internally — no manual code exchange needed. Its default `ClaimActions` map to the long `ClaimTypes.*` claim URIs; `Program.cs` remaps `sub`/`email`/`name` to the same short claim types PMI's OIDC handler produces, so the callback parsing logic in `AuthController` doesn't need to special-case either provider.
+
+1. Browser hits `GET /api/Auth/SignInPmi` or `GET /api/Auth/SignInGoogle` → `LF.WebApi` issues a `Challenge` against the corresponding provider, using a **temporary cookie sign-in scheme** to hold the handshake state.
+2. The provider redirects back to `GET /api/Auth/SingInPmiCallback` or `GET /api/Auth/SignInGoogleCallback`. `AuthController` reads the temp-cookie principal, extracts `sub`/`email`/`name` claims, and calls `AuthenticationService.AuthenticatePmiUserAsync` or `AuthenticateGoogleUserAsync` — both are thin wrappers with identical shape, since the actual work is provider-agnostic.
+3. That call goes over gRPC to `LF.IdentityService` (`GetOrCreateUser`), which looks up or creates the `DbUser` row (`Role = Student` by default for new users) — matched by the claims alone, with no separate "provider" field, so signing in with PMI and Google using the same email is treated as the same account.
 4. `LF.WebApi` mints its **own JWT** (`TokenService.CreateWebJwtToken`) from the returned user, containing `NameIdentifier`, `email`, and `role` claims, and stores it in a **non-`HttpOnly` cookie** (`LfAuthCookie`) — deliberately readable by client-side JS.
 5. The Vue SPA reads that cookie value directly (`js-cookie`) and attaches it as an `Authorization: Bearer` header on every `axios` call (see `lf.webapp/src/services/api.js`). This is why authenticated resources meant for `<img>`/direct browser navigation (like the avatar endpoint) have to be fetched as a blob via `axios` and turned into an object URL — a plain `<img src>` request carries no bearer header.
 
-JWT Bearer is the default authenticate/challenge scheme for the rest of the API; the OIDC and temp-cookie schemes exist solely to complete the PMI handshake. This wiring in `LF.WebApi/Program.cs` is deliberately fragile (specific cookie/OIDC/JWT interplay) and isn't changed casually.
+JWT Bearer is the default authenticate/challenge scheme for the rest of the API; the OIDC/OAuth and temp-cookie schemes exist solely to complete the external handshake. This wiring in `LF.WebApi/Program.cs` is deliberately fragile (specific cookie/OIDC/JWT interplay) and isn't changed casually.
 
 ### Development-only login shortcuts
 
@@ -129,7 +134,7 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 | Inter-service RPC | gRPC (`Grpc.AspNetCore` / `Grpc.Net.Client`), contract in `LF.IdentityService/Protos/user_service.proto` |
 | Database | PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`, owned solely by `LF.IdentityService` |
 | Object storage | MinIO (`CommunityToolkit.Aspire.Hosting.Minio` + `.Minio.Client`), owned solely by `LF.WebApi`, for avatar uploads |
-| Authentication | JWT Bearer (primary scheme) + Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club |
+| Authentication | JWT Bearer (primary scheme) + Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google |
 | Object mapping | Mapster |
 | Validation | FluentValidation (referenced in `LF.WebApi` today) |
 | Logging | Serilog (`Serilog.AspNetCore`) |
@@ -162,7 +167,7 @@ This starts Postgres, MinIO, the Vite dev server, `LF.IdentityService`, and `LF.
 # Identity service — needs its own Postgres connection string configured
 dotnet run --project LF.IdentityService     # http://localhost:5296
 
-# Web API — needs LF.IdentityService and MinIO reachable, and PmiAuth/DefaultAuth config set
+# Web API — needs LF.IdentityService and MinIO reachable, and PmiAuth/GoogleAuth/DefaultAuth config set
 dotnet run --project LF.WebApi              # http://localhost:5207
 
 # Frontend dev server, proxied by LF.WebApi in Development
@@ -199,10 +204,10 @@ dotnet ef migrations add <Name> \
 | `lf-identityservice` | `leanforge-internal` | No — gRPC only, reached by `lf-webapi` |
 | `lf-webapi` | `leanforge-public` + `leanforge-internal` | Yes (`${WEBAPI_HOST_PORT:-8081}` → `8080`) |
 
-`lf-webapi` is the only container with a published port and the only one on the public network (it needs outbound internet access for the PMI OIDC handshake). Everything else is internal-only and unreachable from the host or the internet.
+`lf-webapi` is the only container with a published port and the only one on the public network (it needs outbound internet access for the PMI OIDC and Google OAuth handshakes). Everything else is internal-only and unreachable from the host or the internet.
 
 ```bash
-cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey, PmiAuth__*
+cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey, PmiAuth__*, GoogleAuth__*
 docker compose up --build
 ```
 

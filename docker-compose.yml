@@ -70,7 +70,7 @@ services:
       dockerfile: LF.WebApi/Dockerfile
     restart: unless-stopped
     networks:
-      - leanforge-public     # internet access for PmiAuth OIDC
+      - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
       - leanforge-internal   # reach lf-identityservice via gRPC
     depends_on:
       lf-identityservice:
@@ -88,4 +88,4 @@ services:
       Services__lf-identityservice__http__0: "lf-identityservice:8080"
       ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
     env_file:
-      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret

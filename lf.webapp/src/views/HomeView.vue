@@ -3,10 +3,11 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CourseCard from '@/components/home/CourseCard.vue';
 import TestimonialCard from '@/components/home/TestimonialCard.vue';
+import AuthorCard from '@/components/home/AuthorCard.vue';
 import ExpertCard from '@/components/home/ExpertCard.vue';
 import FaqItem from '@/components/home/FaqItem.vue';
 
-const { tm } = useI18n();
+const { tm, t } = useI18n();
 
 const COURSE_KEYS = [
     'backend',
@@ -33,8 +34,13 @@ const COURSE_ICONS = {
 const COURSE_FILTERS = ['all', 'backend', 'frontend', 'devops', 'architecture', 'career'];
 const REVIEW_FILTERS = ['all', 'difference', 'audience', 'after'];
 const TESTIMONIAL_KEYS = ['1', '2', '3', '4', '5', '6'];
-const EXPERT_KEYS = ['1', '2', '3', '4'];
+const EXPERT_KEYS = ['1', '2', '3'];
 const FAQ_KEYS = ['1', '2', '3', '4', '5'];
+
+const authorHighlights = computed(() => {
+    const items = tm('home.author.highlights');
+    return Array.isArray(items) ? items : [];
+});
 
 const INITIAL_COURSE_COUNT = 4;
 const INITIAL_REVIEW_COUNT = 3;
@@ -294,6 +300,32 @@ function onNewsletterSubmit(event) {
     </section>
 
     <section
+      id="author"
+      class="industrial-section py-20 md:py-24"
+    >
+      <div class="industrial-square industrial-square--author" aria-hidden="true" />
+      <div class="container mx-auto px-6">
+        <div class="max-w-2xl mb-10">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+            {{ $t('home.author.title') }}
+          </h2>
+          <p class="mt-3 text-ink-muted leading-relaxed">
+            {{ $t('home.author.subtitle') }}
+          </p>
+        </div>
+
+        <AuthorCard
+          :name="$t('home.author.name')"
+          :role="$t('home.author.role')"
+          :bio="$t('home.author.bio')"
+          :highlights="authorHighlights"
+          :cta="$t('home.author.cta')"
+          :href="t('home.author.url')"
+        />
+      </div>
+    </section>
+
+    <section
       id="experts"
       class="industrial-section py-20 md:py-24"
     >
@@ -479,6 +511,14 @@ function onNewsletterSubmit(event) {
   height: 8rem;
   right: -2rem;
   top: 3rem;
+}
+
+.industrial-square--author {
+  width: 7rem;
+  height: 7rem;
+  right: 4%;
+  top: 2.5rem;
+  transform: rotate(-14deg);
 }
 
 .industrial-square--contact {

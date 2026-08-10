@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace LF.WebApi.Endpoints;
 
-public sealed record ProfileResponse(string FirstName, string LastName, string Email, string AvatarUrl);
+public sealed record ProfileResponse(string FirstName, string LastName, string Email, string AvatarUrl, string Role);
 
 public sealed record UpdateProfileRequest(string FirstName, string? LastName);
 
