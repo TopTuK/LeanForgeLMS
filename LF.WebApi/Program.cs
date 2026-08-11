@@ -1,4 +1,5 @@
 using Duende.IdentityModel.Client;
+using LF.AppDomain.Models.User.Enums;
 using LF.Application;
 using LF.Infrastructure;
 using LF.WebApi.Endpoints;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Security.Claims;
 using System.Text;
 
 // Configure logger
@@ -211,6 +213,14 @@ try
 
             options.SignInScheme = defaultAuth.TempAuthCookieName;
         });
+
+    // Additive on top of the auth scheme wiring above. The JWT is issued with a literal "role" claim,
+    // but JwtBearerHandler's default inbound claim mapping (MapInboundClaims=true, left at its default
+    // for this scheme) remaps "role" -> ClaimTypes.Role by the time the ClaimsPrincipal is built for a
+    // request, so the policy must check ClaimTypes.Role here, not the literal "role" string.
+    builder.Services
+        .AddAuthorizationBuilder()
+        .AddPolicy("AdminOnly", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.Admin)));
 
     // Configure application services
     ConfigureServices(builder.Services, configuration);

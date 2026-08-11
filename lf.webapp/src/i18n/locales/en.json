@@ -11,6 +11,7 @@
         "contacts": "Contacts",
         "login": "Enter school",
         "profile": "Profile",
+        "administration": "Administration",
         "logout": "Log out",
         "menu_toggle": "Toggle menu",
         "theme_light": "Switch to light theme",
@@ -24,6 +25,40 @@
     "login_view_title": "Enter school — Lean Forge LMS",
     "courses_view_title": "Courses — Lean Forge LMS",
     "profile_view_title": "Profile — Lean Forge LMS",
+    "admin_users_view_title": "Administration — Users — Lean Forge LMS",
+    "admin_courses_view_title": "Administration — Courses — Lean Forge LMS",
+    "admin": {
+        "sidebar": {
+            "users": "Users",
+            "courses": "Courses",
+            "toggle": "Toggle sidebar"
+        },
+        "users": {
+            "title": "Users",
+            "search_placeholder": "Search by name or email",
+            "name": "Name",
+            "email": "Email",
+            "role": "Role",
+            "created_at": "Created",
+            "first_name": "First name",
+            "last_name": "Last name",
+            "edit": "Edit",
+            "edit_title": "Edit user",
+            "change_role": "Role",
+            "change_role_title": "Change role",
+            "delete": "Delete",
+            "delete_title": "Delete user",
+            "delete_confirm": "Are you sure you want to permanently delete {name}? This cannot be undone.",
+            "save": "Save",
+            "no_users": "No users found.",
+            "load_error": "Could not load users. Please try again.",
+            "save_error": "Could not save changes. Please try again.",
+            "self_action_disabled": "You cannot perform this action on your own account."
+        },
+        "courses": {
+            "coming_soon": "Course administration is coming soon."
+        }
+    },
     "profile": {
         "eyebrow": "Account bay",
         "title": "Your profile",

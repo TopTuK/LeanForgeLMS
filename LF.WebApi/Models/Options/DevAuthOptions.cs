@@ -27,11 +27,19 @@ public sealed class DevAuthOptions
         LastName = "Creator",
     };
 
+    public DevAuthPersona Admin { get; set; } = new()
+    {
+        Email = "dev.admin@leanforge.local",
+        FirstName = "Dev",
+        LastName = "Admin",
+    };
+
     public DevAuthPersona GetPersona(UserRole role) => role switch
     {
         UserRole.Student => Student,
         UserRole.Instructor => Instructor,
         UserRole.CourseCreator => CourseCreator,
+        UserRole.Admin => Admin,
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "No dev persona configured for this role."),
     };
 }

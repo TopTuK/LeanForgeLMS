@@ -11,6 +11,7 @@
         "contacts": "Контакты",
         "login": "Войти в школу",
         "profile": "Профиль",
+        "administration": "Администрирование",
         "logout": "Выйти",
         "menu_toggle": "Открыть меню",
         "theme_light": "Включить светлую тему",
@@ -24,6 +25,40 @@
     "login_view_title": "Войти в школу — Lean Forge LMS",
     "courses_view_title": "Курсы — Lean Forge LMS",
     "profile_view_title": "Профиль — Lean Forge LMS",
+    "admin_users_view_title": "Администрирование — Пользователи — Lean Forge LMS",
+    "admin_courses_view_title": "Администрирование — Курсы — Lean Forge LMS",
+    "admin": {
+        "sidebar": {
+            "users": "Пользователи",
+            "courses": "Курсы",
+            "toggle": "Свернуть/развернуть меню"
+        },
+        "users": {
+            "title": "Пользователи",
+            "search_placeholder": "Поиск по имени или email",
+            "name": "Имя",
+            "email": "Email",
+            "role": "Роль",
+            "created_at": "Создан",
+            "first_name": "Имя",
+            "last_name": "Фамилия",
+            "edit": "Изменить",
+            "edit_title": "Редактировать пользователя",
+            "change_role": "Роль",
+            "change_role_title": "Изменить роль",
+            "delete": "Удалить",
+            "delete_title": "Удаление пользователя",
+            "delete_confirm": "Вы уверены, что хотите безвозвратно удалить {name}? Это действие нельзя отменить.",
+            "save": "Сохранить",
+            "no_users": "Пользователи не найдены.",
+            "load_error": "Не удалось загрузить пользователей. Попробуйте ещё раз.",
+            "save_error": "Не удалось сохранить изменения. Попробуйте ещё раз.",
+            "self_action_disabled": "Это действие нельзя выполнить над собственной учётной записью."
+        },
+        "courses": {
+            "coming_soon": "Администрирование курсов появится позже."
+        }
+    },
     "profile": {
         "eyebrow": "Отсек аккаунта",
         "title": "Ваш профиль",

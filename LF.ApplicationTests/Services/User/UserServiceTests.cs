@@ -283,4 +283,116 @@ public class UserServiceTests
         usersMock.Verify(m => m.Add(It.IsAny<DbUser>()), Times.Never);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task ListUsersAsync_ReturnsPagedResults()
+    {
+        // Arrange
+        var users = Enumerable.Range(1, 25)
+            .Select(i => new DbUser { Id = i, Email = $"user{i}@x.com", FirstName = $"User{i}", LastName = "Test" })
+            .ToList();
+        var service = CreateService(users, out _, out _);
+
+        // Act
+        var result = await service.ListUsersAsync(page: 2, pageSize: 10, search: null);
+
+        // Assert
+        Assert.Equal(25, result.TotalCount);
+        Assert.Equal(10, result.Items.Count);
+        Assert.Equal(11, result.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task ListUsersAsync_WithSearch_FiltersByNameOrEmail()
+    {
+        // Arrange
+        var users = new List<DbUser>
+        {
+            new() { Id = 1, Email = "ada@x.com", FirstName = "Ada", LastName = "Lovelace" },
+            new() { Id = 2, Email = "grace@x.com", FirstName = "Grace", LastName = "Hopper" },
+        };
+        var service = CreateService(users, out _, out _);
+
+        // Act
+        var result = await service.ListUsersAsync(page: 1, pageSize: 10, search: "ada");
+
+        // Assert
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal("ada@x.com", result.Items[0].Email);
+    }
+
+    [Fact]
+    public async Task UpdateUserRoleAsync_UserExists_UpdatesRoleAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 5, Email = "u@x.com", FirstName = "U", Role = UserRole.Student };
+        var service = CreateService([existing], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.UpdateUserRoleAsync(5, new UpdateUserRoleDto { Role = UserRole.Instructor });
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(UserRole.Instructor, result!.Role);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserRoleAsync_UserDoesNotExist_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.UpdateUserRoleAsync(999, new UpdateUserRoleDto { Role = UserRole.Admin });
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserRoleAsync_SameRole_DoesNotSave()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 5, Email = "u@x.com", FirstName = "U", Role = UserRole.Instructor };
+        var service = CreateService([existing], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.UpdateUserRoleAsync(5, new UpdateUserRoleDto { Role = UserRole.Instructor });
+
+        // Assert
+        Assert.NotNull(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_UserExists_RemovesAndSaves()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 9, Email = "u@x.com", FirstName = "U" };
+        var service = CreateService([existing], out var dbContextMock, out var usersMock);
+
+        // Act
+        var result = await service.DeleteUserAsync(9);
+
+        // Assert
+        Assert.True(result);
+        usersMock.Verify(m => m.Remove(existing), Times.Once);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_UserDoesNotExist_ReturnsFalse()
+    {
+        // Arrange
+        var service = CreateService([], out var dbContextMock, out _);
+
+        // Act
+        var result = await service.DeleteUserAsync(999);
+
+        // Assert
+        Assert.False(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

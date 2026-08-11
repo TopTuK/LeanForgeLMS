@@ -18,6 +18,9 @@ internal sealed class RpcUserMappingConfig : IRegister
         config.NewConfig<EnsureUserWithRoleRequest, EnsureUserWithRoleDto>()
             .Map(dest => dest.Role, src => (DomainUserRole)(int)src.Role);
 
+        config.NewConfig<UpdateUserRoleRequest, UpdateUserRoleDto>()
+            .Map(dest => dest.Role, src => (DomainUserRole)(int)src.Role);
+
         config.NewConfig<UserDto, GetUserReply>()
             .Map(dest => dest.Role, src => (UserRole)(int)src.Role)
             .Map(dest => dest.CreatedAt, src => Timestamp.FromDateTime(src.CreatedAt.ToUniversalTime()));

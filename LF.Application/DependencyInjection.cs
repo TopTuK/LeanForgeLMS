@@ -1,3 +1,4 @@
+using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Profile;
 using LF.Application.Services.User;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IAdminUserService, AdminUserService>();
 
         return services;
     }

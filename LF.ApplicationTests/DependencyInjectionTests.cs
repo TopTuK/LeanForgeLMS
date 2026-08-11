@@ -1,5 +1,6 @@
 using LF.Application;
 using LF.Application.Common.Interfaces;
+using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Profile;
 using LF.Application.Services.User;
@@ -13,22 +14,23 @@ namespace LF.ApplicationTests;
 public class DependencyInjectionTests
 {
     [Fact]
-    public void AddAuthenticationApplication_RegistersAuthTokenAndProfileServices()
+    public void AddAuthenticationApplication_RegistersAuthTokenProfileAndAdminServices()
     {
         // Arrange
         var services = new ServiceCollection();
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
-        services.AddSingleton(Mock.Of<IGrpcIdentityService>());
+        services.AddScoped(_ => Mock.Of<IGrpcIdentityService>());
         services.AddAuthenticationApplication();
 
         // Act
-        using var provider = services.BuildServiceProvider(validateScopes: true);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var scope = provider.CreateScope();
 
         // Assert
         Assert.IsType<AuthenticationService>(scope.ServiceProvider.GetRequiredService<IAuthenticationService>());
         Assert.IsType<TokenService>(scope.ServiceProvider.GetRequiredService<ITokenService>());
         Assert.IsType<ProfileService>(scope.ServiceProvider.GetRequiredService<IProfileService>());
+        Assert.IsType<AdminUserService>(scope.ServiceProvider.GetRequiredService<IAdminUserService>());
     }
 
     [Fact]
@@ -41,7 +43,7 @@ public class DependencyInjectionTests
         services.AddUserApplication();
 
         // Act
-        using var provider = services.BuildServiceProvider(validateScopes: true);
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var scope = provider.CreateScope();
 
         // Assert
