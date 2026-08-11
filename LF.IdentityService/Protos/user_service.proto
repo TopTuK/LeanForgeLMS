@@ -19,6 +19,12 @@ service UserServiceRpc {
   rpc UpdateUserAvatar (UpdateUserAvatarRequest) returns (GetUserReply);
   // Get or create user and force-set the given role (development/testing use only)
   rpc EnsureUserWithRole (EnsureUserWithRoleRequest) returns (GetUserReply);
+  // List users, paged, with an optional search filter (admin use)
+  rpc ListUsers (ListUsersRequest) returns (ListUsersReply);
+  // Set a user's role by id (admin use)
+  rpc UpdateUserRole (UpdateUserRoleRequest) returns (GetUserReply);
+  // Permanently delete a user by id (admin use)
+  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserReply);
 }
 
 message GetUserRequest {
@@ -67,4 +73,28 @@ enum UserRole {
   INSTRUCTOR = 2;
   CREATOR = 3;
   ADMIN = 4;
+}
+
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  google.protobuf.StringValue search = 3;
+}
+
+message ListUsersReply {
+  repeated GetUserReply users = 1;
+  int32 total_count = 2;
+}
+
+message UpdateUserRoleRequest {
+  int32 id = 1;
+  UserRole role = 2;
+}
+
+message DeleteUserRequest {
+  int32 id = 1;
+}
+
+message DeleteUserReply {
+  bool found = 1;
 }

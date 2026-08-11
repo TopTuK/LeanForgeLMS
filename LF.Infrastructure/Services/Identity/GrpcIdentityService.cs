@@ -100,4 +100,47 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
 
         return reply.Adapt<UserDto>();
     }
+
+    public async Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search)
+    {
+        _logger.LogInformation("GrpcIdentityService::ListUsersAsync: called with Page={Page} PageSize={PageSize} Search={Search}", page, pageSize, search);
+
+        var request = new ListUsersRequest { Page = page, PageSize = pageSize, Search = search };
+        var reply = await _userServiceRpcClient.ListUsersAsync(request);
+
+        return new PagedUsersDto { Items = reply.Users.Adapt<List<UserDto>>(), TotalCount = reply.TotalCount };
+    }
+
+    public async Task<UserDto?> UpdateUserRoleAsync(int userId, UpdateUserRoleDto dto)
+    {
+        _logger.LogInformation("GrpcIdentityService::UpdateUserRoleAsync: called with UserId={usrId} Role={Role}", userId, dto.Role);
+
+        var request = dto.Adapt<UpdateUserRoleRequest>();
+        request.Id = userId;
+
+        try
+        {
+            var reply = await _userServiceRpcClient.UpdateUserRoleAsync(request);
+            return reply.Adapt<UserDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteUserAsync(int userId)
+    {
+        _logger.LogInformation("GrpcIdentityService::DeleteUserAsync: called with UserId={usrId}", userId);
+
+        try
+        {
+            var reply = await _userServiceRpcClient.DeleteUserAsync(new DeleteUserRequest { Id = userId });
+            return reply.Found;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return false;
+        }
+    }
 }

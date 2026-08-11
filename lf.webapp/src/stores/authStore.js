@@ -17,6 +17,8 @@ export const useAuthStore = defineStore('auth', () => {
         return hasCookie.value
     });
 
+    const isAdmin = computed(() => user.value?.role === 'Admin');
+
     const router = useRouter()
 
     watch(hasCookie, (newVal) => {
@@ -76,7 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     };
 
     return {
-        hasCookie, isAuthenticated, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
+        hasCookie, isAuthenticated, isAdmin, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
     }
 });
 
