@@ -31,6 +31,11 @@
     "profile_view_title": "Профиль — Lean Forge LMS",
     "admin_users_view_title": "Администрирование — Пользователи — Lean Forge LMS",
     "admin_courses_view_title": "Администрирование — Курсы — Lean Forge LMS",
+    "courses_available_view_title": "Доступные курсы — Lean Forge LMS",
+    "courses_active_view_title": "Активные курсы — Lean Forge LMS",
+    "courses_finished_view_title": "Завершённые курсы — Lean Forge LMS",
+    "courses_teaching_view_title": "Преподавание — Lean Forge LMS",
+    "courses_create_view_title": "Создание курса — Lean Forge LMS",
     "admin": {
         "sidebar": {
             "users": "Пользователи",
@@ -61,6 +66,47 @@
         },
         "courses": {
             "coming_soon": "Администрирование курсов появится позже."
+        }
+    },
+    "courses": {
+        "eyebrow": "Отсек обучения",
+        "title": "Курсы",
+        "create_action": "Создать курс",
+        "tabs": {
+            "available": "Доступные",
+            "active": "Активные",
+            "finished": "Завершённые",
+            "teaching": "Преподавание"
+        },
+        "available": {
+            "title": "Доступны для записи",
+            "subtitle": "Открытые курсы, на которые можно записаться прямо сейчас.",
+            "enroll": "Записаться",
+            "empty": "Сейчас нет курсов, открытых для записи."
+        },
+        "active": {
+            "title": "Активные курсы",
+            "subtitle": "Курсы, на которые вы сейчас записаны.",
+            "progress_label": "Пройдено {percent}%",
+            "empty": "Вы пока не записаны ни на один курс."
+        },
+        "finished": {
+            "title": "Завершённые курсы",
+            "subtitle": "Курсы, которые вы завершили.",
+            "completed_on": "Завершён {date}",
+            "empty": "Вы пока не завершили ни один курс."
+        },
+        "teaching": {
+            "title": "Курсы, которые вы ведёте",
+            "subtitle": "Курсы, где вы указаны преподавателем.",
+            "students_count": "{count} студентов",
+            "manage": "Управление",
+            "empty": "Вы пока не назначены преподавателем ни на один курс."
+        },
+        "create": {
+            "title": "Создание нового курса",
+            "coming_soon": "Создание курсов скоро появится.",
+            "back": "Назад к курсам"
         }
     },
     "events": {

@@ -5,6 +5,11 @@ import { storeToRefs } from "pinia";
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
+const AvailableCoursesView = () => import('@/views/courses/AvailableCoursesView.vue');
+const ActiveCoursesView = () => import('@/views/courses/ActiveCoursesView.vue');
+const FinishedCoursesView = () => import('@/views/courses/FinishedCoursesView.vue');
+const TeachingCoursesView = () => import('@/views/courses/TeachingCoursesView.vue');
+const CreateCourseView = () => import('@/views/courses/CreateCourseView.vue');
 const EventsView = () => import('@/views/EventsView.vue');
 const CertificatesView = () => import('@/views/CertificatesView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
@@ -33,12 +38,60 @@ const routes = [
     },
     {
         path: '/courses',
-        name: 'Courses',
         component: CoursesView,
         meta: {
-            title: 'courses_view_title',
             requiresAuth: true,
-        }
+        },
+        children: [
+            { path: '', name: 'Courses', redirect: { name: 'CoursesAvailable' } },
+            {
+                path: 'available',
+                name: 'CoursesAvailable',
+                component: AvailableCoursesView,
+                meta: {
+                    title: 'courses_available_view_title',
+                    requiresAuth: true,
+                }
+            },
+            {
+                path: 'active',
+                name: 'CoursesActive',
+                component: ActiveCoursesView,
+                meta: {
+                    title: 'courses_active_view_title',
+                    requiresAuth: true,
+                }
+            },
+            {
+                path: 'finished',
+                name: 'CoursesFinished',
+                component: FinishedCoursesView,
+                meta: {
+                    title: 'courses_finished_view_title',
+                    requiresAuth: true,
+                }
+            },
+            {
+                path: 'teaching',
+                name: 'CoursesTeaching',
+                component: TeachingCoursesView,
+                meta: {
+                    title: 'courses_teaching_view_title',
+                    requiresAuth: true,
+                    roles: ['Instructor', 'CourseCreator', 'Admin'],
+                }
+            },
+            {
+                path: 'create',
+                name: 'CoursesCreate',
+                component: CreateCourseView,
+                meta: {
+                    title: 'courses_create_view_title',
+                    requiresAuth: true,
+                    roles: ['CourseCreator', 'Admin'],
+                }
+            },
+        ],
     },
     {
         path: '/events',
@@ -72,7 +125,7 @@ const routes = [
         component: AdminLayout,
         meta: {
             requiresAuth: true,
-            requiresAdmin: true,
+            roles: ['Admin'],
         },
         children: [
             { path: '', redirect: { name: 'AdminUsers' } },
@@ -83,7 +136,7 @@ const routes = [
                 meta: {
                     title: 'admin_users_view_title',
                     requiresAuth: true,
-                    requiresAdmin: true,
+                    roles: ['Admin'],
                 }
             },
             {
@@ -93,7 +146,7 @@ const routes = [
                 meta: {
                     title: 'admin_courses_view_title',
                     requiresAuth: true,
-                    requiresAdmin: true,
+                    roles: ['Admin'],
                 }
             },
         ],
@@ -122,11 +175,11 @@ router.beforeEach(async (to, from) => {
             return { name: 'Courses' }
         }
 
-        if (to.meta.requiresAdmin) {
+        if (to.meta.roles?.length) {
             if (!authStore.user) await authStore.fetchUser()
 
-            if (!authStore.isAdmin) {
-                console.log('Router::beforeEach: route requires Admin role. Redirecting to Courses')
+            if (!authStore.user || !to.meta.roles.includes(authStore.user.role)) {
+                console.log('Router::beforeEach: route requires role(s):', to.meta.roles, '. Redirecting to Courses')
                 return { name: 'Courses' }
             }
         }

@@ -31,6 +31,11 @@
     "profile_view_title": "Profile — Lean Forge LMS",
     "admin_users_view_title": "Administration — Users — Lean Forge LMS",
     "admin_courses_view_title": "Administration — Courses — Lean Forge LMS",
+    "courses_available_view_title": "Available courses — Lean Forge LMS",
+    "courses_active_view_title": "Active courses — Lean Forge LMS",
+    "courses_finished_view_title": "Finished courses — Lean Forge LMS",
+    "courses_teaching_view_title": "Teaching — Lean Forge LMS",
+    "courses_create_view_title": "Create course — Lean Forge LMS",
     "admin": {
         "sidebar": {
             "users": "Users",
@@ -61,6 +66,47 @@
         },
         "courses": {
             "coming_soon": "Course administration is coming soon."
+        }
+    },
+    "courses": {
+        "eyebrow": "Learning bay",
+        "title": "Courses",
+        "create_action": "Create course",
+        "tabs": {
+            "available": "Available",
+            "active": "Active",
+            "finished": "Finished",
+            "teaching": "Teaching"
+        },
+        "available": {
+            "title": "Available for enrollment",
+            "subtitle": "Open courses you can join right now.",
+            "enroll": "Enroll",
+            "empty": "No courses are open for enrollment right now."
+        },
+        "active": {
+            "title": "Active courses",
+            "subtitle": "Courses you are currently enrolled in.",
+            "progress_label": "{percent}% complete",
+            "empty": "You are not enrolled in any courses yet."
+        },
+        "finished": {
+            "title": "Finished courses",
+            "subtitle": "Courses you have completed.",
+            "completed_on": "Completed {date}",
+            "empty": "You have not finished any courses yet."
+        },
+        "teaching": {
+            "title": "Courses you teach",
+            "subtitle": "Courses where you are the instructor.",
+            "students_count": "{count} students",
+            "manage": "Manage",
+            "empty": "You are not assigned as an instructor on any course yet."
+        },
+        "create": {
+            "title": "Create a new course",
+            "coming_soon": "Course creation is coming soon.",
+            "back": "Back to courses"
         }
     },
     "events": {
