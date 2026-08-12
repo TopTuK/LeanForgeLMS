@@ -5,6 +5,8 @@ import { storeToRefs } from "pinia";
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
+const EventsView = () => import('@/views/EventsView.vue');
+const CertificatesView = () => import('@/views/CertificatesView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
 const AdminLayout = () => import('@/layout/AdminLayout.vue');
 const AdminUsersView = () => import('@/views/admin/AdminUsersView.vue');
@@ -35,6 +37,24 @@ const routes = [
         component: CoursesView,
         meta: {
             title: 'courses_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/events',
+        name: 'Events',
+        component: EventsView,
+        meta: {
+            title: 'events_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/certificates',
+        name: 'Certificates',
+        component: CertificatesView,
+        meta: {
+            title: 'certificates_view_title',
             requiresAuth: true,
         }
     },

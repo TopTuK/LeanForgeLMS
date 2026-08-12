@@ -55,6 +55,18 @@ async function onLogout() {
           {{ $t('nav.courses') }}
         </router-link>
         <router-link
+          :to="{ name: 'Events' }"
+          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+        >
+          {{ $t('nav.events') }}
+        </router-link>
+        <router-link
+          :to="{ name: 'Certificates' }"
+          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+        >
+          {{ $t('nav.certificates') }}
+        </router-link>
+        <router-link
           v-if="authStore.isAdmin"
           :to="{ name: 'AdminUsers' }"
           class="text-sm font-medium text-ink-muted hover:text-ink transition"
@@ -184,6 +196,20 @@ async function onLogout() {
         @click="closeMobileMenu"
       >
         {{ $t('nav.courses') }}
+      </router-link>
+      <router-link
+        :to="{ name: 'Events' }"
+        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
+        @click="closeMobileMenu"
+      >
+        {{ $t('nav.events') }}
+      </router-link>
+      <router-link
+        :to="{ name: 'Certificates' }"
+        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
+        @click="closeMobileMenu"
+      >
+        {{ $t('nav.certificates') }}
       </router-link>
       <router-link
         :to="{ name: 'Profile' }"

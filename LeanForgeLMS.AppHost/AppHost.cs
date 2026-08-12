@@ -36,6 +36,8 @@ builder
     .WithReference(minio)
     .WaitFor(minio);
 
+builder.AddProject<Projects.LF_CourseService>("lf-courseservice");
+
 builder
     .Build()
     .Run();

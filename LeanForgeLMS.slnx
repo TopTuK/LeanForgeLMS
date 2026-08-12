@@ -4,6 +4,7 @@
   <Project Path="LF.AppDomain/LF.AppDomain.csproj" Id="22666d35-fdab-4ca6-823e-b200b6056cd3" />
   <Project Path="LF.Application/LF.Application.csproj" Id="eca7108a-bb0e-4926-ad54-5267f9e778e1" />
   <Project Path="LF.ApplicationTests/LF.ApplicationTests.csproj" />
+  <Project Path="LF.CourseService/LF.CourseService.csproj" />
   <Project Path="Lf.IdentityService/Lf.IdentityService.csproj" />
   <Project Path="LF.Infrastructure/LF.Infrastructure.csproj" Id="2e852d76-779e-47e9-96ee-ea266b5a4737" />
   <Project Path="LF.WebApi/LF.WebApi.csproj" />

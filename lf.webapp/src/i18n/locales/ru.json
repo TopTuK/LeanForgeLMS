@@ -7,6 +7,8 @@
     "home_view_title": "Lean Forge LMS — Онлайн-школа для разработчиков",
     "nav": {
         "courses": "Курсы",
+        "events": "Мероприятия",
+        "certificates": "Сертификаты",
         "reviews": "Отзывы",
         "contacts": "Контакты",
         "login": "Войти в школу",
@@ -24,6 +26,8 @@
     },
     "login_view_title": "Войти в школу — Lean Forge LMS",
     "courses_view_title": "Курсы — Lean Forge LMS",
+    "events_view_title": "Мероприятия — Lean Forge LMS",
+    "certificates_view_title": "Сертификаты — Lean Forge LMS",
     "profile_view_title": "Профиль — Lean Forge LMS",
     "admin_users_view_title": "Администрирование — Пользователи — Lean Forge LMS",
     "admin_courses_view_title": "Администрирование — Курсы — Lean Forge LMS",
@@ -58,6 +62,12 @@
         "courses": {
             "coming_soon": "Администрирование курсов появится позже."
         }
+    },
+    "events": {
+        "hello": "Привет, мир"
+    },
+    "certificates": {
+        "hello": "Привет, мир"
     },
     "profile": {
         "eyebrow": "Отсек аккаунта",

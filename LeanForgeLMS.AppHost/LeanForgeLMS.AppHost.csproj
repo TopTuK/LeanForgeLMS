@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\LF.CourseService\LF.CourseService.csproj" />
     <ProjectReference Include="..\LF.IdentityService\LF.IdentityService.csproj" />
     <ProjectReference Include="..\LF.WebApi\LF.WebApi.csproj" />
   </ItemGroup>

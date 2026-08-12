@@ -18,4 +18,8 @@
     <ProjectReference Include="..\LF.AppDomain\LF.AppDomain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Services\Course\" />
+  </ItemGroup>
+
 </Project>

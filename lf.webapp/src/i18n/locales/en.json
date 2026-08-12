@@ -7,6 +7,8 @@
     "home_view_title": "Lean Forge LMS — Online School for Developers",
     "nav": {
         "courses": "Courses",
+        "events": "Events",
+        "certificates": "Certificates",
         "reviews": "Reviews",
         "contacts": "Contacts",
         "login": "Enter school",
@@ -24,6 +26,8 @@
     },
     "login_view_title": "Enter school — Lean Forge LMS",
     "courses_view_title": "Courses — Lean Forge LMS",
+    "events_view_title": "Events — Lean Forge LMS",
+    "certificates_view_title": "Certificates — Lean Forge LMS",
     "profile_view_title": "Profile — Lean Forge LMS",
     "admin_users_view_title": "Administration — Users — Lean Forge LMS",
     "admin_courses_view_title": "Administration — Courses — Lean Forge LMS",
@@ -58,6 +62,12 @@
         "courses": {
             "coming_soon": "Course administration is coming soon."
         }
+    },
+    "events": {
+        "hello": "Hello world"
+    },
+    "certificates": {
+        "hello": "Hello world"
     },
     "profile": {
         "eyebrow": "Account bay",
