@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/authStore';
+import { fetchCourses } from '@/services/courseService';
 
 const route = useRoute();
 const { t } = useI18n();
@@ -21,6 +22,24 @@ const tabs = computed(() => {
 
     return list;
 });
+
+// Surfaced on every /courses/* tab (not just the create form) so navigating "back" from
+// the editor by any route — in-app link or the browser's own back button — never strands
+// the user on a page with no visible way to resume a draft they already started.
+const latestDraft = ref(null);
+
+async function loadLatestDraft() {
+    if (!authStore.canCreateCourses) return;
+
+    try {
+        const result = await fetchCourses({ page: 1, pageSize: 50 });
+        latestDraft.value = result.items.find((c) => !c.isPublished) ?? null;
+    } catch {
+        latestDraft.value = null;
+    }
+}
+
+onMounted(loadLatestDraft);
 </script>
 
 <template>
@@ -57,6 +76,15 @@ const tabs = computed(() => {
         {{ $t('courses.create_action') }}
       </router-link>
     </div>
+
+    <router-link
+      v-if="latestDraft"
+      :to="{ name: 'CourseEdit', params: { id: latestDraft.id } }"
+      class="flat-card rounded-card flex flex-wrap items-center justify-between gap-3 px-5 py-4 mb-8 text-sm font-medium hover:opacity-90 transition"
+    >
+      <span>{{ $t('courses.continue_draft', { title: latestDraft.title }) }}</span>
+      <span class="text-accent-coral font-semibold">{{ $t('courses.create.edit_action') }} &rarr;</span>
+    </router-link>
 
     <nav
       class="flex flex-wrap gap-2 mb-10"

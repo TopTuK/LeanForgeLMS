@@ -1,5 +1,7 @@
 using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
+using LF.Application.Services.Course;
+using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Profile;
 using LF.Application.Services.User;
 using Mapster;
@@ -18,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddScoped<ICourseAuthoringService, CourseAuthoringService>();
 
         return services;
     }
@@ -27,6 +30,16 @@ public static class DependencyInjection
         TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
 
         services.AddScoped<IUserService, UserService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCourseApplication(this IServiceCollection services)
+    {
+        TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<ICourseService, CourseService>();
 
         return services;
     }

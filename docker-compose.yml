@@ -64,6 +64,27 @@ services:
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
     # No ports: — not reachable from the host.
 
+  lf-courseservice:
+    build:
+      context: .
+      dockerfile: LF.CourseService/Dockerfile
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — no egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # LF.IdentityService is the sole schema owner/migrator for the shared AppDbContext
+      # (including the Course tables) — it must have applied migrations before this starts.
+      lf-identityservice:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    # No ports: — not reachable from the host.
+
   lf-webapi:
     build:
       context: .
@@ -71,9 +92,11 @@ services:
     restart: unless-stopped
     networks:
       - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
-      - leanforge-internal   # reach lf-identityservice via gRPC
+      - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
     depends_on:
       lf-identityservice:
+        condition: service_started
+      lf-courseservice:
         condition: service_started
       minio:
         condition: service_healthy
@@ -86,6 +109,7 @@ services:
       # Microsoft.Extensions.ServiceDiscovery resolves "https+http://lf-identityservice"
       # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
       Services__lf-identityservice__http__0: "lf-identityservice:8080"
+      Services__lf-courseservice__http__0: "lf-courseservice:8080"
       ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret

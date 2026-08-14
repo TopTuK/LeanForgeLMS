@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+option csharp_namespace = "LF.CourseService";
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+package course_service;
+
+// The Course service definition
+service CourseServiceRpc {
+  // Create a new draft course
+  rpc CreateCourse (CreateCourseRequest) returns (CourseDetailReply);
+  // Get a course by id, with its chapters and lessons
+  rpc GetCourse (GetCourseRequest) returns (CourseDetailReply);
+  // List courses, paged; scoped to the acting user's own courses unless they are an admin
+  rpc ListCourses (ListCoursesRequest) returns (ListCoursesReply);
+  // List available course categories
+  rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesReply);
+  // Add a chapter to a course
+  rpc AddChapter (AddChapterRequest) returns (CourseDetailReply);
+  // Rename a chapter
+  rpc RenameChapter (RenameChapterRequest) returns (CourseDetailReply);
+  // Move a chapter up or down within its course
+  rpc MoveChapter (MoveChapterRequest) returns (CourseDetailReply);
+  // Add a lesson to a chapter
+  rpc AddLesson (AddLessonRequest) returns (CourseDetailReply);
+  // Update a lesson's title/content/preview flag
+  rpc UpdateLesson (UpdateLessonRequest) returns (CourseDetailReply);
+  // Move a lesson up or down within its chapter
+  rpc MoveLesson (MoveLessonRequest) returns (CourseDetailReply);
+  // Remove a lesson from its chapter
+  rpc RemoveLesson (RemoveLessonRequest) returns (CourseDetailReply);
+  // Publish a course (requires at least one chapter, each with at least one lesson)
+  rpc PublishCourse (PublishCourseRequest) returns (CourseDetailReply);
+}
+
+enum MoveDirection {
+  MOVE_DIRECTION_UNKNOWN = 0;
+  UP = 1;
+  DOWN = 2;
+}
+
+message CreateCourseRequest {
+  string title = 1;
+  string short_introduction = 2;
+  string description = 3;
+  int32 category_id = 4;
+  int32 created_by_user_id = 5;
+}
+
+message GetCourseRequest {
+  int32 id = 1;
+  int32 acting_user_id = 2;
+  bool acting_is_admin = 3;
+}
+
+message ListCoursesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 acting_user_id = 3;
+  bool acting_is_admin = 4;
+}
+
+message ListCoursesReply {
+  repeated CourseSummaryReply courses = 1;
+  int32 total_count = 2;
+}
+
+message CourseSummaryReply {
+  int32 id = 1;
+  string title = 2;
+  string short_introduction = 3;
+  bool is_published = 4;
+  int32 category_id = 5;
+  string category_name = 6;
+  int32 created_by_user_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  int32 chapter_count = 9;
+}
+
+message CourseDetailReply {
+  int32 id = 1;
+  string title = 2;
+  string short_introduction = 3;
+  string description = 4;
+  google.protobuf.StringValue image_key = 5;
+  bool is_published = 6;
+  int32 category_id = 7;
+  string category_name = 8;
+  int32 created_by_user_id = 9;
+  google.protobuf.Timestamp created_at = 10;
+  repeated ChapterReply chapters = 11;
+}
+
+message ChapterReply {
+  int32 id = 1;
+  string title = 2;
+  int32 sort_order = 3;
+  repeated LessonReply lessons = 4;
+}
+
+message LessonReply {
+  int32 id = 1;
+  string title = 2;
+  string content = 3;
+  bool include_in_preview = 4;
+  int32 sort_order = 5;
+}
+
+message ListCategoriesRequest {
+}
+
+message ListCategoriesReply {
+  repeated CategoryReply categories = 1;
+}
+
+message CategoryReply {
+  int32 id = 1;
+  string name = 2;
+}
+
+message AddChapterRequest {
+  int32 course_id = 1;
+  string title = 2;
+  int32 acting_user_id = 3;
+  bool acting_is_admin = 4;
+}
+
+message RenameChapterRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  string title = 3;
+  int32 acting_user_id = 4;
+  bool acting_is_admin = 5;
+}
+
+message MoveChapterRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  MoveDirection direction = 3;
+  int32 acting_user_id = 4;
+  bool acting_is_admin = 5;
+}
+
+message AddLessonRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  string title = 3;
+  google.protobuf.StringValue content = 4;
+  bool include_in_preview = 5;
+  int32 acting_user_id = 6;
+  bool acting_is_admin = 7;
+}
+
+message UpdateLessonRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  int32 lesson_id = 3;
+  string title = 4;
+  google.protobuf.StringValue content = 5;
+  bool include_in_preview = 6;
+  int32 acting_user_id = 7;
+  bool acting_is_admin = 8;
+}
+
+message MoveLessonRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  int32 lesson_id = 3;
+  MoveDirection direction = 4;
+  int32 acting_user_id = 5;
+  bool acting_is_admin = 6;
+}
+
+message RemoveLessonRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  int32 lesson_id = 3;
+  int32 acting_user_id = 4;
+  bool acting_is_admin = 5;
+}
+
+message PublishCourseRequest {
+  int32 course_id = 1;
+  int32 acting_user_id = 2;
+  bool acting_is_admin = 3;
+}

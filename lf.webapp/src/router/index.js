@@ -10,6 +10,7 @@ const ActiveCoursesView = () => import('@/views/courses/ActiveCoursesView.vue');
 const FinishedCoursesView = () => import('@/views/courses/FinishedCoursesView.vue');
 const TeachingCoursesView = () => import('@/views/courses/TeachingCoursesView.vue');
 const CreateCourseView = () => import('@/views/courses/CreateCourseView.vue');
+const CourseEditorView = () => import('@/views/courses/CourseEditorView.vue');
 const EventsView = () => import('@/views/EventsView.vue');
 const CertificatesView = () => import('@/views/CertificatesView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
@@ -87,6 +88,16 @@ const routes = [
                 component: CreateCourseView,
                 meta: {
                     title: 'courses_create_view_title',
+                    requiresAuth: true,
+                    roles: ['CourseCreator', 'Admin'],
+                }
+            },
+            {
+                path: 'edit/:id',
+                name: 'CourseEdit',
+                component: CourseEditorView,
+                meta: {
+                    title: 'courses_edit_view_title',
                     requiresAuth: true,
                     roles: ['CourseCreator', 'Admin'],
                 }

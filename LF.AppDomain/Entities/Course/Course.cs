@@ -16,6 +16,7 @@ public sealed class Course
     public bool IsPublished { get; private set; }
     public int CategoryId { get; private set; }
     public Category Category { get; private set; } = null!;
+    public int CreatedByUserId { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public IReadOnlyList<Chapter> Chapters => _chapters.AsReadOnly();
 
@@ -24,9 +25,11 @@ public sealed class Course
         string shortIntroduction,
         string description,
         Category category,
+        int createdByUserId,
         DateTime createdAt)
     {
         ArgumentNullException.ThrowIfNull(category);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(createdByUserId, 0);
 
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Course title cannot be empty.", nameof(title));
@@ -44,6 +47,7 @@ public sealed class Course
             Description = description.Trim(),
             Category = category,
             CategoryId = category.Id,
+            CreatedByUserId = createdByUserId,
             CreatedAt = createdAt,
             IsPublished = false
         };
@@ -54,6 +58,28 @@ public sealed class Course
         var chapter = Chapter.Create(title, _chapters.Count + 1);
         _chapters.Add(chapter);
         return chapter;
+    }
+
+    public void MoveChapterUp(int chapterId) => ReorderChapter(chapterId, -1);
+
+    public void MoveChapterDown(int chapterId) => ReorderChapter(chapterId, 1);
+
+    private void ReorderChapter(int chapterId, int delta)
+    {
+        var index = _chapters.FindIndex(c => c.Id == chapterId);
+        if (index < 0)
+            throw new InvalidOperationException($"Chapter {chapterId} not found on this course.");
+
+        var targetIndex = index + delta;
+        if (targetIndex < 0 || targetIndex >= _chapters.Count)
+            return;
+
+        var current = _chapters[index];
+        var target = _chapters[targetIndex];
+        (var currentOrder, var targetOrder) = (current.SortOrder, target.SortOrder);
+        current.SetSortOrder(targetOrder);
+        target.SetSortOrder(currentOrder);
+        (_chapters[index], _chapters[targetIndex]) = (_chapters[targetIndex], _chapters[index]);
     }
 
     public void Publish()

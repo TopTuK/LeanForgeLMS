@@ -26,6 +26,7 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     services.AddAuthenticationApplication();
     // GrpcChannel rejects Aspire's https+http scheme; http:// works with service discovery.
     services.AddInfrastructureGrpcClient("http://lf-identityservice");
+    services.AddInfrastructureCourseGrpcClient("http://lf-courseservice");
     services.AddInfrastructureFileStorage(configuration);
 }
 
@@ -220,7 +221,8 @@ try
     // request, so the policy must check ClaimTypes.Role here, not the literal "role" string.
     builder.Services
         .AddAuthorizationBuilder()
-        .AddPolicy("AdminOnly", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.Admin)));
+        .AddPolicy("AdminOnly", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.Admin)))
+        .AddPolicy("CourseCreatorOrAdmin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.CourseCreator), nameof(UserRole.Admin)));
 
     // Configure application services
     ConfigureServices(builder.Services, configuration);
