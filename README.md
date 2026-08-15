@@ -66,7 +66,7 @@ graph BT
 | Layer | Project | Responsibility |
 |---|---|---|
 | Domain | `LF.AppDomain` | Entities with behavior (`DbUser`), enums (`UserRole`). Zero project or framework references by design. |
-| Application | `LF.Application` | Use-case services (`UserService`, `ProfileService`, `AuthenticationService`, `TokenService`), DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IGrpcIdentityService`). |
+| Application | `LF.Application` | Use-case services (`UserService`, `ProfileService`, `AdminUserService`, `AuthenticationService`, `TokenService`), DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IGrpcIdentityService`). No mediator/dispatcher library — endpoints call these services directly. |
 | Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql), the gRPC client to `LF.IdentityService`, and the MinIO-backed `IFileStorageService` implementation. Split into narrow DI extensions (`AddInfrastructureDatabase`, `AddInfrastructureGrpcClient`, `AddInfrastructureFileStorage`) so each host wires up only what it needs. |
 | Api | `LF.WebApi`, `LF.IdentityService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (existing auth) + Minimal API (`IEndpointGroup`, auto-discovered, new features). `LF.IdentityService` is a bare gRPC host. |
 
@@ -92,13 +92,22 @@ JWT Bearer is the default authenticate/challenge scheme for the rest of the API;
 
 ### Development-only login shortcuts
 
-`GET /api/dev-auth/{role}` (`role` = `Student`, `Instructor`, or `CourseCreator`) is a **local development and testing convenience** — it ensures a fixed test persona (email/first/last name configured under `DevAuth` in `appsettings.Development.json`) exists with the requested role, mints the same JWT cookie the real PMI login issues, and redirects to `/courses` — reproducing a real login without needing a working OIDC provider. There is no UI for it; it's meant to be hit directly (browser address bar, curl, or an automated/E2E test).
+`GET /api/dev-auth/{role}` (`role` = `Student`, `Instructor`, `CourseCreator`, or `Admin`) is a **local development and testing convenience** — it ensures a fixed test persona (email/first/last name configured under `DevAuth` in `appsettings.Development.json`) exists with the requested role, mints the same JWT cookie the real PMI login issues, and redirects to `/courses` — reproducing a real login without needing a working OIDC provider. There is no UI for it; it's meant to be hit directly (browser address bar, curl, or an automated/E2E test).
 
 **This is excluded from production, not just hidden:**
 
 - `DevAuthEndpoints.Map()` (`LF.WebApi/Endpoints/DevAuthEndpoints.cs`) checks `IHostEnvironment.IsDevelopment()` and simply never calls `MapGet` when it's `false` — the route doesn't exist in the endpoint routing table at all outside Development (confirmed empirically: building the app with `EnvironmentName = "Production"` registers zero routes under `/api/dev-auth`, vs. one in `"Development"`). It's a structural absence, not a guarded 404.
 - `docker-compose.yml` (the production deployment) explicitly sets `ASPNETCORE_ENVIRONMENT: Production` for both `lf-webapi` and `lf-identityservice`. Even without that, ASP.NET Core's own default when `ASPNETCORE_ENVIRONMENT` is unset is `Production` — so a misconfigured deploy fails closed, not open.
 - The `DevAuth` persona configuration itself only exists in `appsettings.Development.json`, never in `appsettings.json` (the file that ships in the production image) or `docker-compose.yml`.
+
+### Admin area
+
+Users with `Role = Admin` get an "Administration" entry point in the SPA header (hidden from everyone else) leading to `/admin/users` — a Vuestic UI data table for listing, searching, editing, role-assigning, and deleting other users — plus an `/admin/courses` placeholder (no Course domain exists yet, so there's nothing to administer there).
+
+- **Backend**: `LF.WebApi/Endpoints/AdminUserEndpoints.cs` (`/api/admin/users`, `RequireAuthorization("AdminOnly")`) calls `IAdminUserService` (`LF.Application/Services/Admin/AdminUserService.cs`) directly, which wraps `IGrpcIdentityService` — the same direct-injection shape as `ProfileService`, no mediator/dispatcher layer in between. Listing, role changes, and info edits go through the gRPC contract's `ListUsers`/`UpdateUserRole`/`UpdateUserProfile` RPCs; deletion goes through a new `DeleteUser` RPC — all added to `user_service.proto` alongside the existing ones.
+- **Authorization**: an `AdminOnly` policy (`Program.cs`), additive on top of the existing JWT/Cookie/OIDC wiring: `RequireClaim(ClaimTypes.Role, nameof(UserRole.Admin))`. It checks `ClaimTypes.Role`, not the literal `"role"` claim the JWT is issued with — `JwtBearerHandler`'s default inbound claim mapping silently renames `"role"` → `ClaimTypes.Role` when building the request's `ClaimsPrincipal`, so checking the literal string would 403 everyone, including admins.
+- **Self-protection**: an admin can't change their own role or delete their own account — `AdminUserService` throws `SelfAdministrationException`, mapped to `409 Conflict`, checked server-side and mirrored client-side (disabled row actions) so it can't be worked around by calling the API directly.
+- **Testing without a real PMI/Google login**: the dev-login shortcut (`GET /api/dev-auth/{role}`) also accepts `Admin`, alongside the original Student/Instructor/CourseCreator personas.
 
 ### Avatar storage
 
@@ -115,7 +124,7 @@ LeanForgeLMS.slnx
 LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), lf-identityservice, lf-webapi
 LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: OpenTelemetry, health checks, service discovery, HTTP resilience
 LF.AppDomain/                    # Domain layer — Entities/User/DbUser.cs, Models/User/Enums/UserRole.cs
-LF.Application/                  # Application layer — Services/{Authentication,Profile,User}, ModelDto/*, Common/Interfaces, Common/Mapping
+LF.Application/                  # Application layer — Services/{Authentication,Profile,User,Admin}, ModelDto/*, Common/Interfaces, Common/Mapping
 LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs, Services/Identity (gRPC client), Services/Storage (MinIO)
 LF.WebApi/                       # Public host — MVC auth controllers, Endpoints/ (Minimal API), Program.cs auth pipeline
 LF.IdentityService/              # Internal gRPC host — Services/RpcUserService.cs, Protos/user_service.proto

@@ -1,0 +1,269 @@
+using LF.AppDomain.Entities.Course;
+using LF.Application.Common.Exceptions;
+using LF.Application.Common.Interfaces;
+using LF.Application.ModelDto.Course;
+using Mapster;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using DomainCourse = LF.AppDomain.Entities.Course.Course;
+
+namespace LF.Application.Services.Course;
+
+internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext dbContext, TimeProvider timeProvider) : ICourseService
+{
+    private readonly ILogger<CourseService> _logger = logger;
+    private readonly IAppDbContext _dbContext = dbContext;
+    private readonly TimeProvider _timeProvider = timeProvider;
+
+    public async Task<CourseDetailDto> CreateCourseAsync(CreateCourseDto dto, int createdByUserId)
+    {
+        _logger.LogInformation("CourseService::CreateCourseAsync: called with Title={Title} CategoryId={CategoryId} CreatedByUserId={CreatedByUserId}",
+            dto.Title, dto.CategoryId, createdByUserId);
+
+        var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == dto.CategoryId);
+        if (category is null)
+            throw new ArgumentException($"Category {dto.CategoryId} not found.", nameof(dto));
+
+        var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, dto.Description, category, createdByUserId, _timeProvider.GetUtcNow().UtcDateTime);
+
+        _dbContext.Courses.Add(course);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> GetCourseAsync(int id, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::GetCourseAsync: called with Id={CourseId} ActingUserId={ActingUserId}", id, actingUserId);
+
+        var course = await LoadCourseForReadAsync(id);
+        if (course is null)
+            return null;
+
+        if (!isAdmin && course.CreatedByUserId != actingUserId)
+            throw new CourseAuthorizationException("You do not have access to this course.");
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<PagedCoursesDto> ListCoursesAsync(int page, int pageSize, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::ListCoursesAsync: called with Page={Page} PageSize={PageSize} ActingUserId={ActingUserId} IsAdmin={IsAdmin}",
+            page, pageSize, actingUserId, isAdmin);
+
+        IQueryable<DomainCourse> query = _dbContext.Courses.AsNoTracking().Include(c => c.Category).Include(c => c.Chapters);
+        if (!isAdmin)
+            query = query.Where(c => c.CreatedByUserId == actingUserId);
+
+        var totalCount = await query.CountAsync();
+        var courses = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedCoursesDto { Items = courses.Adapt<List<CourseSummaryDto>>(), TotalCount = totalCount };
+    }
+
+    public async Task<IReadOnlyList<CategoryDto>> ListCategoriesAsync()
+    {
+        _logger.LogInformation("CourseService::ListCategoriesAsync: called");
+
+        var categories = await _dbContext.Categories.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+        return categories.Adapt<List<CategoryDto>>();
+    }
+
+    public async Task<CourseDetailDto?> AddChapterAsync(int courseId, string title, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::AddChapterAsync: called with CourseId={CourseId} Title={Title} ActingUserId={ActingUserId}",
+            courseId, title, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        course.AddChapter(title);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> RenameChapterAsync(int courseId, int chapterId, string title, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::RenameChapterAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            courseId, chapterId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        if (chapter is null)
+            return null;
+
+        chapter.Rename(title);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> MoveChapterAsync(int courseId, int chapterId, MoveDirection direction, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::MoveChapterAsync: called with CourseId={CourseId} ChapterId={ChapterId} Direction={Direction} ActingUserId={ActingUserId}",
+            courseId, chapterId, direction, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        if (course.Chapters.All(c => c.Id != chapterId))
+            return null;
+
+        if (direction == MoveDirection.Up)
+            course.MoveChapterUp(chapterId);
+        else
+            course.MoveChapterDown(chapterId);
+
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> AddLessonAsync(int courseId, int chapterId, AddLessonDto dto, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::AddLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            courseId, chapterId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        if (chapter is null)
+            return null;
+
+        chapter.AddLesson(dto.Title, dto.Content, dto.IncludeInPreview);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> UpdateLessonAsync(int courseId, int chapterId, int lessonId, UpdateLessonDto dto, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::UpdateLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        var lesson = chapter?.Lessons.FirstOrDefault(l => l.Id == lessonId);
+        if (lesson is null)
+            return null;
+
+        lesson.Rename(dto.Title);
+        lesson.UpdateContent(dto.Content);
+        lesson.SetIncludeInPreview(dto.IncludeInPreview);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> MoveLessonAsync(int courseId, int chapterId, int lessonId, MoveDirection direction, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::MoveLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} Direction={Direction} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, direction, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        if (chapter is null || chapter.Lessons.All(l => l.Id != lessonId))
+            return null;
+
+        if (direction == MoveDirection.Up)
+            chapter.MoveLessonUp(lessonId);
+        else
+            chapter.MoveLessonDown(lessonId);
+
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> RemoveLessonAsync(int courseId, int chapterId, int lessonId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::RemoveLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        if (chapter is null || chapter.Lessons.All(l => l.Id != lessonId))
+            return null;
+
+        chapter.RemoveLesson(lessonId);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::PublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        course.Publish();
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
+    private static void EnsureOwnership(DomainCourse course, int actingUserId, bool isAdmin)
+    {
+        if (!isAdmin && course.CreatedByUserId != actingUserId)
+            throw new CourseAuthorizationException("You do not have access to this course.");
+    }
+
+    // Ordering by SortOrder is applied in CourseMappingConfig when projecting to DTOs, not here —
+    // EF's filtered-Include ordering syntax doesn't compose cleanly with ThenInclude + AsSplitQuery
+    // for a get-only IReadOnlyList<T> navigation, and the domain mutators keep the in-memory
+    // _chapters/_lessons lists correctly ordered anyway, so a plain Include is sufficient.
+    private Task<DomainCourse?> LoadCourseForMutationAsync(int courseId) =>
+        _dbContext.Courses
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .Include(c => c.Category)
+            .FirstOrDefaultAsync(c => c.Id == courseId);
+
+    private Task<DomainCourse?> LoadCourseForReadAsync(int courseId) =>
+        _dbContext.Courses
+            .AsNoTracking()
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .Include(c => c.Category)
+            .FirstOrDefaultAsync(c => c.Id == courseId);
+}

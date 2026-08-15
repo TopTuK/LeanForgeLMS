@@ -35,6 +35,7 @@
 	
   <ItemGroup>
 	  <Protobuf Include="..\LF.IdentityService\Protos\user_service.proto" GrpcServices="Client" />
+	  <Protobuf Include="..\LF.CourseService\Protos\course_service.proto" GrpcServices="Client" />
   </ItemGroup>
 
 </Project>

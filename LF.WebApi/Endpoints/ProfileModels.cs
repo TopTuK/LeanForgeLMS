@@ -2,9 +2,9 @@ using FluentValidation;
 
 namespace LF.WebApi.Endpoints;
 
-public sealed record ProfileResponse(string FirstName, string LastName, string Email, string AvatarUrl, string Role);
+public sealed record ProfileResponse(string FirstName, string LastName, string Email, string AvatarUrl, string Role, string? Description);
 
-public sealed record UpdateProfileRequest(string FirstName, string? LastName);
+public sealed record UpdateProfileRequest(string FirstName, string? LastName, string? Description);
 
 public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
 {
@@ -12,6 +12,7 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProf
     {
         RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.LastName).MaximumLength(100);
+        RuleFor(x => x.Description).MaximumLength(500);
     }
 }
 

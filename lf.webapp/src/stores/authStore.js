@@ -9,13 +9,20 @@ import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
 export const useAuthStore = defineStore('auth', () => {
     // State
     const hasCookie = ref(Boolean(Cookies.get(COOKIE_NAME)))
-    const user = ref(null) // { firstName, lastName, email, role }
+    const user = ref(null) // { firstName, lastName, email, role, description }
     const avatarUrl = ref(null) // object URL for the current user's avatar image
 
     // Getters
     const isAuthenticated = computed(() => {
         return hasCookie.value
     });
+
+    const isAdmin = computed(() => user.value?.role === 'Admin');
+    const isStudent = computed(() => user.value?.role === 'Student');
+    const isInstructor = computed(() => user.value?.role === 'Instructor');
+    const isCourseCreator = computed(() => user.value?.role === 'CourseCreator');
+    const canViewTeachingCourses = computed(() => isInstructor.value || isCourseCreator.value || isAdmin.value);
+    const canCreateCourses = computed(() => isCourseCreator.value || isAdmin.value);
 
     const router = useRouter()
 
@@ -76,7 +83,8 @@ export const useAuthStore = defineStore('auth', () => {
     };
 
     return {
-        hasCookie, isAuthenticated, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
+        hasCookie, isAuthenticated, isAdmin, isStudent, isInstructor, isCourseCreator,
+        canViewTeachingCourses, canCreateCourses, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
     }
 });
 

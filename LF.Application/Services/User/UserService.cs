@@ -43,7 +43,7 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
         return dbUser?.Adapt<UserDto>();
     }
 
-    public async Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserNameDto dto)
+    public async Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserProfileDto dto)
     {
         _logger.LogInformation("UserService::UpdateUserNameAsync: called with Id={usrId}", id);
 
@@ -54,7 +54,10 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
             return null;
         }
 
-        if (dbUser.UpdateName(dto.FirstName, dto.LastName))
+        var nameChanged = dbUser.UpdateName(dto.FirstName, dto.LastName);
+        var descriptionChanged = dbUser.UpdateDescription(dto.Description);
+
+        if (nameChanged || descriptionChanged)
         {
             await _dbContext.SaveChangesAsync();
         }
@@ -85,6 +88,70 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
         await _dbContext.SaveChangesAsync();
 
         return dbUser.Adapt<UserDto>();
+    }
+
+    public async Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search)
+    {
+        _logger.LogInformation("UserService::ListUsersAsync: called with Page={Page} PageSize={PageSize} Search={Search}", page, pageSize, search);
+
+        var query = _dbContext.Users.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalizedSearch = search.ToLower();
+            query = query.Where(u =>
+                u.FirstName.ToLower().Contains(normalizedSearch) ||
+                u.LastName.ToLower().Contains(normalizedSearch) ||
+                u.Email.ToLower().Contains(normalizedSearch));
+        }
+
+        var totalCount = await query.CountAsync();
+        var users = await query
+            .OrderBy(u => u.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedUsersDto { Items = users.Adapt<List<UserDto>>(), TotalCount = totalCount };
+    }
+
+    public async Task<UserDto?> UpdateUserRoleAsync(int id, UpdateUserRoleDto dto)
+    {
+        _logger.LogInformation("UserService::UpdateUserRoleAsync: called with Id={usrId} Role={Role}", id, dto.Role);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (dbUser is null)
+        {
+            _logger.LogInformation("UserService::UpdateUserRoleAsync: user with Id={usrId} not found", id);
+            return null;
+        }
+
+        if (dbUser.EnsureRole(dto.Role))
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        else
+        {
+            _logger.LogInformation("UserService::UpdateUserRoleAsync: no changes for Id={usrId}, skipping save", id);
+        }
+
+        return dbUser.Adapt<UserDto>();
+    }
+
+    public async Task<bool> DeleteUserAsync(int id)
+    {
+        _logger.LogInformation("UserService::DeleteUserAsync: called with Id={usrId}", id);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (dbUser is null)
+        {
+            _logger.LogInformation("UserService::DeleteUserAsync: user with Id={usrId} not found", id);
+            return false;
+        }
+
+        _dbContext.Users.Remove(dbUser);
+        await _dbContext.SaveChangesAsync();
+
+        return true;
     }
 
     public async Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto)

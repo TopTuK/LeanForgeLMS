@@ -38,4 +38,6 @@ public sealed class Lesson
     public void UpdateContent(string? content) => Content = content ?? string.Empty;
 
     public void SetIncludeInPreview(bool includeInPreview) => IncludeInPreview = includeInPreview;
+
+    internal void SetSortOrder(int sortOrder) => SortOrder = sortOrder;
 }

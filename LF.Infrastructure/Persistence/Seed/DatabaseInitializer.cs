@@ -1,3 +1,4 @@
+using LF.AppDomain.Entities.Course;
 using LF.AppDomain.Entities.User;
 using LF.AppDomain.Models.User.Enums;
 using LF.Infrastructure.Persistence;
@@ -9,6 +10,8 @@ namespace LF.Infrastructure.Persistence.Seed;
 
 public static class DatabaseInitializer
 {
+    private static readonly string[] DefaultCategories = ["Backend", "Frontend", "DevOps", "Design", "Career"];
+
     public static async Task InitializeDatabaseAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -33,6 +36,17 @@ public static class DatabaseInitializer
                 LastName = admin.LastName,
                 Role = UserRole.Admin,
             });
+        }
+
+        foreach (var name in DefaultCategories)
+        {
+            var exists = await dbContext.Categories.AnyAsync(c => c.Name == name);
+            if (exists)
+            {
+                continue;
+            }
+
+            dbContext.Categories.Add(Category.Create(name));
         }
 
         await dbContext.SaveChangesAsync();

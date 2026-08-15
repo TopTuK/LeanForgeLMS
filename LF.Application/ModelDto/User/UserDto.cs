@@ -14,5 +14,6 @@ namespace LF.Application.ModelDto.User
         public UserRole Role { get; init; } = UserRole.None;
         public DateTime CreatedAt { get; init; }
         public string? AvatarKey { get; init; }
+        public string? Description { get; init; }
     }
 }

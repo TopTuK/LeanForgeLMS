@@ -22,6 +22,11 @@ var identityService = builder
     .WithReference(postgres)
     .WaitFor(postgres);
 
+var courseService = builder
+    .AddProject<Projects.LF_CourseService>("lf-courseservice")
+    .WithReference(postgres)
+    .WaitFor(postgres);
+
 var webApp = builder
     .AddViteApp("lf-webapp", "../lf.webapp")
     .WithNpm()
@@ -31,6 +36,8 @@ builder
     .AddProject<Projects.LF_WebApi>("lf-webapi")
     .WithReference(identityService)
     .WaitFor(identityService)
+    .WithReference(courseService)
+    .WaitFor(courseService)
     .WithReference(webApp)
     .WaitFor(webApp)
     .WithReference(minio)

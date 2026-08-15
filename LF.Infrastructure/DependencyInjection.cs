@@ -1,4 +1,6 @@
 using LF.Application.Common.Interfaces;
+using LF.Application.Services.Course;
+using LF.Application.Services.Enrollment;
 using LF.Application.Services.User;
 using LF.IdentityService;
 using LF.Infrastructure.Persistence;
@@ -36,6 +38,20 @@ public static class DependencyInjection
             options.Address = new Uri(identityServiceAddress);
         });
         services.AddScoped<IGrpcIdentityService, GrpcIdentityService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddInfrastructureCourseGrpcClient(this IServiceCollection services, string courseServiceAddress)
+    {
+        TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
+
+        services.AddGrpcClient<global::LF.CourseService.CourseServiceRpc.CourseServiceRpcClient>(options =>
+        {
+            options.Address = new Uri(courseServiceAddress);
+        });
+        services.AddScoped<IGrpcCourseService, Services.Course.GrpcCourseService>();
+        services.AddScoped<IGrpcEnrollmentService, Services.Enrollment.GrpcEnrollmentService>();
 
         return services;
     }

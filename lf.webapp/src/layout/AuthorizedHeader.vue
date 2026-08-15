@@ -54,6 +54,25 @@ async function onLogout() {
         >
           {{ $t('nav.courses') }}
         </router-link>
+        <router-link
+          :to="{ name: 'Events' }"
+          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+        >
+          {{ $t('nav.events') }}
+        </router-link>
+        <router-link
+          :to="{ name: 'Certificates' }"
+          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+        >
+          {{ $t('nav.certificates') }}
+        </router-link>
+        <router-link
+          v-if="authStore.isAdmin"
+          :to="{ name: 'AdminUsers' }"
+          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+        >
+          {{ $t('nav.administration') }}
+        </router-link>
       </nav>
 
       <div class="hidden md:flex items-center gap-4">
@@ -179,11 +198,33 @@ async function onLogout() {
         {{ $t('nav.courses') }}
       </router-link>
       <router-link
+        :to="{ name: 'Events' }"
+        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
+        @click="closeMobileMenu"
+      >
+        {{ $t('nav.events') }}
+      </router-link>
+      <router-link
+        :to="{ name: 'Certificates' }"
+        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
+        @click="closeMobileMenu"
+      >
+        {{ $t('nav.certificates') }}
+      </router-link>
+      <router-link
         :to="{ name: 'Profile' }"
         class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
         @click="closeMobileMenu"
       >
         {{ authStore.user?.firstName ?? $t('nav.profile') }}
+      </router-link>
+      <router-link
+        v-if="authStore.isAdmin"
+        :to="{ name: 'AdminUsers' }"
+        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
+        @click="closeMobileMenu"
+      >
+        {{ $t('nav.administration') }}
       </router-link>
       <div class="flex items-center justify-between px-6 py-3 border-t border-border-subtle">
         <div class="flex items-center gap-4">

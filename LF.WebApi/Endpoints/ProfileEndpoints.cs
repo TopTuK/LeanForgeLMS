@@ -24,7 +24,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             var profile = await profileService.GetProfileAsync(userId.Value);
             return profile is null
                 ? TypedResults.NotFound()
-                : TypedResults.Ok(new ProfileResponse(profile.FirstName, profile.LastName, profile.Email, AvatarUrl, profile.Role.ToString()));
+                : TypedResults.Ok(new ProfileResponse(profile.FirstName, profile.LastName, profile.Email, AvatarUrl, profile.Role.ToString(), profile.Description));
         });
 
         group.MapPut("/", async Task<Results<Ok<ProfileResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem>>
@@ -36,11 +36,11 @@ public sealed class ProfileEndpoints : IEndpointGroup
             var validation = new UpdateProfileRequestValidator().Validate(request);
             if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
 
-            var dto = new UpdateUserNameDto { FirstName = request.FirstName, LastName = request.LastName };
+            var dto = new UpdateUserProfileDto { FirstName = request.FirstName, LastName = request.LastName, Description = request.Description };
             var updated = await profileService.UpdateProfileAsync(userId.Value, dto);
             return updated is null
                 ? TypedResults.NotFound()
-                : TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString()));
+                : TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
         });
 
         group.MapGet("/avatar", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
@@ -100,7 +100,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             if (profile.AvatarKey is not null)
                 await fileStorageService.DeleteAsync(profile.AvatarKey, ct);
 
-            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString()));
+            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
         }).DisableAntiforgery();
 
         group.MapDelete("/avatar", async Task<Results<Ok<ProfileResponse>, UnauthorizedHttpResult, NotFound>>
@@ -118,7 +118,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             if (profile.AvatarKey is not null)
                 await fileStorageService.DeleteAsync(profile.AvatarKey, ct);
 
-            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString()));
+            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
         });
     }
 }

@@ -10,8 +10,11 @@ namespace LF.Application.Services.User
     {
         Task<UserDto> GetOrCreateUserAsync(UserAuthentificationDto userAuthentification);
         Task<UserDto?> GetUserProfileAsync(int userId);
-        Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserNameDto dto);
+        Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserProfileDto dto);
         Task<UserDto?> UpdateUserAvatarAsync(int userId, string? avatarKey);
         Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto);
+        Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search);
+        Task<UserDto?> UpdateUserRoleAsync(int userId, UpdateUserRoleDto dto);
+        Task<bool> DeleteUserAsync(int userId);
     }
 }

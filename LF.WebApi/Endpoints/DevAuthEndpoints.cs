@@ -10,7 +10,7 @@ using LFAppAuth = LF.Application.Services.Authentication;
 namespace LF.WebApi.Endpoints;
 
 /// <summary>
-/// Development/testing-only login shortcuts for fixed Student, Instructor and CourseCreator
+/// Development/testing-only login shortcuts for fixed Student, Instructor, CourseCreator and Admin
 /// personas. Never registered outside Development — see the environment check in <see cref="Map"/>.
 /// </summary>
 public sealed class DevAuthEndpoints : IEndpointGroup
@@ -31,11 +31,11 @@ public sealed class DevAuthEndpoints : IEndpointGroup
              LFAppAuth.ITokenService tokenService) =>
         {
             if (!Enum.TryParse<UserRole>(role, ignoreCase: true, out var userRole)
-                || userRole is not (UserRole.Student or UserRole.Instructor or UserRole.CourseCreator))
+                || userRole is not (UserRole.Student or UserRole.Instructor or UserRole.CourseCreator or UserRole.Admin))
             {
                 return TypedResults.ValidationProblem(new Dictionary<string, string[]>
                 {
-                    ["role"] = ["role must be one of: Student, Instructor, CourseCreator."],
+                    ["role"] = ["role must be one of: Student, Instructor, CourseCreator, Admin."],
                 });
             }
 

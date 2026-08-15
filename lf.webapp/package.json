@@ -11,6 +11,12 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@tiptap/extension-image": "^3.30.1",
+    "@tiptap/extension-link": "^3.30.1",
+    "@tiptap/extension-placeholder": "^3.30.1",
+    "@tiptap/extension-underline": "^3.30.1",
+    "@tiptap/starter-kit": "^3.30.1",
+    "@tiptap/vue-3": "^3.30.1",
     "axios": "^1.18.1",
     "js-cookie": "^3.0.8",
     "pinia": "^4.0.2",

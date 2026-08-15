@@ -35,9 +35,10 @@ COPY LF.Infrastructure/ LF.Infrastructure/
 COPY LF.Application/ LF.Application/
 COPY LF.AppDomain/ LF.AppDomain/
 COPY LeanForgeLMS.ServiceDefaults/ LeanForgeLMS.ServiceDefaults/
-# LF.Infrastructure.csproj references this .proto directly, even though LF.WebApi
-# has no ProjectReference to LF.IdentityService.
+# LF.Infrastructure.csproj references these .proto files directly, even though LF.WebApi
+# has no ProjectReference to LF.IdentityService or LF.CourseService.
 COPY LF.IdentityService/Protos/ LF.IdentityService/Protos/
+COPY LF.CourseService/Protos/ LF.CourseService/Protos/
 
 # SPA output, so the SDK's default wwwroot/** content globbing picks it up on publish.
 COPY --from=node-build /src/LF.WebApi/wwwroot/ LF.WebApi/wwwroot/
