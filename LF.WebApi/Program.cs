@@ -222,7 +222,7 @@ try
     builder.Services
         .AddAuthorizationBuilder()
         .AddPolicy("AdminOnly", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.Admin)))
-        .AddPolicy("CourseCreatorOrAdmin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.CourseCreator), nameof(UserRole.Admin)));
+        .AddPolicy("CourseCreatorOrAdmin", policy => policy.RequireClaim(ClaimTypes.Role, nameof(UserRole.Instructor), nameof(UserRole.CourseCreator), nameof(UserRole.Admin)));
 
     // Configure application services
     ConfigureServices(builder.Services, configuration);

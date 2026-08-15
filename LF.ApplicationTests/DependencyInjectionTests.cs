@@ -4,6 +4,8 @@ using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
+using LF.Application.Services.Enrollment;
+using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Profile;
 using LF.Application.Services.User;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,7 @@ public class DependencyInjectionTests
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddScoped(_ => Mock.Of<IGrpcIdentityService>());
         services.AddScoped(_ => Mock.Of<IGrpcCourseService>());
+        services.AddScoped(_ => Mock.Of<IGrpcEnrollmentService>());
         services.AddAuthenticationApplication();
 
         // Act
@@ -36,6 +39,7 @@ public class DependencyInjectionTests
         Assert.IsType<ProfileService>(scope.ServiceProvider.GetRequiredService<IProfileService>());
         Assert.IsType<AdminUserService>(scope.ServiceProvider.GetRequiredService<IAdminUserService>());
         Assert.IsType<CourseAuthoringService>(scope.ServiceProvider.GetRequiredService<ICourseAuthoringService>());
+        Assert.IsType<EnrollmentLearningService>(scope.ServiceProvider.GetRequiredService<IEnrollmentLearningService>());
     }
 
     [Fact]
@@ -70,5 +74,6 @@ public class DependencyInjectionTests
 
         // Assert
         Assert.IsType<CourseServiceImpl>(scope.ServiceProvider.GetRequiredService<ICourseService>());
+        Assert.IsType<EnrollmentService>(scope.ServiceProvider.GetRequiredService<IEnrollmentService>());
     }
 }

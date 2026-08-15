@@ -5,7 +5,7 @@ import { updateProfile, uploadAvatar, deleteAvatar } from '@/services/profileSer
 
 const authStore = useAuthStore();
 
-const form = reactive({ firstName: '', lastName: '' });
+const form = reactive({ firstName: '', lastName: '', description: '' });
 const fieldErrors = ref({});
 const isSaving = ref(false);
 const isSaved = ref(false);
@@ -46,6 +46,7 @@ const initials = computed(() => {
 function syncFormFromUser() {
   form.firstName = authStore.user?.firstName ?? '';
   form.lastName = authStore.user?.lastName ?? '';
+  form.description = authStore.user?.description ?? '';
 }
 
 onMounted(async () => {
@@ -95,7 +96,7 @@ async function onSave() {
   fieldErrors.value = {};
 
   try {
-    const updated = await updateProfile({ firstName: form.firstName, lastName: form.lastName });
+    const updated = await updateProfile({ firstName: form.firstName, lastName: form.lastName, description: form.description });
     authStore.updateUser(updated);
     syncFormFromUser();
     isSaved.value = true;
@@ -246,6 +247,24 @@ async function onSave() {
                   class="profile-field__error"
                 >{{ fieldErrors.LastName[0] }}</span>
               </div>
+            </div>
+
+            <div class="profile-field">
+              <label for="profile-description">
+                <span>{{ $t('profile.description_label') }}</span>
+                <span class="profile-field__count">{{ form.description.length }}/500</span>
+              </label>
+              <textarea
+                id="profile-description"
+                v-model="form.description"
+                rows="4"
+                maxlength="500"
+                :placeholder="$t('profile.description_placeholder')"
+              />
+              <span
+                v-if="fieldErrors.Description"
+                class="profile-field__error"
+              >{{ fieldErrors.Description[0] }}</span>
             </div>
 
             <div class="profile-form__footer">
@@ -560,6 +579,32 @@ async function onSave() {
   outline: none;
   border-color: var(--color-accent-coral);
   box-shadow: 0 0 0 3px var(--industrial-accent-wash);
+}
+
+.profile-field textarea {
+  padding: 0.8rem 0.95rem;
+  color: var(--color-ink);
+  background: var(--color-surface-950);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.35rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.profile-field textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-coral);
+  box-shadow: 0 0 0 3px var(--industrial-accent-wash);
+}
+
+.profile-field__count {
+  color: var(--color-ink-faint);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .profile-field__error {

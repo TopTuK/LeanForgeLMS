@@ -31,8 +31,8 @@ public class AdminUserServiceTests
     public async Task UpdateUserInfoAsync_DelegatesToIdentityService()
     {
         // Arrange
-        var dto = new UpdateUserNameDto { FirstName = "New", LastName = "Name" };
-        var expected = new UserDto { Id = 5, Email = "a@b.com", FirstName = "New", LastName = "Name" };
+        var dto = new UpdateUserProfileDto { FirstName = "New", LastName = "Name", Description = "New bio." };
+        var expected = new UserDto { Id = 5, Email = "a@b.com", FirstName = "New", LastName = "Name", Description = "New bio." };
         var identityMock = new Mock<IGrpcIdentityService>();
         identityMock.Setup(s => s.UpdateUserProfileAsync(5, dto)).ReturnsAsync(expected);
         var service = new AdminUserService(NullLogger<AdminUserService>.Instance, identityMock.Object);

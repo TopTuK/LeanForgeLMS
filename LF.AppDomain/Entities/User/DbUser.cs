@@ -11,6 +11,7 @@ public sealed class DbUser
     public UserRole Role { get; set; } = UserRole.None;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? AvatarKey { get; set; }
+    public string? Description { get; set; }
 
     /// <returns>true if the name actually changed; false if the given values already match.</returns>
     public bool UpdateName(string firstName, string? lastName)
@@ -24,6 +25,17 @@ public sealed class DbUser
 
         FirstName = firstName;
         LastName = normalizedLastName;
+        return true;
+    }
+
+    /// <returns>true if the description actually changed; false if the given value already matches.</returns>
+    public bool UpdateDescription(string? description)
+    {
+        var normalizedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (Description == normalizedDescription)
+            return false;
+
+        Description = normalizedDescription;
         return true;
     }
 

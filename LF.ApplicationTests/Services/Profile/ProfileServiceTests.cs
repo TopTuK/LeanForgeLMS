@@ -44,8 +44,8 @@ public class ProfileServiceTests
     public async Task UpdateProfileAsync_DelegatesToIdentityService()
     {
         // Arrange
-        var dto = new UpdateUserNameDto { FirstName = "New", LastName = "Name" };
-        var expected = new UserDto { Id = 1, Email = "a@b.com", FirstName = "New", LastName = "Name" };
+        var dto = new UpdateUserProfileDto { FirstName = "New", LastName = "Name", Description = "New bio." };
+        var expected = new UserDto { Id = 1, Email = "a@b.com", FirstName = "New", LastName = "Name", Description = "New bio." };
         var identityMock = new Mock<IGrpcIdentityService>();
         identityMock.Setup(s => s.UpdateUserProfileAsync(1, dto)).ReturnsAsync(expected);
         var service = new ProfileService(NullLogger<ProfileService>.Instance, identityMock.Object);

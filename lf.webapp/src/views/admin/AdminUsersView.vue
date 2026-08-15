@@ -73,18 +73,24 @@ const editModalShown = ref(false);
 const editTarget = ref(null);
 const editFirstName = ref('');
 const editLastName = ref('');
+const editDescription = ref('');
 
 function openEditModal(row) {
   editTarget.value = row;
   editFirstName.value = row.firstName;
   editLastName.value = row.lastName;
+  editDescription.value = row.description ?? '';
   editModalShown.value = true;
 }
 
 async function confirmEdit() {
   errorMessage.value = '';
   try {
-    await updateUserInfo(editTarget.value.id, { firstName: editFirstName.value, lastName: editLastName.value || null });
+    await updateUserInfo(editTarget.value.id, {
+      firstName: editFirstName.value,
+      lastName: editLastName.value || null,
+      description: editDescription.value || null,
+    });
     await loadUsers();
   } catch {
     errorMessage.value = t('admin.users.save_error');
@@ -229,6 +235,13 @@ async function confirmDelete() {
         v-model="editLastName"
         class="admin-users__field"
         :label="$t('admin.users.last_name')"
+      />
+      <va-textarea
+        v-model="editDescription"
+        class="admin-users__field"
+        :label="$t('admin.users.description')"
+        :max-length="500"
+        :min-rows="3"
       />
     </va-modal>
 

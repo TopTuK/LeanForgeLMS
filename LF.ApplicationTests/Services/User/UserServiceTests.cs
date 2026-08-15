@@ -99,7 +99,7 @@ public class UserServiceTests
         // Arrange
         var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Old", LastName = "Name", Role = UserRole.Student };
         var service = CreateService([existing], out var dbContextMock, out _);
-        var dto = new UpdateUserNameDto { FirstName = "New", LastName = "Name2" };
+        var dto = new UpdateUserProfileDto { FirstName = "New", LastName = "Name2" };
 
         // Act
         var result = await service.UpdateUserNameAsync(7, dto);
@@ -118,7 +118,7 @@ public class UserServiceTests
         var service = CreateService([], out var dbContextMock, out _);
 
         // Act
-        var result = await service.UpdateUserNameAsync(123, new UpdateUserNameDto { FirstName = "X" });
+        var result = await service.UpdateUserNameAsync(123, new UpdateUserProfileDto { FirstName = "X" });
 
         // Assert
         Assert.Null(result);
@@ -131,7 +131,7 @@ public class UserServiceTests
         // Arrange
         var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = "Lovelace", Role = UserRole.Student };
         var service = CreateService([existing], out var dbContextMock, out _);
-        var dto = new UpdateUserNameDto { FirstName = "Ada", LastName = "Lovelace" };
+        var dto = new UpdateUserProfileDto { FirstName = "Ada", LastName = "Lovelace" };
 
         // Act
         var result = await service.UpdateUserNameAsync(7, dto);
@@ -144,12 +144,47 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task UpdateUserNameAsync_OnlyDescriptionChanged_SavesAndKeepsName()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = "Lovelace", Description = null };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserProfileDto { FirstName = "Ada", LastName = "Lovelace", Description = "Backend engineer." };
+
+        // Act
+        var result = await service.UpdateUserNameAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Ada", result!.FirstName);
+        Assert.Equal("Backend engineer.", result.Description);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserNameAsync_NameAndDescriptionUnchanged_DoesNotSave()
+    {
+        // Arrange
+        var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = "Lovelace", Description = "Bio." };
+        var service = CreateService([existing], out var dbContextMock, out _);
+        var dto = new UpdateUserProfileDto { FirstName = "Ada", LastName = "Lovelace", Description = "Bio." };
+
+        // Act
+        var result = await service.UpdateUserNameAsync(7, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Bio.", result!.Description);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task UpdateUserNameAsync_NullLastNameMatchingEmptyString_DoesNotSave()
     {
         // Arrange
         var existing = new DbUser { Id = 7, Email = "u@x.com", FirstName = "Ada", LastName = string.Empty };
         var service = CreateService([existing], out var dbContextMock, out _);
-        var dto = new UpdateUserNameDto { FirstName = "Ada", LastName = null };
+        var dto = new UpdateUserProfileDto { FirstName = "Ada", LastName = null };
 
         // Act
         var result = await service.UpdateUserNameAsync(7, dto);
@@ -168,7 +203,7 @@ public class UserServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => service.UpdateUserNameAsync(1, new UpdateUserNameDto { FirstName = "   " }));
+            () => service.UpdateUserNameAsync(1, new UpdateUserProfileDto { FirstName = "   " }));
     }
 
     [Fact]

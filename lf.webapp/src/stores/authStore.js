@@ -9,7 +9,7 @@ import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
 export const useAuthStore = defineStore('auth', () => {
     // State
     const hasCookie = ref(Boolean(Cookies.get(COOKIE_NAME)))
-    const user = ref(null) // { firstName, lastName, email, role }
+    const user = ref(null) // { firstName, lastName, email, role, description }
     const avatarUrl = ref(null) // object URL for the current user's avatar image
 
     // Getters

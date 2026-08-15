@@ -2,6 +2,8 @@ using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
+using LF.Application.Services.Enrollment;
+using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Profile;
 using LF.Application.Services.User;
 using Mapster;
@@ -21,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<ICourseAuthoringService, CourseAuthoringService>();
+        services.AddScoped<IEnrollmentLearningService, EnrollmentLearningService>();
 
         return services;
     }
@@ -40,6 +43,7 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICourseService, CourseService>();
+        services.AddScoped<IEnrollmentService, EnrollmentService>();
 
         return services;
     }

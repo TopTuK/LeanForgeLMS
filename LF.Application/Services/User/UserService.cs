@@ -43,7 +43,7 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
         return dbUser?.Adapt<UserDto>();
     }
 
-    public async Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserNameDto dto)
+    public async Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserProfileDto dto)
     {
         _logger.LogInformation("UserService::UpdateUserNameAsync: called with Id={usrId}", id);
 
@@ -54,7 +54,10 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
             return null;
         }
 
-        if (dbUser.UpdateName(dto.FirstName, dto.LastName))
+        var nameChanged = dbUser.UpdateName(dto.FirstName, dto.LastName);
+        var descriptionChanged = dbUser.UpdateDescription(dto.Description);
+
+        if (nameChanged || descriptionChanged)
         {
             await _dbContext.SaveChangesAsync();
         }

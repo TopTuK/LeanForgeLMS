@@ -33,6 +33,16 @@ service CourseServiceRpc {
   rpc RemoveLesson (RemoveLessonRequest) returns (CourseDetailReply);
   // Publish a course (requires at least one chapter, each with at least one lesson)
   rpc PublishCourse (PublishCourseRequest) returns (CourseDetailReply);
+  // Browse published courses the acting user is not yet enrolled in, paged
+  rpc ListCatalog (ListCatalogRequest) returns (ListCatalogReply);
+  // Enroll the acting user in a published course
+  rpc EnrollInCourse (EnrollInCourseRequest) returns (EnrollmentDetailReply);
+  // List the acting user's enrollments, optionally filtered by status
+  rpc ListMyEnrollments (ListMyEnrollmentsRequest) returns (ListMyEnrollmentsReply);
+  // Get one enrollment's full course structure with per-lesson completion
+  rpc GetEnrollment (GetEnrollmentRequest) returns (EnrollmentDetailReply);
+  // Mark a lesson complete for an enrollment
+  rpc CompleteLesson (CompleteLessonRequest) returns (EnrollmentDetailReply);
 }
 
 enum MoveDirection {
@@ -185,4 +195,95 @@ message PublishCourseRequest {
   int32 course_id = 1;
   int32 acting_user_id = 2;
   bool acting_is_admin = 3;
+}
+
+enum EnrollmentStatusFilter {
+  ENROLLMENT_STATUS_FILTER_ALL = 0;
+  ENROLLMENT_STATUS_FILTER_ACTIVE = 1;
+  ENROLLMENT_STATUS_FILTER_COMPLETED = 2;
+}
+
+message ListCatalogRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 acting_user_id = 3;
+}
+
+message ListCatalogReply {
+  repeated CourseCatalogItemReply items = 1;
+  int32 total_count = 2;
+}
+
+message CourseCatalogItemReply {
+  int32 id = 1;
+  string title = 2;
+  string short_introduction = 3;
+  int32 category_id = 4;
+  string category_name = 5;
+  int32 lesson_count = 6;
+}
+
+message EnrollInCourseRequest {
+  int32 course_id = 1;
+  int32 acting_user_id = 2;
+}
+
+message ListMyEnrollmentsRequest {
+  int32 acting_user_id = 1;
+  EnrollmentStatusFilter status = 2;
+}
+
+message ListMyEnrollmentsReply {
+  repeated EnrollmentSummaryReply items = 1;
+}
+
+message EnrollmentSummaryReply {
+  int32 id = 1;
+  int32 course_id = 2;
+  string course_title = 3;
+  string course_short_introduction = 4;
+  string category_name = 5;
+  int32 total_lesson_count = 6;
+  int32 completed_lesson_count = 7;
+  int32 progress_percent = 8;
+  google.protobuf.Timestamp enrolled_at = 9;
+  google.protobuf.Timestamp completed_at = 10;
+}
+
+message GetEnrollmentRequest {
+  int32 id = 1;
+  int32 acting_user_id = 2;
+  bool acting_is_admin = 3;
+}
+
+message CompleteLessonRequest {
+  int32 id = 1;
+  int32 lesson_id = 2;
+  int32 acting_user_id = 3;
+  bool acting_is_admin = 4;
+}
+
+message EnrollmentDetailReply {
+  int32 id = 1;
+  int32 course_id = 2;
+  string course_title = 3;
+  string course_description = 4;
+  google.protobuf.Timestamp enrolled_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  repeated EnrollmentChapterReply chapters = 7;
+}
+
+message EnrollmentChapterReply {
+  int32 id = 1;
+  string title = 2;
+  int32 sort_order = 3;
+  repeated EnrollmentLessonReply lessons = 4;
+}
+
+message EnrollmentLessonReply {
+  int32 id = 1;
+  string title = 2;
+  string content = 3;
+  int32 sort_order = 4;
+  bool is_completed = 5;
 }

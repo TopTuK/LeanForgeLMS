@@ -1,17 +1,21 @@
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Course;
+using LF.Application.Services.Enrollment;
 using LF.CourseService;
 using Mapster;
+using AppEnrollmentStatusFilter = LF.Application.ModelDto.Enrollment.EnrollmentStatusFilter;
 using AppMoveDirection = LF.Application.ModelDto.Course.MoveDirection;
 
 namespace LF.CourseService.Services;
 
-public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService courseService) : CourseServiceRpc.CourseServiceRpcBase
+public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService courseService, IEnrollmentService enrollmentService) : CourseServiceRpc.CourseServiceRpcBase
 {
     private readonly ILogger<RpcCourseService> _logger = logger;
     private readonly ICourseService _courseService = courseService;
+    private readonly IEnrollmentService _enrollmentService = enrollmentService;
 
     public override async Task<CourseDetailReply> CreateCourse(CreateCourseRequest request, ServerCallContext context)
     {
@@ -143,6 +147,64 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return ToReply(course);
     }
 
+    public override async Task<ListCatalogReply> ListCatalog(ListCatalogRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ListCatalog: called with Page={Page} PageSize={PageSize} ActingUserId={ActingUserId}",
+            request.Page, request.PageSize, request.ActingUserId);
+
+        var paged = await _enrollmentService.BrowseCatalogAsync(request.Page, request.PageSize, request.ActingUserId);
+
+        var reply = new ListCatalogReply { TotalCount = paged.TotalCount };
+        reply.Items.AddRange(paged.Items.Adapt<List<CourseCatalogItemReply>>());
+        return reply;
+    }
+
+    public override async Task<EnrollmentDetailReply> EnrollInCourse(EnrollInCourseRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::EnrollInCourse: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
+
+        try
+        {
+            var enrollment = await _enrollmentService.EnrollAsync(request.CourseId, request.ActingUserId);
+            return ToEnrollmentReply(enrollment);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
+    public override async Task<ListMyEnrollmentsReply> ListMyEnrollments(ListMyEnrollmentsRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ListMyEnrollments: called with ActingUserId={ActingUserId} Status={Status}", request.ActingUserId, request.Status);
+
+        var status = (AppEnrollmentStatusFilter)(int)request.Status;
+        var items = await _enrollmentService.ListMyEnrollmentsAsync(request.ActingUserId, status);
+
+        var reply = new ListMyEnrollmentsReply();
+        reply.Items.AddRange(items.Adapt<List<EnrollmentSummaryReply>>());
+        return reply;
+    }
+
+    public override async Task<EnrollmentDetailReply> GetEnrollment(GetEnrollmentRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::GetEnrollment: called with Id={Id} ActingUserId={ActingUserId}", request.Id, request.ActingUserId);
+
+        var enrollment = await GuardedEnrollmentAsync(() =>
+            _enrollmentService.GetEnrollmentAsync(request.Id, request.ActingUserId, request.ActingIsAdmin));
+        return ToEnrollmentReply(enrollment);
+    }
+
+    public override async Task<EnrollmentDetailReply> CompleteLesson(CompleteLessonRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::CompleteLesson: called with Id={Id} LessonId={LessonId} ActingUserId={ActingUserId}",
+            request.Id, request.LessonId, request.ActingUserId);
+
+        var enrollment = await GuardedEnrollmentAsync(() =>
+            _enrollmentService.CompleteLessonAsync(request.Id, request.LessonId, request.ActingUserId, request.ActingIsAdmin));
+        return ToEnrollmentReply(enrollment);
+    }
+
     private static async Task<CourseDetailDto> GuardedAsync(Func<Task<CourseDetailDto?>> operation)
     {
         try
@@ -158,6 +220,42 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
         }
+    }
+
+    private static async Task<EnrollmentDetailDto> GuardedEnrollmentAsync(Func<Task<EnrollmentDetailDto?>> operation)
+    {
+        try
+        {
+            var enrollment = await operation();
+            return enrollment ?? throw new RpcException(new Status(StatusCode.NotFound, "Enrollment or course not found."));
+        }
+        catch (EnrollmentAuthorizationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
+    // Mapster's top-level Adapt<T>() isn't trusted here to populate nested `repeated` fields
+    // correctly (see ToReply(CourseDetailDto) for the same reasoning) — build the reply
+    // scalar-first, then fill Chapters/Lessons manually.
+    private static EnrollmentDetailReply ToEnrollmentReply(EnrollmentDetailDto dto)
+    {
+        var reply = dto.Adapt<EnrollmentDetailReply>();
+        reply.Chapters.Clear();
+
+        foreach (var chapterDto in dto.Chapters)
+        {
+            var chapterReply = chapterDto.Adapt<EnrollmentChapterReply>();
+            chapterReply.Lessons.Clear();
+            chapterReply.Lessons.AddRange(chapterDto.Lessons.Adapt<List<EnrollmentLessonReply>>());
+            reply.Chapters.Add(chapterReply);
+        }
+
+        return reply;
     }
 
     // Mapster's top-level Adapt<T>() isn't trusted here to populate nested `repeated` fields

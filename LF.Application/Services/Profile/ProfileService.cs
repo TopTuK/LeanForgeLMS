@@ -17,7 +17,7 @@ internal sealed class ProfileService(ILogger<ProfileService> logger, IGrpcIdenti
         return await _identityService.GetUserProfileAsync(userId);
     }
 
-    public async Task<UserDto?> UpdateProfileAsync(int userId, UpdateUserNameDto dto)
+    public async Task<UserDto?> UpdateProfileAsync(int userId, UpdateUserProfileDto dto)
     {
         _logger.LogInformation("ProfileService::UpdateProfileAsync: called with UserId={usrId}", userId);
 

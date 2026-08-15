@@ -41,7 +41,7 @@ public sealed class AdminUserEndpoints : IEndpointGroup
             var validation = new UpdateAdminUserInfoRequestValidator().Validate(request);
             if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
 
-            var updated = await adminUserService.UpdateUserInfoAsync(id, new UpdateUserNameDto { FirstName = request.FirstName, LastName = request.LastName });
+            var updated = await adminUserService.UpdateUserInfoAsync(id, new UpdateUserProfileDto { FirstName = request.FirstName, LastName = request.LastName, Description = request.Description });
             return updated is null ? TypedResults.NotFound() : TypedResults.Ok(ToResponse(updated));
         });
 
@@ -89,5 +89,5 @@ public sealed class AdminUserEndpoints : IEndpointGroup
     }
 
     private static AdminUserResponse ToResponse(UserDto user) =>
-        new(user.Id, user.Email, user.FirstName, user.LastName, user.Role.ToString(), user.CreatedAt);
+        new(user.Id, user.Email, user.FirstName, user.LastName, user.Role.ToString(), user.CreatedAt, user.Description);
 }

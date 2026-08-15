@@ -47,7 +47,7 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
         }
     }
 
-    public async Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserNameDto dto)
+    public async Task<UserDto?> UpdateUserProfileAsync(int userId, UpdateUserProfileDto dto)
     {
         _logger.LogInformation("GrpcIdentityService::UpdateUserProfileAsync: called with UserId={usrId}", userId);
 
@@ -56,6 +56,7 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
             Id = userId,
             FirstName = dto.FirstName,
             LastName = dto.LastName ?? string.Empty,
+            Description = dto.Description ?? string.Empty,
         };
 
         try

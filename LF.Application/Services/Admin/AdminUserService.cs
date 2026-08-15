@@ -18,7 +18,7 @@ internal sealed class AdminUserService(ILogger<AdminUserService> logger, IGrpcId
         return await _identityService.ListUsersAsync(page, pageSize, search);
     }
 
-    public async Task<UserDto?> UpdateUserInfoAsync(int targetUserId, UpdateUserNameDto dto)
+    public async Task<UserDto?> UpdateUserInfoAsync(int targetUserId, UpdateUserProfileDto dto)
     {
         _logger.LogInformation("AdminUserService::UpdateUserInfoAsync: called with TargetUserId={usrId}", targetUserId);
 

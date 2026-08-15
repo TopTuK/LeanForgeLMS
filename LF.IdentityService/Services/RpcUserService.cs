@@ -41,7 +41,7 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
         _logger.LogInformation("RpcUserService::UpdateUserProfile: called with Id={usrId} FirstName={usrFirstName} LastName={usrLastName}",
             request.Id, request.FirstName, request.LastName);
 
-        var userDto = await _userService.UpdateUserNameAsync(request.Id, request.Adapt<UpdateUserNameDto>());
+        var userDto = await _userService.UpdateUserNameAsync(request.Id, request.Adapt<UpdateUserProfileDto>());
         if (userDto is null)
             throw new RpcException(new Status(StatusCode.NotFound, $"User {request.Id} not found"));
 

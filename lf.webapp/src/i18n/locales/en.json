@@ -38,6 +38,7 @@
     "courses_create_view_title": "Create course — Lean Forge LMS",
     "courses_edit_view_title": "Edit course — Lean Forge LMS",
     "courses_lesson_edit_view_title": "Edit lesson — Lean Forge LMS",
+    "courses_learn_view_title": "Learning — Lean Forge LMS",
     "admin": {
         "sidebar": {
             "users": "Users",
@@ -53,6 +54,7 @@
             "created_at": "Created",
             "first_name": "First name",
             "last_name": "Last name",
+            "description": "About",
             "edit": "Edit",
             "edit_title": "Edit user",
             "change_role": "Role",
@@ -75,6 +77,7 @@
         "title": "Courses",
         "create_action": "Create course",
         "continue_draft": "You have an unfinished draft: \"{title}\"",
+        "loading": "Loading…",
         "tabs": {
             "available": "Available",
             "active": "Active",
@@ -85,26 +88,45 @@
             "title": "Available for enrollment",
             "subtitle": "Open courses you can join right now.",
             "enroll": "Enroll",
-            "empty": "No courses are open for enrollment right now."
+            "empty": "No courses are open for enrollment right now.",
+            "load_error": "Could not load the course catalog. Please try again.",
+            "enroll_error": "Could not enroll in this course. Please try again."
         },
         "active": {
             "title": "Active courses",
             "subtitle": "Courses you are currently enrolled in.",
             "progress_label": "{percent}% complete",
-            "empty": "You are not enrolled in any courses yet."
+            "continue": "Continue",
+            "empty": "You are not enrolled in any courses yet.",
+            "load_error": "Could not load your active courses. Please try again."
         },
         "finished": {
             "title": "Finished courses",
             "subtitle": "Courses you have completed.",
             "completed_on": "Completed {date}",
-            "empty": "You have not finished any courses yet."
+            "review": "Review",
+            "empty": "You have not finished any courses yet.",
+            "load_error": "Could not load your finished courses. Please try again."
         },
         "teaching": {
             "title": "Courses you teach",
             "subtitle": "Courses where you are the instructor.",
             "students_count": "{count} students",
             "manage": "Manage",
-            "empty": "You are not assigned as an instructor on any course yet."
+            "empty": "You are not assigned as an instructor on any course yet.",
+            "load_error": "Could not load your courses. Please try again."
+        },
+        "learn": {
+            "eyebrow": "Learning",
+            "loading": "Loading lesson…",
+            "not_found": "Enrollment not found.",
+            "forbidden": "You do not have access to this enrollment.",
+            "back": "Back to courses",
+            "load_error": "Could not load this course. Please try again.",
+            "complete_error": "Could not mark this lesson complete. Please try again.",
+            "mark_complete": "Mark lesson complete",
+            "completing": "Saving…",
+            "completed": "Lesson completed"
         },
         "create": {
             "eyebrow": "Course forge",
@@ -220,6 +242,8 @@
         "email_label": "Email",
         "first_name_label": "First name",
         "last_name_label": "Last name",
+        "description_label": "About you",
+        "description_placeholder": "Write a short bio — what you teach, what you're learning, or what you're about.",
         "save": "Save changes",
         "saving": "Saving…",
         "save_hint": "Unsaved edits stay on this device until you save.",
