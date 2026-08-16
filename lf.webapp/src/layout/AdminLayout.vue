@@ -37,6 +37,15 @@ function toggleSidebar() {
           <va-sidebar-item-title>{{ $t('admin.sidebar.courses') }}</va-sidebar-item-title>
         </va-sidebar-item-content>
       </va-sidebar-item>
+      <va-sidebar-item
+        :to="{ name: 'AdminCategories' }"
+        :active="route.name === 'AdminCategories'"
+      >
+        <va-sidebar-item-content>
+          <va-icon name="label" />
+          <va-sidebar-item-title>{{ $t('admin.sidebar.categories') }}</va-sidebar-item-title>
+        </va-sidebar-item-content>
+      </va-sidebar-item>
     </va-sidebar>
 
     <div class="admin-workspace">

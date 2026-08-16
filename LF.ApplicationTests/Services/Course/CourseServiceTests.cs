@@ -1,4 +1,7 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Storage;
+using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
@@ -16,14 +19,23 @@ public class CourseServiceTests
     private static CourseService CreateService(
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<Category> categories,
+        out Mock<IAppDbContext> dbContextMock) =>
+        CreateService(courses, categories, [], out dbContextMock);
+
+    private static CourseService CreateService(
+        IReadOnlyCollection<DomainCourse> courses,
+        IReadOnlyCollection<Category> categories,
+        IReadOnlyCollection<StorageObject> storageObjects,
         out Mock<IAppDbContext> dbContextMock)
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var categoriesMock = categories.ToList().BuildMockDbSet();
+        var storageObjectsMock = storageObjects.ToList().BuildMockDbSet();
 
         dbContextMock = new Mock<IAppDbContext>();
         dbContextMock.SetupGet(c => c.Courses).Returns(coursesMock.Object);
         dbContextMock.SetupGet(c => c.Categories).Returns(categoriesMock.Object);
+        dbContextMock.SetupGet(c => c.StorageObjects).Returns(storageObjectsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System);
@@ -56,6 +68,146 @@ public class CourseServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCourseAsync(dto, createdByUserId: 1));
+    }
+
+    [Fact]
+    public async Task CreateCourseAsync_ColorCover_SetsColorCover()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out _);
+        var dto = new CreateCourseDto
+        {
+            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
+            CoverType = CourseCoverType.Color, CoverColor = CourseCoverColor.Ocean,
+        };
+
+        // Act
+        var result = await service.CreateCourseAsync(dto, createdByUserId: 1);
+
+        // Assert
+        Assert.Equal(CourseCoverType.Color, result.CoverType);
+        Assert.Equal(CourseCoverColor.Ocean, result.CoverColor);
+        Assert.Null(result.CoverImageKey);
+    }
+
+    [Fact]
+    public async Task CreateCourseAsync_ValidImageCover_SetsImageCover()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        var service = CreateService([], [category], [storageObject], out _);
+        var dto = new CreateCourseDto
+        {
+            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
+            CoverType = CourseCoverType.Image, CoverImageStorageObjectId = storageObject.Id,
+        };
+
+        // Act
+        var result = await service.CreateCourseAsync(dto, createdByUserId: 1);
+
+        // Assert
+        Assert.Equal(CourseCoverType.Image, result.CoverType);
+        Assert.Equal("images/a.png", result.CoverImageKey);
+        Assert.Equal("image/png", result.CoverImageContentType);
+    }
+
+    [Fact]
+    public async Task CreateCourseAsync_UnknownImageCover_ThrowsArgumentException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out _);
+        var dto = new CreateCourseDto
+        {
+            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
+            CoverType = CourseCoverType.Image, CoverImageStorageObjectId = 999,
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCourseAsync(dto, createdByUserId: 1));
+    }
+
+    [Fact]
+    public async Task CreateCategoryAsync_NewName_CreatesCategory()
+    {
+        // Arrange
+        var service = CreateService([], [], out var dbContextMock);
+
+        // Act
+        var result = await service.CreateCategoryAsync("Backend");
+
+        // Assert
+        Assert.Equal("Backend", result.Name);
+        Assert.False(result.IsDefault);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateCategoryAsync_DuplicateName_ThrowsArgumentException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCategoryAsync("backend"));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_NotFound_ReturnsFalse()
+    {
+        // Arrange
+        var service = CreateService([], [], out var dbContextMock);
+
+        // Act
+        var result = await service.DeleteCategoryAsync(999);
+
+        // Assert
+        Assert.False(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_DefaultCategory_ThrowsCategoryProtectedException()
+    {
+        // Arrange
+        var category = Category.Create("Common", isDefault: true);
+        var service = CreateService([], [category], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CategoryProtectedException>(() => service.DeleteCategoryAsync(category.Id));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_CategoryInUse_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteCategoryAsync(category.Id));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_UnusedNonDefaultCategory_RemovesCategory()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out var dbContextMock);
+
+        // Act
+        var result = await service.DeleteCategoryAsync(category.Id);
+
+        // Assert
+        Assert.True(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import {
   fetchCourse,
+  fetchCourseCoverImageObjectUrl,
   addChapter,
   renameChapter,
   moveChapter,
@@ -27,6 +28,7 @@ const notFound = ref(false);
 const forbidden = ref(false);
 const errorMessage = ref('');
 const publishing = ref(false);
+const coverImageUrl = ref('');
 
 async function loadCourse() {
   loading.value = true;
@@ -35,6 +37,9 @@ async function loadCourse() {
   errorMessage.value = '';
   try {
     course.value = await fetchCourse(courseId);
+    if (course.value.coverType === 'Image') {
+      coverImageUrl.value = await fetchCourseCoverImageObjectUrl(courseId);
+    }
   } catch (err) {
     if (err.response?.status === 404) notFound.value = true;
     else if (err.response?.status === 403) forbidden.value = true;
@@ -45,6 +50,10 @@ async function loadCourse() {
 }
 
 onMounted(loadCourse);
+
+onBeforeUnmount(() => {
+  if (coverImageUrl.value) URL.revokeObjectURL(coverImageUrl.value);
+});
 
 async function runMutation(action) {
   errorMessage.value = '';
@@ -231,6 +240,19 @@ async function publish() {
       </template>
 
       <template v-else-if="course">
+        <div
+          v-if="course.coverType === 'Color'"
+          class="course-assembly__cover"
+          :style="{ backgroundColor: `var(--color-cover-${course.coverColor?.toLowerCase()})` }"
+          aria-hidden="true"
+        />
+        <img
+          v-else-if="course.coverType === 'Image' && coverImageUrl"
+          :src="coverImageUrl"
+          alt=""
+          class="course-assembly__cover course-assembly__cover--image"
+        >
+
         <header class="course-assembly__header">
           <div class="course-assembly__header-copy">
             <p class="course-assembly__eyebrow">
@@ -564,6 +586,18 @@ async function publish() {
   border: 1px solid var(--industrial-line);
   border-radius: 50%;
   box-shadow: 0 0 0 36px var(--industrial-grid);
+}
+
+.course-assembly__cover {
+  height: 8rem;
+  margin-bottom: 1.5rem;
+  border-radius: var(--radius-card);
+  animation: assembly-rise 0.4s ease both;
+}
+
+.course-assembly__cover--image {
+  width: 100%;
+  object-fit: cover;
 }
 
 .course-assembly__header {

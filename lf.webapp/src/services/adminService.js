@@ -8,3 +8,9 @@ export const updateUserInfo = (id, payload) => api.put(`/admin/users/${id}`, pay
 export const updateUserRole = (id, role) => api.put(`/admin/users/${id}/role`, { role }).then((r) => r.data);
 
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`);
+
+export const fetchAdminCategories = () => api.get('/admin/categories').then((r) => r.data);
+
+export const createCategory = (name) => api.post('/admin/categories', { name }).then((r) => r.data);
+
+export const deleteCategory = (id) => api.delete(`/admin/categories/${id}`);

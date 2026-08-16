@@ -75,6 +75,39 @@ public class CourseAuthoringServiceTests
     }
 
     [Fact]
+    public async Task CreateCategoryAsync_DelegatesToGrpcCourseService()
+    {
+        // Arrange
+        var expected = new CategoryDto { Id = 1, Name = "Backend" };
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.CreateCategoryAsync("Backend")).ReturnsAsync(expected);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+
+        // Act
+        var result = await service.CreateCategoryAsync("Backend");
+
+        // Assert
+        Assert.Same(expected, result);
+        grpcMock.Verify(s => s.CreateCategoryAsync("Backend"), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteCategoryAsync_DelegatesToGrpcCourseService()
+    {
+        // Arrange
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.DeleteCategoryAsync(1)).ReturnsAsync(true);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+
+        // Act
+        var result = await service.DeleteCategoryAsync(1);
+
+        // Assert
+        Assert.True(result);
+        grpcMock.Verify(s => s.DeleteCategoryAsync(1), Times.Once);
+    }
+
+    [Fact]
     public async Task AddChapterAsync_DelegatesToGrpcCourseService()
     {
         // Arrange

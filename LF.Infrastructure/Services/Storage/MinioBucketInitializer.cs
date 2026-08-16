@@ -13,14 +13,17 @@ internal sealed class MinioBucketInitializer(
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var bucketName = options.Value.AvatarsBucketName;
+        string[] bucketNames = [options.Value.AvatarsBucketName, options.Value.StorageBucketName];
 
-        var exists = await minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName), cancellationToken);
-        if (exists)
-            return;
+        foreach (var bucketName in bucketNames)
+        {
+            var exists = await minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName), cancellationToken);
+            if (exists)
+                continue;
 
-        logger.LogInformation("MinioBucketInitializer::StartAsync: creating bucket {BucketName}", bucketName);
-        await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName), cancellationToken);
+            logger.LogInformation("MinioBucketInitializer::StartAsync: creating bucket {BucketName}", bucketName);
+            await minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(bucketName), cancellationToken);
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

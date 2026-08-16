@@ -30,6 +30,11 @@ namespace LF.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsDefault")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -77,6 +82,15 @@ namespace LF.Infrastructure.Migrations
                     b.Property<int>("CategoryId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CoverColor")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CoverImageStorageObjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CoverType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -86,10 +100,6 @@ namespace LF.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("ImageKey")
-                        .HasMaxLength(260)
-                        .HasColumnType("character varying(260)");
 
                     b.Property<bool>("IsPublished")
                         .HasColumnType("boolean");
@@ -107,6 +117,8 @@ namespace LF.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("CoverImageStorageObjectId");
 
                     b.ToTable("LFCourses", (string)null);
                 });
@@ -176,6 +188,41 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFLessons", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Storage.StorageObject", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<int>("ObjectType")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LFStorageObjects", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.User.DbUser", b =>
                 {
                     b.Property<int>("Id")
@@ -232,7 +279,14 @@ namespace LF.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LF.AppDomain.Entities.Storage.StorageObject", "CoverImageStorageObject")
+                        .WithMany()
+                        .HasForeignKey("CoverImageStorageObjectId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Category");
+
+                    b.Navigation("CoverImageStorageObject");
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Enrollment", b =>

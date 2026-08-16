@@ -28,6 +28,9 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     services.AddInfrastructureGrpcClient("http://lf-identityservice");
     services.AddInfrastructureCourseGrpcClient("http://lf-courseservice");
     services.AddInfrastructureFileStorage(configuration);
+    // Needed for IStorageService/IStorageRepository (StorageObject metadata) — LF.WebApi is the only
+    // host with both MinIO and DB access, since a course-cover/lesson-media upload needs both in one call.
+    services.AddInfrastructureDatabase(configuration);
 }
 
 static void MapEndpointGroups(WebApplication app)

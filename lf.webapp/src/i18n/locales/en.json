@@ -31,6 +31,7 @@
     "profile_view_title": "Profile — Lean Forge LMS",
     "admin_users_view_title": "Administration — Users — Lean Forge LMS",
     "admin_courses_view_title": "Administration — Courses — Lean Forge LMS",
+    "admin_categories_view_title": "Administration — Categories — Lean Forge LMS",
     "courses_available_view_title": "Available courses — Lean Forge LMS",
     "courses_active_view_title": "Active courses — Lean Forge LMS",
     "courses_finished_view_title": "Finished courses — Lean Forge LMS",
@@ -43,6 +44,7 @@
         "sidebar": {
             "users": "Users",
             "courses": "Courses",
+            "categories": "Categories",
             "toggle": "Toggle sidebar"
         },
         "users": {
@@ -70,6 +72,21 @@
         },
         "courses": {
             "coming_soon": "Course administration is coming soon."
+        },
+        "categories": {
+            "title": "Categories",
+            "name": "Name",
+            "add_action": "Add category",
+            "add_title": "Add category",
+            "default_badge": "Default",
+            "default_protected": "The default category cannot be deleted.",
+            "delete": "Delete",
+            "delete_title": "Delete category",
+            "delete_confirm": "Are you sure you want to permanently delete \"{name}\"? This cannot be undone.",
+            "save": "Save",
+            "no_categories": "No categories found.",
+            "load_error": "Could not load categories. Please try again.",
+            "save_error": "Could not save changes. Please try again."
         }
     },
     "courses": {
@@ -137,6 +154,21 @@
             "field_description": "Description",
             "field_category": "Category",
             "category_placeholder": "Categories loading…",
+            "field_cover": "Cover",
+            "cover_mode_color": "Color",
+            "cover_mode_image": "Image",
+            "cover_colors": {
+                "coral": "Coral",
+                "ocean": "Ocean",
+                "forest": "Forest",
+                "amber": "Amber",
+                "slate": "Slate",
+                "berry": "Berry"
+            },
+            "cover_image_choose": "Choose image",
+            "cover_image_uploading": "Uploading…",
+            "cover_image_upload_error": "Could not upload the cover image. Please try again.",
+            "cover_image_preview_alt": "Course cover preview",
             "submit": "Forge course",
             "submitting": "Forging…",
             "validation_error": "Please fill in all required fields.",
@@ -147,7 +179,7 @@
             "drafts_loading": "Loading drafts…",
             "edit_action": "Continue",
             "coming_soon_section_title": "More options coming soon",
-            "coming_soon": "Thumbnail, instructors, tags, pricing and certification are coming soon.",
+            "coming_soon": "Instructors, tags, pricing and certification are coming soon.",
             "back": "Back to courses"
         },
         "editor": {

@@ -60,6 +60,36 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         return reply.Categories.Adapt<List<CategoryDto>>();
     }
 
+    public async Task<CategoryDto> CreateCategoryAsync(string name)
+    {
+        _logger.LogInformation("GrpcCourseService::CreateCategoryAsync: called with Name={Name}", name);
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.CreateCategoryAsync(new CreateCategoryRequest { Name = name });
+            return reply.Adapt<CategoryDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
+        {
+            throw new ArgumentException(ex.Status.Detail);
+        }
+    }
+
+    public async Task<bool> DeleteCategoryAsync(int id)
+    {
+        _logger.LogInformation("GrpcCourseService::DeleteCategoryAsync: called with Id={CategoryId}", id);
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.DeleteCategoryAsync(new DeleteCategoryRequest { Id = id });
+            return reply.Deleted;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
+        }
+    }
+
     public async Task<CourseDetailDto?> AddChapterAsync(int courseId, string title, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("GrpcCourseService::AddChapterAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);

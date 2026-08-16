@@ -94,6 +94,8 @@ services:
       - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
       - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
     depends_on:
+      postgres:
+        condition: service_healthy
       lf-identityservice:
         condition: service_started
       lf-courseservice:
@@ -111,5 +113,8 @@ services:
       Services__lf-identityservice__http__0: "lf-identityservice:8080"
       Services__lf-courseservice__http__0: "lf-courseservice:8080"
       ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
+      # Needed for IStorageService/IStorageRepository (StorageObject metadata) — lf-webapi is the
+      # only container with both MinIO and DB access, since an upload needs both in one call.
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret

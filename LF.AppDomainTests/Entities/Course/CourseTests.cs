@@ -1,4 +1,7 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Storage;
+using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 using LF.AppDomainTests.TestSupport;
 
 namespace LF.AppDomainTests.Entities.CourseAggregate;
@@ -9,6 +12,9 @@ public class CourseTests
 
     private static Course CreateCourse() =>
         Course.Create("Title", "Short intro", "Description", CreateCategory(), 1, DateTime.UtcNow);
+
+    private static StorageObject CreateStorageObject() =>
+        StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
 
     [Fact]
     public void Create_ValidArgs_SetsCreatedByUserId()
@@ -150,5 +156,69 @@ public class CourseTests
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => course.MoveChapterUp(999));
+    }
+
+    [Fact]
+    public void Create_DefaultsToNoCover()
+    {
+        // Act
+        var course = CreateCourse();
+
+        // Assert
+        Assert.Equal(CourseCoverType.None, course.CoverType);
+        Assert.Null(course.CoverColor);
+        Assert.Null(course.CoverImageStorageObjectId);
+    }
+
+    [Fact]
+    public void SetColorCover_SetsColorAndClearsImage()
+    {
+        // Arrange
+        var course = CreateCourse();
+        course.SetImageCover(CreateStorageObject());
+
+        // Act
+        course.SetColorCover(CourseCoverColor.Ocean);
+
+        // Assert
+        Assert.Equal(CourseCoverType.Color, course.CoverType);
+        Assert.Equal(CourseCoverColor.Ocean, course.CoverColor);
+        Assert.Null(course.CoverImageStorageObjectId);
+        Assert.Null(course.CoverImageStorageObject);
+    }
+
+    [Fact]
+    public void SetImageCover_SetsImageAndClearsColor()
+    {
+        // Arrange
+        var course = CreateCourse();
+        course.SetColorCover(CourseCoverColor.Ocean);
+        var storageObject = CreateStorageObject();
+        EntityIdSetter.SetId(storageObject, 5);
+
+        // Act
+        course.SetImageCover(storageObject);
+
+        // Assert
+        Assert.Equal(CourseCoverType.Image, course.CoverType);
+        Assert.Equal(5, course.CoverImageStorageObjectId);
+        Assert.Same(storageObject, course.CoverImageStorageObject);
+        Assert.Null(course.CoverColor);
+    }
+
+    [Fact]
+    public void ClearCover_ResetsToNone()
+    {
+        // Arrange
+        var course = CreateCourse();
+        course.SetColorCover(CourseCoverColor.Ocean);
+
+        // Act
+        course.ClearCover();
+
+        // Assert
+        Assert.Equal(CourseCoverType.None, course.CoverType);
+        Assert.Null(course.CoverColor);
+        Assert.Null(course.CoverImageStorageObjectId);
     }
 }

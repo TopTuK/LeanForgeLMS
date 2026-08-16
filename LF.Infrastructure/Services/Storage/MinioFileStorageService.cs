@@ -1,6 +1,5 @@
 using LF.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
 using Minio.Exceptions;
@@ -10,9 +9,9 @@ namespace LF.Infrastructure.Services.Storage;
 internal sealed class MinioFileStorageService(
     ILogger<MinioFileStorageService> logger,
     IMinioClient minioClient,
-    IOptions<MinioStorageOptions> options) : IFileStorageService
+    string bucketName) : IFileStorageService
 {
-    private readonly string _bucketName = options.Value.AvatarsBucketName;
+    private readonly string _bucketName = bucketName;
 
     public async Task UploadAsync(string objectKey, Stream content, string contentType, CancellationToken ct = default)
     {

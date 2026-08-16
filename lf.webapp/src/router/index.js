@@ -19,6 +19,7 @@ const ProfileView = () => import('@/views/ProfileView.vue');
 const AdminLayout = () => import('@/layout/AdminLayout.vue');
 const AdminUsersView = () => import('@/views/admin/AdminUsersView.vue');
 const AdminCoursesView = () => import('@/views/admin/AdminCoursesView.vue');
+const AdminCategoriesView = () => import('@/views/admin/AdminCategoriesView.vue');
 
 const routes = [
     {
@@ -177,6 +178,16 @@ const routes = [
                 component: AdminCoursesView,
                 meta: {
                     title: 'admin_courses_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'categories',
+                name: 'AdminCategories',
+                component: AdminCategoriesView,
+                meta: {
+                    title: 'admin_categories_view_title',
                     requiresAuth: true,
                     roles: ['Admin'],
                 }

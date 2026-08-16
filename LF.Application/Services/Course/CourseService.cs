@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Models.Course.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
@@ -26,6 +27,19 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
 
         var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, dto.Description, category, createdByUserId, _timeProvider.GetUtcNow().UtcDateTime);
 
+        switch (dto.CoverType)
+        {
+            case CourseCoverType.Color when dto.CoverColor is { } color:
+                course.SetColorCover(color);
+                break;
+            case CourseCoverType.Image when dto.CoverImageStorageObjectId is { } storageObjectId:
+                var storageObject = await _dbContext.StorageObjects.FirstOrDefaultAsync(s => s.Id == storageObjectId);
+                if (storageObject is null)
+                    throw new ArgumentException($"Storage object {storageObjectId} not found.", nameof(dto));
+                course.SetImageCover(storageObject);
+                break;
+        }
+
         _dbContext.Courses.Add(course);
         await _dbContext.SaveChangesAsync();
 
@@ -51,7 +65,7 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         _logger.LogInformation("CourseService::ListCoursesAsync: called with Page={Page} PageSize={PageSize} ActingUserId={ActingUserId} IsAdmin={IsAdmin}",
             page, pageSize, actingUserId, isAdmin);
 
-        IQueryable<DomainCourse> query = _dbContext.Courses.AsNoTracking().Include(c => c.Category).Include(c => c.Chapters);
+        IQueryable<DomainCourse> query = _dbContext.Courses.AsNoTracking().Include(c => c.Category).Include(c => c.Chapters).Include(c => c.CoverImageStorageObject);
         if (!isAdmin)
             query = query.Where(c => c.CreatedByUserId == actingUserId);
 
@@ -71,6 +85,43 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
 
         var categories = await _dbContext.Categories.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
         return categories.Adapt<List<CategoryDto>>();
+    }
+
+    public async Task<CategoryDto> CreateCategoryAsync(string name)
+    {
+        _logger.LogInformation("CourseService::CreateCategoryAsync: called with Name={Name}", name);
+
+        var category = Category.Create(name);
+
+        var duplicate = await _dbContext.Categories.AnyAsync(c => c.Name.ToLower() == category.Name.ToLower());
+        if (duplicate)
+            throw new ArgumentException($"Category '{category.Name}' already exists.", nameof(name));
+
+        _dbContext.Categories.Add(category);
+        await _dbContext.SaveChangesAsync();
+
+        return category.Adapt<CategoryDto>();
+    }
+
+    public async Task<bool> DeleteCategoryAsync(int id)
+    {
+        _logger.LogInformation("CourseService::DeleteCategoryAsync: called with Id={CategoryId}", id);
+
+        var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == id);
+        if (category is null)
+            return false;
+
+        if (category.IsDefault)
+            throw new CategoryProtectedException($"The default category '{category.Name}' cannot be deleted.");
+
+        var inUse = await _dbContext.Courses.AnyAsync(c => c.CategoryId == id);
+        if (inUse)
+            throw new InvalidOperationException($"Category '{category.Name}' is still assigned to one or more courses.");
+
+        _dbContext.Categories.Remove(category);
+        await _dbContext.SaveChangesAsync();
+
+        return true;
     }
 
     public async Task<CourseDetailDto?> AddChapterAsync(int courseId, string title, int actingUserId, bool isAdmin)
@@ -257,6 +308,7 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
             .Include(c => c.Category)
+            .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private Task<DomainCourse?> LoadCourseForReadAsync(int courseId) =>
@@ -265,5 +317,6 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
             .Include(c => c.Category)
+            .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 }

@@ -41,7 +41,9 @@ builder
     .WithReference(webApp)
     .WaitFor(webApp)
     .WithReference(minio)
-    .WaitFor(minio);
+    .WaitFor(minio)
+    .WithReference(postgres)
+    .WaitFor(postgres);
 
 builder
     .Build()
