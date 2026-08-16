@@ -9,6 +9,15 @@ export const fetchCourse = (id) => api.get(`/courses/${id}`).then((r) => r.data)
 
 export const createCourse = (payload) => api.post('/courses', payload).then((r) => r.data);
 
+export const uploadCourseCoverImage = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/courses/cover-image', formData).then((r) => r.data);
+};
+
+export const fetchCourseCoverImageObjectUrl = (courseId) =>
+  api.get(`/courses/${courseId}/cover/image`, { responseType: 'blob' }).then((r) => URL.createObjectURL(r.data));
+
 export const addChapter = (courseId, title) =>
   api.post(`/courses/${courseId}/chapters`, { title }).then((r) => r.data);
 

@@ -5,6 +5,7 @@ using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Profile;
+using LF.Application.Services.Storage;
 using LF.Application.Services.User;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<ICourseAuthoringService, CourseAuthoringService>();
         services.AddScoped<IEnrollmentLearningService, EnrollmentLearningService>();
+        services.AddScoped<IStorageService, StorageService>();
 
         return services;
     }

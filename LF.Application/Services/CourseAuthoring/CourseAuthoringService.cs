@@ -37,6 +37,20 @@ internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> log
         return await _grpcCourseService.ListCategoriesAsync();
     }
 
+    public async Task<CategoryDto> CreateCategoryAsync(string name)
+    {
+        _logger.LogInformation("CourseAuthoringService::CreateCategoryAsync: called with Name={Name}", name);
+
+        return await _grpcCourseService.CreateCategoryAsync(name);
+    }
+
+    public async Task<bool> DeleteCategoryAsync(int id)
+    {
+        _logger.LogInformation("CourseAuthoringService::DeleteCategoryAsync: called with Id={CategoryId}", id);
+
+        return await _grpcCourseService.DeleteCategoryAsync(id);
+    }
+
     public async Task<CourseDetailDto?> AddChapterAsync(int courseId, string title, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseAuthoringService::AddChapterAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);

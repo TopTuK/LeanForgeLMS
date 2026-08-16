@@ -43,4 +43,24 @@ public class CategoryTests
         // Act & Assert
         Assert.Throws<ArgumentException>(() => category.Rename(""));
     }
+
+    [Fact]
+    public void Create_Default_IsFalse()
+    {
+        // Act
+        var category = Category.Create("Backend");
+
+        // Assert
+        Assert.False(category.IsDefault);
+    }
+
+    [Fact]
+    public void Create_IsDefaultTrue_SetsIsDefault()
+    {
+        // Act
+        var category = Category.Create("Common", isDefault: true);
+
+        // Assert
+        Assert.True(category.IsDefault);
+    }
 }

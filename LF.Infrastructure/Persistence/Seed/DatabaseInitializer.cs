@@ -10,7 +10,15 @@ namespace LF.Infrastructure.Persistence.Seed;
 
 public static class DatabaseInitializer
 {
-    private static readonly string[] DefaultCategories = ["Backend", "Frontend", "DevOps", "Design", "Career"];
+    private static readonly (string Name, bool IsDefault)[] DefaultCategories =
+    [
+        ("Common", true),
+        ("Backend", false),
+        ("Frontend", false),
+        ("DevOps", false),
+        ("Design", false),
+        ("Career", false),
+    ];
 
     public static async Task InitializeDatabaseAsync(this IServiceProvider services)
     {
@@ -38,7 +46,7 @@ public static class DatabaseInitializer
             });
         }
 
-        foreach (var name in DefaultCategories)
+        foreach (var (name, isDefault) in DefaultCategories)
         {
             var exists = await dbContext.Categories.AnyAsync(c => c.Name == name);
             if (exists)
@@ -46,7 +54,7 @@ public static class DatabaseInitializer
                 continue;
             }
 
-            dbContext.Categories.Add(Category.Create(name));
+            dbContext.Categories.Add(Category.Create(name, isDefault));
         }
 
         await dbContext.SaveChangesAsync();

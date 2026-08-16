@@ -31,6 +31,7 @@
     "profile_view_title": "Профиль — Lean Forge LMS",
     "admin_users_view_title": "Администрирование — Пользователи — Lean Forge LMS",
     "admin_courses_view_title": "Администрирование — Курсы — Lean Forge LMS",
+    "admin_categories_view_title": "Администрирование — Категории — Lean Forge LMS",
     "courses_available_view_title": "Доступные курсы — Lean Forge LMS",
     "courses_active_view_title": "Активные курсы — Lean Forge LMS",
     "courses_finished_view_title": "Завершённые курсы — Lean Forge LMS",
@@ -43,6 +44,7 @@
         "sidebar": {
             "users": "Пользователи",
             "courses": "Курсы",
+            "categories": "Категории",
             "toggle": "Свернуть/развернуть меню"
         },
         "users": {
@@ -70,6 +72,21 @@
         },
         "courses": {
             "coming_soon": "Администрирование курсов появится позже."
+        },
+        "categories": {
+            "title": "Категории",
+            "name": "Название",
+            "add_action": "Добавить категорию",
+            "add_title": "Добавить категорию",
+            "default_badge": "По умолчанию",
+            "default_protected": "Категорию по умолчанию нельзя удалить.",
+            "delete": "Удалить",
+            "delete_title": "Удаление категории",
+            "delete_confirm": "Вы уверены, что хотите безвозвратно удалить «{name}»? Это действие нельзя отменить.",
+            "save": "Сохранить",
+            "no_categories": "Категории не найдены.",
+            "load_error": "Не удалось загрузить категории. Попробуйте ещё раз.",
+            "save_error": "Не удалось сохранить изменения. Попробуйте ещё раз."
         }
     },
     "courses": {
@@ -137,6 +154,21 @@
             "field_description": "Описание",
             "field_category": "Категория",
             "category_placeholder": "Загрузка категорий…",
+            "field_cover": "Обложка",
+            "cover_mode_color": "Цвет",
+            "cover_mode_image": "Изображение",
+            "cover_colors": {
+                "coral": "Коралловый",
+                "ocean": "Океан",
+                "forest": "Лесной",
+                "amber": "Янтарный",
+                "slate": "Графитовый",
+                "berry": "Ягодный"
+            },
+            "cover_image_choose": "Выбрать изображение",
+            "cover_image_uploading": "Загрузка…",
+            "cover_image_upload_error": "Не удалось загрузить обложку. Попробуйте ещё раз.",
+            "cover_image_preview_alt": "Предпросмотр обложки курса",
             "submit": "Выковать курс",
             "submitting": "Ковка…",
             "validation_error": "Пожалуйста, заполните все обязательные поля.",
@@ -147,7 +179,7 @@
             "drafts_loading": "Загрузка черновиков…",
             "edit_action": "Продолжить",
             "coming_soon_section_title": "Скоро появится больше возможностей",
-            "coming_soon": "Обложка, преподаватели, теги, цены и сертификация скоро появятся.",
+            "coming_soon": "Преподаватели, теги, цены и сертификация скоро появятся.",
             "back": "Назад к курсам"
         },
         "editor": {

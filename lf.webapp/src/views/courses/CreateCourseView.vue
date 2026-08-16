@@ -1,18 +1,28 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { fetchCategories, fetchCourses, createCourse } from '@/services/courseService';
+import { fetchCategories, fetchCourses, createCourse, uploadCourseCoverImage } from '@/services/courseService';
 import ForgeField from '@/components/courses/forge/ForgeField.vue';
 
 const { t } = useI18n();
 const router = useRouter();
+
+const COVER_COLORS = ['Coral', 'Ocean', 'Forest', 'Amber', 'Slate', 'Berry'];
 
 const title = ref('');
 const shortIntroduction = ref('');
 const description = ref('');
 const category = ref(null);
 const categories = ref([]);
+
+const coverMode = ref('Color');
+const coverColor = ref(COVER_COLORS[0]);
+const coverImageFile = ref(null);
+const coverImagePreviewUrl = ref('');
+const coverImageStorageObjectId = ref(null);
+const coverImageUploading = ref(false);
+const coverImageError = ref('');
 
 const submitting = ref(false);
 const errorMessage = ref('');
@@ -47,12 +57,39 @@ onMounted(() => {
   loadDrafts();
 });
 
+onBeforeUnmount(() => {
+  if (coverImagePreviewUrl.value) URL.revokeObjectURL(coverImagePreviewUrl.value);
+});
+
+async function onCoverImageSelected(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  coverImageError.value = '';
+  coverImageStorageObjectId.value = null;
+  if (coverImagePreviewUrl.value) URL.revokeObjectURL(coverImagePreviewUrl.value);
+
+  coverImageFile.value = file;
+  coverImagePreviewUrl.value = URL.createObjectURL(file);
+  coverImageUploading.value = true;
+
+  try {
+    const uploaded = await uploadCourseCoverImage(file);
+    coverImageStorageObjectId.value = uploaded.storageObjectId;
+  } catch {
+    coverImageError.value = t('courses.create.cover_image_upload_error');
+  } finally {
+    coverImageUploading.value = false;
+  }
+}
+
 const canSubmit = computed(() =>
   Boolean(
     title.value.trim()
     && shortIntroduction.value.trim()
     && description.value.trim()
-    && category.value,
+    && category.value
+    && (coverMode.value === 'Color' ? coverColor.value : coverImageStorageObjectId.value),
   ),
 );
 
@@ -71,6 +108,9 @@ async function submit() {
       shortIntroduction: shortIntroduction.value,
       description: description.value,
       categoryId: category.value,
+      coverType: coverMode.value,
+      coverColor: coverMode.value === 'Color' ? coverColor.value : null,
+      coverImageStorageObjectId: coverMode.value === 'Image' ? coverImageStorageObjectId.value : null,
     });
     router.push({ name: 'CourseEdit', params: { id: course.id } });
   } catch (err) {
@@ -195,6 +235,84 @@ async function submit() {
               >
                 {{ item.name }}
               </button>
+            </div>
+          </fieldset>
+
+          <fieldset class="course-forge__category">
+            <legend class="course-forge__category-legend">
+              <span>{{ $t('courses.create.field_cover') }}</span>
+              <span aria-hidden="true">05</span>
+            </legend>
+
+            <div
+              class="course-forge__chips"
+              role="listbox"
+              :aria-label="$t('courses.create.field_cover')"
+            >
+              <button
+                type="button"
+                class="course-forge__chip"
+                role="option"
+                :aria-selected="coverMode === 'Color'"
+                :class="{ 'is-active': coverMode === 'Color' }"
+                @click="coverMode = 'Color'"
+              >
+                {{ $t('courses.create.cover_mode_color') }}
+              </button>
+              <button
+                type="button"
+                class="course-forge__chip"
+                role="option"
+                :aria-selected="coverMode === 'Image'"
+                :class="{ 'is-active': coverMode === 'Image' }"
+                @click="coverMode = 'Image'"
+              >
+                {{ $t('courses.create.cover_mode_image') }}
+              </button>
+            </div>
+
+            <div
+              v-if="coverMode === 'Color'"
+              class="course-forge__swatches"
+              role="listbox"
+              :aria-label="$t('courses.create.cover_mode_color')"
+            >
+              <button
+                v-for="color in COVER_COLORS"
+                :key="color"
+                type="button"
+                class="course-forge__swatch"
+                role="option"
+                :aria-selected="coverColor === color"
+                :class="{ 'is-active': coverColor === color }"
+                :style="{ backgroundColor: `var(--color-cover-${color.toLowerCase()})` }"
+                :title="$t(`courses.create.cover_colors.${color.toLowerCase()}`)"
+                @click="coverColor = color"
+              />
+            </div>
+
+            <div v-else class="course-forge__cover-image">
+              <label class="course-forge__cover-upload">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  class="course-forge__cover-input"
+                  @change="onCoverImageSelected"
+                >
+                <span>{{ coverImageUploading ? $t('courses.create.cover_image_uploading') : $t('courses.create.cover_image_choose') }}</span>
+              </label>
+              <img
+                v-if="coverImagePreviewUrl"
+                :src="coverImagePreviewUrl"
+                :alt="$t('courses.create.cover_image_preview_alt')"
+                class="course-forge__cover-preview"
+              >
+              <p
+                v-if="coverImageError"
+                class="course-forge__hint course-forge__hint--error"
+              >
+                {{ coverImageError }}
+              </p>
             </div>
           </fieldset>
 
@@ -505,6 +623,77 @@ async function submit() {
 
 .course-forge__chip:active {
   transform: scale(0.97);
+}
+
+.course-forge__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.course-forge__swatch {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--color-border-subtle);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.course-forge__swatch:hover {
+  transform: scale(1.08);
+}
+
+.course-forge__swatch.is-active {
+  box-shadow: 0 0 0 2px var(--color-surface-950), 0 0 0 4px var(--color-ink);
+}
+
+.course-forge__cover-image {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.course-forge__cover-upload {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 0.55rem 0.95rem;
+  color: var(--color-ink-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.course-forge__cover-upload:hover {
+  color: var(--color-ink);
+  border-color: var(--color-ink-faint);
+}
+
+.course-forge__cover-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.course-forge__cover-preview {
+  width: 100%;
+  max-width: 18rem;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .course-forge__actions {

@@ -1,8 +1,9 @@
 using FluentValidation;
+using LF.AppDomain.Models.Course.Enums;
 
 namespace LF.WebApi.Endpoints;
 
-public sealed record CategoryResponse(int Id, string Name);
+public sealed record CategoryResponse(int Id, string Name, bool IsDefault);
 
 public sealed record LessonResponse(int Id, string Title, string Content, bool IncludeInPreview, int SortOrder);
 
@@ -13,7 +14,9 @@ public sealed record CourseDetailResponse(
     string Title,
     string ShortIntroduction,
     string Description,
-    string? ImageKey,
+    string CoverType,
+    string? CoverColor,
+    string? CoverImageUrl,
     bool IsPublished,
     int CategoryId,
     string CategoryName,
@@ -25,6 +28,9 @@ public sealed record CourseSummaryResponse(
     int Id,
     string Title,
     string ShortIntroduction,
+    string CoverType,
+    string? CoverColor,
+    string? CoverImageUrl,
     bool IsPublished,
     int CategoryId,
     string CategoryName,
@@ -34,7 +40,14 @@ public sealed record CourseSummaryResponse(
 
 public sealed record PagedCoursesResponse(IReadOnlyList<CourseSummaryResponse> Items, int TotalCount, int Page, int PageSize);
 
-public sealed record CreateCourseRequest(string Title, string ShortIntroduction, string Description, int CategoryId);
+public sealed record CreateCourseRequest(
+    string Title,
+    string ShortIntroduction,
+    string Description,
+    int CategoryId,
+    string CoverType,
+    string? CoverColor,
+    int? CoverImageStorageObjectId);
 
 public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCourseRequest>
 {
@@ -44,7 +57,32 @@ public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCours
         RuleFor(x => x.ShortIntroduction).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Description).NotEmpty();
         RuleFor(x => x.CategoryId).GreaterThan(0);
+
+        RuleFor(x => x.CoverType).Must(t => Enum.TryParse<CourseCoverType>(t, out _))
+            .WithMessage("Cover type must be one of None, Color, Image.");
+
+        RuleFor(x => x.CoverColor).Must(c => Enum.TryParse<CourseCoverColor>(c, out _))
+            .When(x => string.Equals(x.CoverType, nameof(CourseCoverType.Color), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("A valid cover color is required when cover type is Color.");
+
+        RuleFor(x => x.CoverImageStorageObjectId).GreaterThan(0)
+            .When(x => string.Equals(x.CoverType, nameof(CourseCoverType.Image), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("A cover image storage object id is required when cover type is Image.");
     }
+}
+
+public sealed record UploadCoverImageResponse(int StorageObjectId);
+
+public static class CourseCoverImageUpload
+{
+    public const long MaxSizeBytes = 5 * 1024 * 1024;
+
+    public static readonly IReadOnlyDictionary<string, string> AllowedContentTypes = new Dictionary<string, string>
+    {
+        ["image/png"] = ".png",
+        ["image/jpeg"] = ".jpg",
+        ["image/webp"] = ".webp",
+    };
 }
 
 public sealed record AddChapterRequest(string Title);

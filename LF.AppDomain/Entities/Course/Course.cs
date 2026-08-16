@@ -1,3 +1,6 @@
+using LF.AppDomain.Entities.Storage;
+using LF.AppDomain.Models.Course.Enums;
+
 namespace LF.AppDomain.Entities.Course;
 
 public sealed class Course
@@ -12,7 +15,10 @@ public sealed class Course
     public string Title { get; private set; } = null!;
     public string ShortIntroduction { get; private set; } = null!;
     public string Description { get; private set; } = null!;
-    public string? ImageKey { get; private set; }
+    public CourseCoverType CoverType { get; private set; } = CourseCoverType.None;
+    public CourseCoverColor? CoverColor { get; private set; }
+    public int? CoverImageStorageObjectId { get; private set; }
+    public StorageObject? CoverImageStorageObject { get; private set; }
     public bool IsPublished { get; private set; }
     public int CategoryId { get; private set; }
     public Category Category { get; private set; } = null!;
@@ -127,13 +133,29 @@ public sealed class Course
         CategoryId = category.Id;
     }
 
-    public void SetImage(string imageKey)
+    public void SetColorCover(CourseCoverColor color)
     {
-        if (string.IsNullOrWhiteSpace(imageKey))
-            throw new ArgumentException("Image key cannot be empty.", nameof(imageKey));
-
-        ImageKey = imageKey;
+        CoverType = CourseCoverType.Color;
+        CoverColor = color;
+        CoverImageStorageObjectId = null;
+        CoverImageStorageObject = null;
     }
 
-    public void ClearImage() => ImageKey = null;
+    public void SetImageCover(StorageObject storageObject)
+    {
+        ArgumentNullException.ThrowIfNull(storageObject);
+
+        CoverType = CourseCoverType.Image;
+        CoverImageStorageObjectId = storageObject.Id;
+        CoverImageStorageObject = storageObject;
+        CoverColor = null;
+    }
+
+    public void ClearCover()
+    {
+        CoverType = CourseCoverType.None;
+        CoverColor = null;
+        CoverImageStorageObjectId = null;
+        CoverImageStorageObject = null;
+    }
 }

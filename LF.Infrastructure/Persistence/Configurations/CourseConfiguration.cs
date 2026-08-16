@@ -16,7 +16,8 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.Property(c => c.Title).IsRequired().HasMaxLength(200);
         builder.Property(c => c.ShortIntroduction).IsRequired().HasMaxLength(500);
         builder.Property(c => c.Description).IsRequired();
-        builder.Property(c => c.ImageKey).HasMaxLength(260);
+        builder.Property(c => c.CoverType).IsRequired();
+        builder.Property(c => c.CoverColor);
 
         // Users live in a separate bounded context (LF.IdentityService); this is a plain scalar
         // reference by convention, not an EF navigation/FK, even though it's physically the same DB.
@@ -25,6 +26,11 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.HasOne(c => c.Category)
             .WithMany()
             .HasForeignKey(c => c.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(c => c.CoverImageStorageObject)
+            .WithMany()
+            .HasForeignKey(c => c.CoverImageStorageObjectId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(c => c.Chapters)

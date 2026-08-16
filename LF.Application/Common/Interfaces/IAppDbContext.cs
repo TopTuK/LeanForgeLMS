@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Entities.User;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ public interface IAppDbContext
     DbSet<Course> Courses { get; }
     DbSet<Category> Categories { get; }
     DbSet<Enrollment> Enrollments { get; }
+    DbSet<StorageObject> StorageObjects { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

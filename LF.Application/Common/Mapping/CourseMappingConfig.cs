@@ -16,10 +16,14 @@ internal sealed class CourseMappingConfig : IRegister
 
         config.NewConfig<Course, CourseDetailDto>()
             .Map(dest => dest.CategoryName, src => src.Category.Name)
+            .Map(dest => dest.CoverImageKey, src => src.CoverImageStorageObject != null ? src.CoverImageStorageObject.ObjectKey : null)
+            .Map(dest => dest.CoverImageContentType, src => src.CoverImageStorageObject != null ? src.CoverImageStorageObject.ContentType : null)
             .Map(dest => dest.Chapters, src => src.Chapters.OrderBy(c => c.SortOrder));
 
         config.NewConfig<Course, CourseSummaryDto>()
             .Map(dest => dest.CategoryName, src => src.Category.Name)
+            .Map(dest => dest.CoverImageKey, src => src.CoverImageStorageObject != null ? src.CoverImageStorageObject.ObjectKey : null)
+            .Map(dest => dest.CoverImageContentType, src => src.CoverImageStorageObject != null ? src.CoverImageStorageObject.ContentType : null)
             .Map(dest => dest.ChapterCount, src => src.Chapters.Count);
     }
 }

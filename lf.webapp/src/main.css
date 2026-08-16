@@ -11,6 +11,12 @@
   --color-accent-coral: #ec683c;
   --color-accent-coral-dark: #d4552a;
   --color-accent-soft: #fef0eb;
+  --color-cover-coral: #ec683c;
+  --color-cover-ocean: #2f6690;
+  --color-cover-forest: #3a7d44;
+  --color-cover-amber: #d9a441;
+  --color-cover-slate: #4b5563;
+  --color-cover-berry: #8e3b6b;
   --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --radius-card: 0.5rem;
   --radius-pill: 999px;
@@ -39,6 +45,12 @@ html[data-theme="dark"] {
   --color-accent-coral: #f07a50;
   --color-accent-coral-dark: #ff926c;
   --color-accent-soft: #2d1d18;
+  --color-cover-coral: #f07a50;
+  --color-cover-ocean: #4a86b4;
+  --color-cover-forest: #4f9d5c;
+  --color-cover-amber: #e6b855;
+  --color-cover-slate: #6b7686;
+  --color-cover-berry: #b0568a;
   --industrial-grid: rgba(239, 238, 233, 0.045);
   --industrial-line: rgba(239, 238, 233, 0.14);
   --industrial-line-strong: rgba(239, 238, 233, 0.3);
@@ -95,4 +107,46 @@ body {
   background-color: var(--color-ink);
   border-color: var(--color-ink);
   color: #ffffff;
+}
+
+.bay-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.bay-section-index {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-top: 0.15rem;
+  color: var(--color-accent-coral);
+  border: 1px solid var(--industrial-line-strong);
+  border-radius: 0.3rem;
+  background: var(--industrial-accent-wash);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.bay-state-panel {
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  padding: 2.25rem 1.5rem;
+  text-align: center;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+  background: var(--industrial-panel);
+}
+
+.bay-state-panel--error {
+  border-style: solid;
+  border-color: var(--color-accent-coral);
+  color: var(--color-accent-coral);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+  text-align: left;
 }

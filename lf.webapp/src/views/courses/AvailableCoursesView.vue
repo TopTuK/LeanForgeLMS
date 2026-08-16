@@ -42,18 +42,24 @@ async function onEnroll(courseId) {
 
 <template>
   <div>
-    <div class="max-w-2xl mb-8">
-      <h2 class="text-xl font-bold text-ink">
-        {{ $t('courses.available.title') }}
-      </h2>
-      <p class="mt-2 text-sm text-ink-muted leading-relaxed">
-        {{ $t('courses.available.subtitle') }}
-      </p>
+    <div class="bay-section-heading mb-8">
+      <span
+        class="bay-section-index"
+        aria-hidden="true"
+      >01</span>
+      <div>
+        <h2 class="text-xl font-bold text-ink">
+          {{ $t('courses.available.title') }}
+        </h2>
+        <p class="mt-2 text-sm text-ink-muted leading-relaxed">
+          {{ $t('courses.available.subtitle') }}
+        </p>
+      </div>
     </div>
 
     <p
       v-if="errorMessage"
-      class="text-sm text-accent-coral mb-4"
+      class="bay-state-panel bay-state-panel--error mb-4"
     >
       {{ errorMessage }}
     </p>
@@ -69,9 +75,10 @@ async function onEnroll(courseId) {
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
     >
       <CourseCard
-        v-for="course in courses"
+        v-for="(course, idx) in courses"
         :key="course.id"
         status="available"
+        :index="idx"
         :title="course.title"
         :description="course.shortIntroduction"
         :category="course.categoryName"
@@ -81,7 +88,7 @@ async function onEnroll(courseId) {
     </div>
     <p
       v-else
-      class="text-sm text-ink-muted"
+      class="bay-state-panel"
     >
       {{ $t('courses.available.empty') }}
     </p>

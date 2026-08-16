@@ -17,6 +17,10 @@ service CourseServiceRpc {
   rpc ListCourses (ListCoursesRequest) returns (ListCoursesReply);
   // List available course categories
   rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesReply);
+  // Create a new course category (admin only)
+  rpc CreateCategory (CreateCategoryRequest) returns (CategoryReply);
+  // Delete a course category; the default category and categories still assigned to courses cannot be deleted (admin only)
+  rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryReply);
   // Add a chapter to a course
   rpc AddChapter (AddChapterRequest) returns (CourseDetailReply);
   // Rename a chapter
@@ -51,12 +55,30 @@ enum MoveDirection {
   DOWN = 2;
 }
 
+enum CourseCoverType {
+  COURSE_COVER_TYPE_NONE = 0;
+  COURSE_COVER_TYPE_COLOR = 1;
+  COURSE_COVER_TYPE_IMAGE = 2;
+}
+
+enum CourseCoverColor {
+  COURSE_COVER_COLOR_CORAL = 0;
+  COURSE_COVER_COLOR_OCEAN = 1;
+  COURSE_COVER_COLOR_FOREST = 2;
+  COURSE_COVER_COLOR_AMBER = 3;
+  COURSE_COVER_COLOR_SLATE = 4;
+  COURSE_COVER_COLOR_BERRY = 5;
+}
+
 message CreateCourseRequest {
   string title = 1;
   string short_introduction = 2;
   string description = 3;
   int32 category_id = 4;
   int32 created_by_user_id = 5;
+  CourseCoverType cover_type = 6;
+  CourseCoverColor cover_color = 7;
+  google.protobuf.Int32Value cover_image_storage_object_id = 8;
 }
 
 message GetCourseRequest {
@@ -87,6 +109,10 @@ message CourseSummaryReply {
   int32 created_by_user_id = 7;
   google.protobuf.Timestamp created_at = 8;
   int32 chapter_count = 9;
+  CourseCoverType cover_type = 10;
+  CourseCoverColor cover_color = 11;
+  google.protobuf.StringValue cover_image_key = 12;
+  google.protobuf.StringValue cover_image_content_type = 13;
 }
 
 message CourseDetailReply {
@@ -94,13 +120,16 @@ message CourseDetailReply {
   string title = 2;
   string short_introduction = 3;
   string description = 4;
-  google.protobuf.StringValue image_key = 5;
   bool is_published = 6;
   int32 category_id = 7;
   string category_name = 8;
   int32 created_by_user_id = 9;
   google.protobuf.Timestamp created_at = 10;
   repeated ChapterReply chapters = 11;
+  CourseCoverType cover_type = 12;
+  CourseCoverColor cover_color = 13;
+  google.protobuf.StringValue cover_image_key = 14;
+  google.protobuf.StringValue cover_image_content_type = 15;
 }
 
 message ChapterReply {
@@ -128,6 +157,19 @@ message ListCategoriesReply {
 message CategoryReply {
   int32 id = 1;
   string name = 2;
+  bool is_default = 3;
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+}
+
+message DeleteCategoryRequest {
+  int32 id = 1;
+}
+
+message DeleteCategoryReply {
+  bool deleted = 1;
 }
 
 message AddChapterRequest {

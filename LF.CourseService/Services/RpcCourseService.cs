@@ -65,6 +65,40 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return reply;
     }
 
+    public override async Task<CategoryReply> CreateCategory(CreateCategoryRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::CreateCategory: called with Name={Name}", request.Name);
+
+        try
+        {
+            var category = await _courseService.CreateCategoryAsync(request.Name);
+            return category.Adapt<CategoryReply>();
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+    }
+
+    public override async Task<DeleteCategoryReply> DeleteCategory(DeleteCategoryRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::DeleteCategory: called with Id={CategoryId}", request.Id);
+
+        try
+        {
+            var deleted = await _courseService.DeleteCategoryAsync(request.Id);
+            return new DeleteCategoryReply { Deleted = deleted };
+        }
+        catch (CategoryProtectedException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
     public override async Task<CourseDetailReply> AddChapter(AddChapterRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::AddChapter: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);

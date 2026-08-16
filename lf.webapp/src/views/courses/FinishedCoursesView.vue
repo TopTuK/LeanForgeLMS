@@ -37,18 +37,24 @@ function onReview(enrollmentId) {
 
 <template>
   <div>
-    <div class="max-w-2xl mb-8">
-      <h2 class="text-xl font-bold text-ink">
-        {{ $t('courses.finished.title') }}
-      </h2>
-      <p class="mt-2 text-sm text-ink-muted leading-relaxed">
-        {{ $t('courses.finished.subtitle') }}
-      </p>
+    <div class="bay-section-heading mb-8">
+      <span
+        class="bay-section-index"
+        aria-hidden="true"
+      >03</span>
+      <div>
+        <h2 class="text-xl font-bold text-ink">
+          {{ $t('courses.finished.title') }}
+        </h2>
+        <p class="mt-2 text-sm text-ink-muted leading-relaxed">
+          {{ $t('courses.finished.subtitle') }}
+        </p>
+      </div>
     </div>
 
     <p
       v-if="errorMessage"
-      class="text-sm text-accent-coral mb-4"
+      class="bay-state-panel bay-state-panel--error mb-4"
     >
       {{ errorMessage }}
     </p>
@@ -64,9 +70,10 @@ function onReview(enrollmentId) {
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
     >
       <CourseCard
-        v-for="item in enrollments"
+        v-for="(item, idx) in enrollments"
         :key="item.id"
         status="finished"
+        :index="idx"
         :title="item.courseTitle"
         :description="item.courseShortIntroduction"
         :category="item.categoryName"
@@ -76,7 +83,7 @@ function onReview(enrollmentId) {
     </div>
     <p
       v-else
-      class="text-sm text-ink-muted"
+      class="bay-state-panel"
     >
       {{ $t('courses.finished.empty') }}
     </p>
