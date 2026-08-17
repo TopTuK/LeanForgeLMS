@@ -28,6 +28,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .Include(c => c.CoverImageStorageObject)
             .Where(c => c.IsPublished && !enrolledCourseIds.Contains(c.Id));
 
         var totalCount = await query.CountAsync();
@@ -45,6 +46,10 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             CategoryId = c.CategoryId,
             CategoryName = c.Category.Name,
             LessonCount = c.Chapters.Sum(ch => ch.Lessons.Count),
+            CoverType = c.CoverType,
+            CoverColor = c.CoverColor,
+            CoverImageKey = c.CoverImageStorageObject?.ObjectKey,
+            CoverImageContentType = c.CoverImageStorageObject?.ContentType,
         }).ToList();
 
         return new PagedCourseCatalogDto { Items = items, TotalCount = totalCount };
@@ -90,6 +95,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .Include(c => c.CoverImageStorageObject)
             .Where(c => courseIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id);
 
@@ -112,6 +118,10 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                     ProgressPercent = e.ProgressPercent(totalLessons),
                     EnrolledAt = e.EnrolledAt,
                     CompletedAt = e.CompletedAt,
+                    CoverType = course.CoverType,
+                    CoverColor = course.CoverColor,
+                    CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
+                    CoverImageContentType = course.CoverImageStorageObject?.ContentType,
                 };
             })];
     }
@@ -157,6 +167,22 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             await _dbContext.SaveChangesAsync();
 
         return ToDetailDto(enrollment, course);
+    }
+
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    {
+        _logger.LogInformation("EnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+
+        // No ownership/enrollment check beyond "published" — a course can only be enrolled in once
+        // published, so this single check already covers both the catalog and enrolled-course cases.
+        var course = await _dbContext.Courses.AsNoTracking()
+            .Include(c => c.CoverImageStorageObject)
+            .FirstOrDefaultAsync(c => c.Id == courseId && c.IsPublished);
+
+        if (course?.CoverImageStorageObject is not { } storageObject)
+            return null;
+
+        return new CourseCoverDto { CoverImageKey = storageObject.ObjectKey, CoverImageContentType = storageObject.ContentType };
     }
 
     private static void EnsureOwnership(DomainEnrollment enrollment, int actingUserId, bool isAdmin)

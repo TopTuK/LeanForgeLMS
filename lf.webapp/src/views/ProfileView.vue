@@ -115,10 +115,22 @@ async function onSave() {
 
 <template>
   <section class="profile-page">
-    <div class="profile-page__curve profile-page__curve--top" aria-hidden="true" />
-    <div class="profile-page__curve profile-page__curve--bottom" aria-hidden="true" />
-    <div class="profile-page__square profile-page__square--one" aria-hidden="true" />
-    <div class="profile-page__square profile-page__square--two" aria-hidden="true" />
+    <div
+      class="profile-page__curve profile-page__curve--top"
+      aria-hidden="true"
+    />
+    <div
+      class="profile-page__curve profile-page__curve--bottom"
+      aria-hidden="true"
+    />
+    <div
+      class="profile-page__square profile-page__square--one"
+      aria-hidden="true"
+    />
+    <div
+      class="profile-page__square profile-page__square--two"
+      aria-hidden="true"
+    />
 
     <div class="container mx-auto px-6 py-12 md:py-20 relative z-10">
       <header class="profile-heading">
@@ -127,7 +139,10 @@ async function onSave() {
           <h1>{{ $t('profile.title') }}</h1>
           <p>{{ $t('profile.subtitle') }}</p>
         </div>
-        <div class="profile-heading__meta" aria-hidden="true">
+        <div
+          class="profile-heading__meta"
+          aria-hidden="true"
+        >
           <span>LF—PROFILE</span>
           <span>A.02</span>
         </div>

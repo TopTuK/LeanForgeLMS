@@ -1,10 +1,13 @@
 using System.Security.Claims;
 using LF.Application.Common.Exceptions;
+using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.AppDomain.Models.Course.Enums;
 using LF.AppDomain.Models.User.Enums;
 using LF.WebApi.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LF.WebApi.Endpoints;
 
@@ -104,10 +107,30 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
                 return TypedResults.Conflict(ex.Message);
             }
         });
+
+        group.MapGet("/courses/{courseId:int}/cover/image", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
+            (int courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            if (user.GetUserId() is null) return TypedResults.Unauthorized();
+
+            var cover = await enrollmentService.GetCourseCoverAsync(courseId);
+            if (cover is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(cover.CoverImageKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
+        });
     }
 
     private static CourseCatalogItemResponse ToCatalogItemResponse(CourseCatalogItemDto item) => new(
-        item.Id, item.Title, item.ShortIntroduction, item.CategoryId, item.CategoryName, item.LessonCount);
+        item.Id,
+        item.Title,
+        item.ShortIntroduction,
+        item.CategoryId,
+        item.CategoryName,
+        item.LessonCount,
+        item.CoverType.ToString(),
+        item.CoverColor?.ToString(),
+        item.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{item.Id}/cover/image" : null);
 
     private static EnrollmentSummaryResponse ToSummaryResponse(EnrollmentSummaryDto dto) => new(
         dto.Id,
@@ -119,7 +142,10 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CompletedLessonCount,
         dto.ProgressPercent,
         dto.EnrolledAt,
-        dto.CompletedAt);
+        dto.CompletedAt,
+        dto.CoverType.ToString(),
+        dto.CoverColor?.ToString(),
+        dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.CourseId}/cover/image" : null);
 
     private static EnrollmentDetailResponse ToDetailResponse(EnrollmentDetailDto dto) => new(
         dto.Id,

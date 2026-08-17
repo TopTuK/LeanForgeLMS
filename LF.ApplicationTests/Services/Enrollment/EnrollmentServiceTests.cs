@@ -1,4 +1,7 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Storage;
+using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 using LF.ApplicationTests.TestSupport;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
@@ -274,5 +277,86 @@ public class EnrollmentServiceTests
         // Assert
         Assert.Equal(1, result.TotalCount);
         Assert.Equal(availableCourse.Id, result.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task BrowseCatalogAsync_ImageCover_PropagatesCoverFields()
+    {
+        // Arrange
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        var course = CreatePublishedCourse();
+        course.SetImageCover(storageObject);
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.BrowseCatalogAsync(page: 1, pageSize: 20, actingUserId: 7);
+
+        // Assert
+        Assert.Equal(CourseCoverType.Image, result.Items[0].CoverType);
+        Assert.Equal("images/a.png", result.Items[0].CoverImageKey);
+        Assert.Equal("image/png", result.Items[0].CoverImageContentType);
+    }
+
+    [Fact]
+    public async Task GetCourseCoverAsync_PublishedCourseWithImageCover_ReturnsCover()
+    {
+        // Arrange
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        var course = CreatePublishedCourse();
+        course.SetImageCover(storageObject);
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(course.Id);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("images/a.png", result!.CoverImageKey);
+        Assert.Equal("image/png", result.CoverImageContentType);
+    }
+
+    [Fact]
+    public async Task GetCourseCoverAsync_UnpublishedCourse_ReturnsNull()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        course.SetImageCover(storageObject);
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(course.Id);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCourseCoverAsync_ColorCover_ReturnsNull()
+    {
+        // Arrange
+        var course = CreatePublishedCourse();
+        course.SetColorCover(CourseCoverColor.Ocean);
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(course.Id);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCourseCoverAsync_CourseNotFound_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], [], out _);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(courseId: 999);
+
+        // Assert
+        Assert.Null(result);
     }
 }

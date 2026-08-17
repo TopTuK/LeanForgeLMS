@@ -47,6 +47,9 @@ service CourseServiceRpc {
   rpc GetEnrollment (GetEnrollmentRequest) returns (EnrollmentDetailReply);
   // Mark a lesson complete for an enrollment
   rpc CompleteLesson (CompleteLessonRequest) returns (EnrollmentDetailReply);
+  // Resolve a published course's cover image key/content-type for streaming; no ownership check
+  // beyond "published", since published courses are already publicly listed in the catalog
+  rpc GetCourseCover (GetCourseCoverRequest) returns (CourseCoverReply);
 }
 
 enum MoveDirection {
@@ -263,6 +266,19 @@ message CourseCatalogItemReply {
   int32 category_id = 4;
   string category_name = 5;
   int32 lesson_count = 6;
+  CourseCoverType cover_type = 7;
+  CourseCoverColor cover_color = 8;
+  google.protobuf.StringValue cover_image_key = 9;
+  google.protobuf.StringValue cover_image_content_type = 10;
+}
+
+message GetCourseCoverRequest {
+  int32 course_id = 1;
+}
+
+message CourseCoverReply {
+  google.protobuf.StringValue cover_image_key = 1;
+  google.protobuf.StringValue cover_image_content_type = 2;
 }
 
 message EnrollInCourseRequest {
@@ -290,6 +306,10 @@ message EnrollmentSummaryReply {
   int32 progress_percent = 8;
   google.protobuf.Timestamp enrolled_at = 9;
   google.protobuf.Timestamp completed_at = 10;
+  CourseCoverType cover_type = 11;
+  CourseCoverColor cover_color = 12;
+  google.protobuf.StringValue cover_image_key = 13;
+  google.protobuf.StringValue cover_image_content_type = 14;
 }
 
 message GetEnrollmentRequest {

@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import ForgeStatusStamp from '@/components/courses/forge/ForgeStatusStamp.vue';
 
 const props = defineProps({
@@ -29,6 +30,15 @@ const cardMark = (() => {
     if (props.index === null) return '';
     return String(props.index + 1).padStart(2, '0');
 })();
+
+const showCoverImage = computed(() => props.coverType === 'Image' && Boolean(props.coverImageUrl));
+const hasCover = computed(() => props.coverType === 'Color' || showCoverImage.value);
+
+const coverStyle = computed(() => (
+    props.coverType === 'Color' && props.coverColor
+        ? { backgroundColor: `var(--color-cover-${props.coverColor.toLowerCase()})` }
+        : {}
+));
 </script>
 
 <template>
@@ -36,51 +46,61 @@ const cardMark = (() => {
     class="course-card"
     :class="[`course-card--${status}`, { 'is-busy': busy }]"
   >
-    <span
-      v-if="cardMark"
-      class="course-card__mark"
-      aria-hidden="true"
-    >{{ cardMark }}</span>
-
     <div
-      v-if="coverType === 'Color'"
       class="course-card__cover"
-      :style="{ backgroundColor: `var(--color-cover-${coverColor?.toLowerCase()})` }"
-      aria-hidden="true"
-    />
-    <img
-      v-else-if="coverType === 'Image' && coverImageUrl"
-      :src="coverImageUrl"
-      alt=""
-      class="course-card__cover course-card__cover--image"
+      :class="{ 'course-card__cover--empty': !hasCover }"
+      :style="coverStyle"
     >
-
-    <div class="course-card__tags">
-      <span
-        v-if="duration"
-        class="course-card__pill course-card__pill--muted"
-      >{{ duration }}</span>
-      <span class="course-card__pill course-card__pill--accent">{{ category }}</span>
-      <ForgeStatusStamp
-        v-if="status === 'teaching' && isPublished !== null"
-        :variant="isPublished ? 'published' : 'draft'"
-        :label="isPublished ? $t('courses.editor.published') : $t('courses.editor.draft')"
-      />
-    </div>
-
-    <div class="course-card__body">
-      <h3 class="course-card__title">
-        {{ title }}
-      </h3>
-      <p
-        v-if="instructor"
-        class="course-card__instructor"
+      <img
+        v-if="showCoverImage"
+        :src="coverImageUrl"
+        alt=""
+        class="course-card__cover-image"
       >
-        {{ instructor }}
-      </p>
-      <p class="course-card__description">
-        {{ description }}
-      </p>
+      <div
+        v-if="hasCover"
+        class="course-card__scrim"
+        aria-hidden="true"
+      />
+
+      <span
+        v-if="cardMark"
+        class="course-card__mark"
+        aria-hidden="true"
+      >{{ cardMark }}</span>
+
+      <div
+        class="course-card__cover-content"
+        :class="{ 'course-card__cover-content--light': hasCover }"
+      >
+        <div class="course-card__cover-badges">
+          <span
+            v-if="duration"
+            class="course-card__pill course-card__pill--muted"
+          >{{ duration }}</span>
+          <span class="course-card__pill course-card__pill--accent">{{ category }}</span>
+          <ForgeStatusStamp
+            v-if="status === 'teaching' && isPublished !== null"
+            :variant="isPublished ? 'published' : 'draft'"
+            :label="isPublished ? $t('courses.editor.published') : $t('courses.editor.draft')"
+          />
+        </div>
+
+        <div class="course-card__cover-text">
+          <h3 class="course-card__title">
+            {{ title }}
+          </h3>
+          <p
+            v-if="instructor"
+            class="course-card__instructor"
+          >
+            {{ instructor }}
+          </p>
+          <p class="course-card__description">
+            {{ description }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <div class="course-card__footer">
@@ -180,9 +200,8 @@ const cardMark = (() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
   height: 100%;
-  padding: 1.5rem;
+  overflow: hidden;
   background: var(--industrial-panel);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-card);
@@ -198,6 +217,8 @@ const cardMark = (() => {
   height: 0.85rem;
   opacity: 0;
   pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
   transition: opacity 0.18s ease;
 }
 
@@ -227,32 +248,69 @@ const cardMark = (() => {
 }
 
 .course-card__cover {
-  height: 5rem;
-  margin: -1.5rem -1.5rem 0;
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 12.5rem;
+  overflow: hidden;
+  background: var(--color-surface-800);
 }
 
-.course-card__cover--image {
-  width: calc(100% + 3rem);
+.course-card__cover--empty {
+  background-image:
+    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px),
+    linear-gradient(135deg, var(--color-surface-900), var(--color-surface-800));
+  background-size: 18px 18px, 18px 18px, auto;
+}
+
+.course-card__cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.course-card__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 10, 10, 0.78) 0%, rgba(10, 10, 10, 0.4) 45%, rgba(10, 10, 10, 0) 85%);
 }
 
 .course-card__mark {
   position: absolute;
-  top: 1.1rem;
-  right: 1.25rem;
-  color: var(--color-ink-faint);
+  top: 0.75rem;
+  right: 0.85rem;
+  z-index: 2;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: rgba(20, 20, 20, 0.45);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.12em;
 }
 
-.course-card__tags {
+.course-card__cover-content {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: center;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem 1.1rem;
+}
+
+.course-card__cover-badges {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  padding-right: 1.75rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding-right: 2.5rem;
 }
 
 .course-card__pill {
@@ -260,21 +318,18 @@ const cardMark = (() => {
   padding: 0.3rem 0.75rem;
   font-size: 0.72rem;
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(20, 20, 20, 0.18);
 }
 
 .course-card__pill--muted {
-  background: var(--color-surface-800);
+  background: var(--color-surface-950);
   color: var(--color-ink-muted);
 }
 
 .course-card__pill--accent {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-coral);
+  background: #ffffff;
+  color: var(--color-accent-coral-dark);
   font-weight: 700;
-}
-
-.course-card__body {
-  flex: 1;
 }
 
 .course-card__title {
@@ -298,8 +353,27 @@ const cardMark = (() => {
   line-height: 1.55;
 }
 
+.course-card__cover-content--light .course-card__title,
+.course-card__cover-content--light .course-card__instructor,
+.course-card__cover-content--light .course-card__description {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.course-card__cover-content--light .course-card__title {
+  color: #ffffff;
+}
+
+.course-card__cover-content--light .course-card__instructor {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.course-card__cover-content--light .course-card__description {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .course-card__footer {
-  padding-top: 1.1rem;
+  margin: 1.1rem 1.5rem 0;
+  padding: 1.1rem 0 1.5rem;
   border-top: 1px dashed var(--industrial-line);
 }
 

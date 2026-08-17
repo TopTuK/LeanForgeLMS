@@ -45,4 +45,11 @@ internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningServic
 
         return await _grpcEnrollmentService.CompleteLessonAsync(id, lessonId, actingUserId, isAdmin);
     }
+
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    {
+        _logger.LogInformation("EnrollmentLearningService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+
+        return await _grpcEnrollmentService.GetCourseCoverAsync(courseId);
+    }
 }

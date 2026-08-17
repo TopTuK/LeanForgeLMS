@@ -12,3 +12,6 @@ export const fetchEnrollment = (id) => api.get(`/enrollments/${id}`).then((r) =>
 
 export const completeLesson = (enrollmentId, lessonId) =>
   api.post(`/enrollments/${enrollmentId}/lessons/${lessonId}/complete`).then((r) => r.data);
+
+export const fetchCourseCoverImageObjectUrl = (courseId) =>
+  api.get(`/enrollments/courses/${courseId}/cover/image`, { responseType: 'blob' }).then((r) => URL.createObjectURL(r.data));

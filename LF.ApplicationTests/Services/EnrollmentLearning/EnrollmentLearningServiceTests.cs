@@ -90,4 +90,21 @@ public class EnrollmentLearningServiceTests
         Assert.Same(expected, result);
         grpcMock.Verify(s => s.CompleteLessonAsync(1, 10, 5, false), Times.Once);
     }
+
+    [Fact]
+    public async Task GetCourseCoverAsync_DelegatesToGrpcEnrollmentService()
+    {
+        // Arrange
+        var expected = new CourseCoverDto { CoverImageKey = "images/a.png", CoverImageContentType = "image/png" };
+        var grpcMock = new Mock<IGrpcEnrollmentService>();
+        grpcMock.Setup(s => s.GetCourseCoverAsync(3)).ReturnsAsync(expected);
+        var service = new EnrollmentLearningService(NullLogger<EnrollmentLearningService>.Instance, grpcMock.Object);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(3);
+
+        // Assert
+        Assert.Same(expected, result);
+        grpcMock.Verify(s => s.GetCourseCoverAsync(3), Times.Once);
+    }
 }

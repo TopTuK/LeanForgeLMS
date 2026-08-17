@@ -83,6 +83,22 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         }
     }
 
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+
+        var request = new GetCourseCoverRequest { CourseId = courseId };
+        try
+        {
+            var reply = await _courseServiceRpcClient.GetCourseCoverAsync(request);
+            return reply.CoverImageKey is null ? null : new CourseCoverDto { CoverImageKey = reply.CoverImageKey, CoverImageContentType = reply.CoverImageContentType };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     private static async Task<EnrollmentDetailDto?> CallOrDefaultAsync(Func<AsyncUnaryCall<EnrollmentDetailReply>> call)
     {
         try

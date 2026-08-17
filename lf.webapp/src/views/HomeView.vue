@@ -129,9 +129,18 @@ function onNewsletterSubmit(event) {
       id="hero"
       class="industrial-hero min-h-[calc(100vh-4.5rem)] flex items-center overflow-hidden"
     >
-      <div class="industrial-curve industrial-curve--hero" aria-hidden="true" />
-      <div class="industrial-square industrial-square--one" aria-hidden="true" />
-      <div class="industrial-square industrial-square--two" aria-hidden="true" />
+      <div
+        class="industrial-curve industrial-curve--hero"
+        aria-hidden="true"
+      />
+      <div
+        class="industrial-square industrial-square--one"
+        aria-hidden="true"
+      />
+      <div
+        class="industrial-square industrial-square--two"
+        aria-hidden="true"
+      />
 
       <div class="container mx-auto px-6 py-16 md:py-24 relative z-10">
         <div class="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)] gap-12 lg:gap-20 items-center">
@@ -158,15 +167,31 @@ function onNewsletterSubmit(event) {
             </div>
           </div>
 
-          <div class="industrial-blueprint hidden lg:block" aria-hidden="true">
-            <div class="industrial-blueprint__index">LF—01</div>
+          <div
+            class="industrial-blueprint hidden lg:block"
+            aria-hidden="true"
+          >
+            <div class="industrial-blueprint__index">
+              LF—01
+            </div>
             <div class="industrial-blueprint__square industrial-blueprint__square--large" />
             <div class="industrial-blueprint__square industrial-blueprint__square--small" />
-            <svg viewBox="0 0 440 440" fill="none">
+            <svg
+              viewBox="0 0 440 440"
+              fill="none"
+            >
               <path d="M-20 335C82 335 80 176 190 176C300 176 304 44 460 44" />
               <path d="M-30 382C118 382 107 225 222 225C337 225 337 92 475 92" />
-              <circle cx="190" cy="176" r="6" />
-              <circle cx="337" cy="92" r="6" />
+              <circle
+                cx="190"
+                cy="176"
+                r="6"
+              />
+              <circle
+                cx="337"
+                cy="92"
+                r="6"
+              />
             </svg>
             <span class="industrial-blueprint__mark industrial-blueprint__mark--top">A.01</span>
             <span class="industrial-blueprint__mark industrial-blueprint__mark--bottom">SYSTEM / CRAFT</span>
@@ -196,7 +221,10 @@ function onNewsletterSubmit(event) {
       id="courses"
       class="industrial-section py-20 md:py-24"
     >
-      <div class="industrial-curve industrial-curve--section" aria-hidden="true" />
+      <div
+        class="industrial-curve industrial-curve--section"
+        aria-hidden="true"
+      />
       <div class="container mx-auto px-6">
         <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
           {{ $t('home.courses.title') }}
@@ -250,7 +278,10 @@ function onNewsletterSubmit(event) {
       id="testimonials"
       class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
     >
-      <div class="industrial-square industrial-square--reviews" aria-hidden="true" />
+      <div
+        class="industrial-square industrial-square--reviews"
+        aria-hidden="true"
+      />
       <div class="container mx-auto px-6">
         <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
           {{ $t('home.testimonials.title') }}
@@ -303,7 +334,10 @@ function onNewsletterSubmit(event) {
       id="author"
       class="industrial-section py-20 md:py-24"
     >
-      <div class="industrial-square industrial-square--author" aria-hidden="true" />
+      <div
+        class="industrial-square industrial-square--author"
+        aria-hidden="true"
+      />
       <div class="container mx-auto px-6">
         <div class="max-w-2xl mb-10">
           <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
@@ -354,7 +388,10 @@ function onNewsletterSubmit(event) {
       id="faq"
       class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
     >
-      <div class="industrial-curve industrial-curve--faq" aria-hidden="true" />
+      <div
+        class="industrial-curve industrial-curve--faq"
+        aria-hidden="true"
+      />
       <div class="container mx-auto px-6 max-w-3xl">
         <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
           {{ $t('home.faq.title') }}
@@ -374,7 +411,10 @@ function onNewsletterSubmit(event) {
       id="contacts"
       class="industrial-section py-20 md:py-24 overflow-hidden"
     >
-      <div class="industrial-square industrial-square--contact" aria-hidden="true" />
+      <div
+        class="industrial-square industrial-square--contact"
+        aria-hidden="true"
+      />
       <div class="container mx-auto px-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
           <div>

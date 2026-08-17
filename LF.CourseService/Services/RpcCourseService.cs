@@ -239,6 +239,17 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return ToEnrollmentReply(enrollment);
     }
 
+    public override async Task<CourseCoverReply> GetCourseCover(GetCourseCoverRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::GetCourseCover: called with CourseId={CourseId}", request.CourseId);
+
+        var cover = await _enrollmentService.GetCourseCoverAsync(request.CourseId);
+        if (cover is null)
+            throw new RpcException(new Status(StatusCode.NotFound, "Course not found or has no cover image."));
+
+        return new CourseCoverReply { CoverImageKey = cover.CoverImageKey, CoverImageContentType = cover.CoverImageContentType };
+    }
+
     private static async Task<CourseDetailDto> GuardedAsync(Func<Task<CourseDetailDto?>> operation)
     {
         try

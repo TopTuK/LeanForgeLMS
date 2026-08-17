@@ -179,7 +179,10 @@ async function submit() {
           class="course-forge__panel"
           @submit.prevent="submit"
         >
-          <div class="course-forge__panel-mark" aria-hidden="true">
+          <div
+            class="course-forge__panel-mark"
+            aria-hidden="true"
+          >
             LF—CREATE
           </div>
 
@@ -291,7 +294,10 @@ async function submit() {
               />
             </div>
 
-            <div v-else class="course-forge__cover-image">
+            <div
+              v-else
+              class="course-forge__cover-image"
+            >
               <label class="course-forge__cover-upload">
                 <input
                   type="file"
