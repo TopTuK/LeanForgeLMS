@@ -36,6 +36,17 @@ const selectedIndex = computed(() => flatLessons.value.findIndex((l) => l.id ===
 const nextLesson = computed(() =>
   selectedIndex.value >= 0 ? flatLessons.value[selectedIndex.value + 1] ?? null : null);
 
+const selectedLessonParts = computed(() => {
+  const parts = selectedLesson.value?.parts;
+  if (!Array.isArray(parts) || parts.length === 0) return [];
+  return parts.map((part) => ({
+    id: part.id,
+    type: String(part.partType).toLowerCase(),
+    html: part.html ?? '',
+    mediaUrl: part.mediaUrl ?? null,
+  }));
+});
+
 async function load() {
   loading.value = true;
   notFound.value = false;
@@ -189,6 +200,48 @@ function goToCourses() {
             </div>
 
             <div
+              v-if="selectedLessonParts.length > 0"
+              class="course-learn__parts"
+            >
+              <template
+                v-for="part in selectedLessonParts"
+                :key="part.id"
+              >
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div
+                  v-if="part.type === 'text'"
+                  class="course-learn__prose"
+                  v-html="part.html"
+                />
+                <div
+                  v-else
+                  class="course-learn__media"
+                >
+                  <img
+                    v-if="part.type === 'image' && part.mediaUrl"
+                    :src="part.mediaUrl"
+                    alt=""
+                    class="course-learn__media-image"
+                  >
+                  <video
+                    v-else-if="part.type === 'video' && part.mediaUrl"
+                    :src="part.mediaUrl"
+                    class="course-learn__media-player"
+                    controls
+                    preload="metadata"
+                  />
+                  <audio
+                    v-else-if="part.type === 'audio' && part.mediaUrl"
+                    :src="part.mediaUrl"
+                    class="course-learn__media-player course-learn__media-player--audio"
+                    controls
+                    preload="metadata"
+                  />
+                </div>
+              </template>
+            </div>
+            <div
+              v-else
               class="course-learn__prose"
               v-html="selectedLesson.content"
             />
@@ -415,6 +468,31 @@ function goToCourses() {
   font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+.course-learn__parts {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.course-learn__media-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--industrial-line);
+  border-radius: 0.25rem;
+}
+
+.course-learn__media-player {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  background: var(--color-surface-900);
+}
+
+.course-learn__media-player--audio {
+  height: 2.6rem;
 }
 
 .course-learn__prose {

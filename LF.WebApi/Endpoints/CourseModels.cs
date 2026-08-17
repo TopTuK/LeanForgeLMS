@@ -1,11 +1,14 @@
 using FluentValidation;
 using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 
 namespace LF.WebApi.Endpoints;
 
 public sealed record CategoryResponse(int Id, string Name, bool IsDefault);
 
-public sealed record LessonResponse(int Id, string Title, string Content, bool IncludeInPreview, int SortOrder);
+public sealed record LessonPartResponse(int Id, string PartType, int SortOrder, string? Html, int? StorageObjectId, string? MediaUrl);
+
+public sealed record LessonResponse(int Id, string Title, string Content, bool IncludeInPreview, int SortOrder, IReadOnlyList<LessonPartResponse> Parts);
 
 public sealed record ChapterResponse(int Id, string Title, int SortOrder, IReadOnlyList<LessonResponse> Lessons);
 
@@ -134,4 +137,46 @@ public sealed class UpdateLessonRequestValidator : AbstractValidator<UpdateLesso
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
     }
+}
+
+public sealed record LessonPartRequest(string PartType, string? Html, int? StorageObjectId);
+
+public sealed record ReplaceLessonPartsRequest(IReadOnlyList<LessonPartRequest> Parts);
+
+public sealed class ReplaceLessonPartsRequestValidator : AbstractValidator<ReplaceLessonPartsRequest>
+{
+    public ReplaceLessonPartsRequestValidator()
+    {
+        RuleForEach(x => x.Parts).ChildRules(part =>
+        {
+            part.RuleFor(p => p.PartType).Must(t => Enum.TryParse<LessonPartType>(t, ignoreCase: true, out _))
+                .WithMessage("Part type must be one of Text, Image, Video, Audio.");
+
+            part.RuleFor(p => p.Html).NotEmpty()
+                .When(p => string.Equals(p.PartType, nameof(LessonPartType.Text), StringComparison.OrdinalIgnoreCase))
+                .WithMessage("Text parts require non-empty content.");
+
+            part.RuleFor(p => p.StorageObjectId).GreaterThan(0)
+                .When(p => !string.Equals(p.PartType, nameof(LessonPartType.Text), StringComparison.OrdinalIgnoreCase))
+                .WithMessage("Media parts require a storage object id.");
+        });
+    }
+}
+
+public static class LessonMediaUpload
+{
+    public static readonly IReadOnlyDictionary<string, (StorageObjectType ObjectType, long MaxSizeBytes)> AllowedContentTypes =
+        new Dictionary<string, (StorageObjectType, long)>
+        {
+            ["image/png"] = (StorageObjectType.Image, 5 * 1024 * 1024),
+            ["image/jpeg"] = (StorageObjectType.Image, 5 * 1024 * 1024),
+            ["image/webp"] = (StorageObjectType.Image, 5 * 1024 * 1024),
+            ["image/gif"] = (StorageObjectType.Image, 5 * 1024 * 1024),
+            ["video/mp4"] = (StorageObjectType.Video, 200 * 1024 * 1024),
+            ["video/webm"] = (StorageObjectType.Video, 200 * 1024 * 1024),
+            ["audio/mpeg"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
+            ["audio/wav"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
+            ["audio/ogg"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
+            ["audio/webm"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
+        };
 }

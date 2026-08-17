@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-
-const STORAGE_KEY = 'leanforge-lesson-parts';
+import { uploadLessonMedia, replaceLessonParts } from '@/services/lessonPartService';
 
 export const PART_TYPES = ['text', 'image', 'video', 'audio'];
 
@@ -30,7 +29,9 @@ function createPart(type, extras = {}) {
     fileName: null,
     mimeType: null,
     objectUrl: null,
-    needsReupload: false,
+    storageObjectId: null,
+    uploading: false,
+    uploadError: false,
     ...extras,
   };
 }
@@ -41,22 +42,16 @@ function serializePart(part) {
     type: part.type,
     sortOrder: part.sortOrder,
     html: part.type === 'text' ? (part.html ?? '') : '',
-    fileName: part.fileName ?? null,
-    mimeType: part.mimeType ?? null,
+    storageObjectId: part.type === 'text' ? null : (part.storageObjectId ?? null),
   };
 }
 
-function deserializePart(saved) {
-  const isMedia = saved.type !== 'text';
-  return createPart(saved.type, {
-    id: saved.id,
-    sortOrder: saved.sortOrder ?? 0,
-    html: saved.html ?? '',
-    fileName: saved.fileName ?? null,
-    mimeType: saved.mimeType ?? null,
-    objectUrl: null,
-    needsReupload: isMedia && Boolean(saved.fileName),
-  });
+function toApiPart(part) {
+  return {
+    partType: part.type,
+    html: part.type === 'text' ? (part.html ?? '') : null,
+    storageObjectId: part.type === 'text' ? null : (part.storageObjectId ?? null),
+  };
 }
 
 function reindex(parts) {
@@ -65,25 +60,6 @@ function reindex(parts) {
 
 function signatureOf(parts) {
   return JSON.stringify((parts ?? []).map(serializePart));
-}
-
-function readStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeStorage(all) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  } catch {
-    // Quota or private-mode failures should not break editing.
-  }
 }
 
 export function isAcceptedFile(type, file) {
@@ -97,13 +73,6 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
   const savedByLessonId = ref({});
   const revision = ref(0);
 
-  function persist(id) {
-    const key = lessonKey(id);
-    const all = readStorage();
-    all[key] = (partsByLessonId.value[key] ?? []).map(serializePart);
-    writeStorage(all);
-  }
-
   function bump() {
     revision.value += 1;
   }
@@ -116,13 +85,13 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     const key = lessonKey(id);
     const urls = new Set();
     for (const part of [...(partsByLessonId.value[key] ?? []), ...(savedByLessonId.value[key] ?? [])]) {
-      if (part.objectUrl) urls.add(part.objectUrl);
+      if (part.objectUrl?.startsWith('blob:')) urls.add(part.objectUrl);
     }
     return urls;
   }
 
   function revokeIfOrphaned(id, url) {
-    if (!url) return;
+    if (!url?.startsWith('blob:')) return;
     if (!referencedUrls(id).has(url)) URL.revokeObjectURL(url);
   }
 
@@ -153,34 +122,32 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     return signatureOf(partsByLessonId.value[key]) !== signatureOf(savedByLessonId.value[key]);
   }
 
-  function ensureLoaded(lessonId, apiContent = '') {
+  function hasPendingUploads(lessonId) {
+    return partsFor(lessonId).some((part) => part.uploading);
+  }
+
+  function ensureLoaded(lessonId, apiContent = '', apiParts = []) {
     const key = lessonKey(lessonId);
     if (partsByLessonId.value[key]) return;
 
-    const stored = readStorage()[key];
-    if (Array.isArray(stored)) {
-      partsByLessonId.value = {
-        ...partsByLessonId.value,
-        [key]: reindex(
-          stored
-            .filter((item) => item && PART_TYPES.includes(item.type))
-            .map(deserializePart),
-        ),
-      };
-      commitSaved(lessonId);
-      return;
+    let seeded;
+    if (Array.isArray(apiParts) && apiParts.length > 0) {
+      seeded = apiParts.map((p) => createPart(String(p.partType).toLowerCase(), {
+        id: p.id,
+        sortOrder: p.sortOrder,
+        html: p.html ?? '',
+        storageObjectId: p.storageObjectId ?? null,
+        objectUrl: p.mediaUrl ?? null,
+      }));
+    } else {
+      const html = typeof apiContent === 'string' ? apiContent.trim() : '';
+      seeded = html ? [createPart('text', { html: apiContent, sortOrder: 0 })] : [];
     }
-
-    const html = typeof apiContent === 'string' ? apiContent.trim() : '';
-    const seeded = html
-      ? [createPart('text', { html: apiContent, sortOrder: 0 })]
-      : [];
 
     partsByLessonId.value = {
       ...partsByLessonId.value,
-      [key]: seeded,
+      [key]: reindex(seeded),
     };
-    persist(lessonId);
     commitSaved(lessonId);
   }
 
@@ -222,7 +189,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     );
   }
 
-  function setMediaFile(lessonId, partId, file) {
+  async function setMediaFile(lessonId, partId, file) {
     const current = partsFor(lessonId);
     const part = current.find((item) => item.id === partId);
     if (!part || part.type === 'text') return { ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' };
@@ -236,22 +203,35 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
       lessonId,
       current.map((item) => (
         item.id === partId
-          ? {
-              ...item,
-              fileName: file.name,
-              mimeType: file.type,
-              objectUrl,
-              needsReupload: false,
-            }
+          ? { ...item, fileName: file.name, mimeType: file.type, objectUrl, uploading: true, uploadError: false }
           : item
       )),
     );
     revokeIfOrphaned(lessonId, previousUrl);
-    return { ok: true };
+
+    try {
+      const { storageObjectId } = await uploadLessonMedia(file);
+      setParts(
+        lessonId,
+        partsFor(lessonId).map((item) => (
+          item.id === partId ? { ...item, storageObjectId, uploading: false } : item
+        )),
+      );
+      return { ok: true };
+    } catch {
+      setParts(
+        lessonId,
+        partsFor(lessonId).map((item) => (
+          item.id === partId ? { ...item, uploading: false, uploadError: true } : item
+        )),
+      );
+      return { ok: false, errorKey: 'courses.lessonEditor.parts.upload_error' };
+    }
   }
 
-  function commit(lessonId) {
-    persist(lessonId);
+  async function commit(courseId, chapterId, lessonId) {
+    const payload = partsFor(lessonId).map(toApiPart);
+    await replaceLessonParts(courseId, chapterId, lessonId, payload);
     commitSaved(lessonId);
   }
 
@@ -279,6 +259,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     revision,
     partsFor,
     isDirty,
+    hasPendingUploads,
     ensureLoaded,
     addPart,
     removePart,

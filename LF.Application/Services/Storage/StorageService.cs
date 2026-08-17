@@ -21,18 +21,51 @@ internal sealed class StorageService(
         ["image/webp"] = ".webp",
     };
 
-    public async Task<StorageObjectDto> UploadImageAsync(Stream content, string contentType, long sizeBytes, int createdByUserId, CancellationToken ct = default)
+    private static readonly IReadOnlyDictionary<string, string> VideoExtensionsByContentType = new Dictionary<string, string>
     {
-        logger.LogInformation("StorageService::UploadImageAsync: called with ContentType={ContentType} SizeBytes={SizeBytes} CreatedByUserId={CreatedByUserId}",
-            contentType, sizeBytes, createdByUserId);
+        ["video/mp4"] = ".mp4",
+        ["video/webm"] = ".webm",
+    };
 
-        var extension = ImageExtensionsByContentType.GetValueOrDefault(contentType, string.Empty);
-        var objectKey = $"images/{Guid.NewGuid():N}{extension}";
+    private static readonly IReadOnlyDictionary<string, string> AudioExtensionsByContentType = new Dictionary<string, string>
+    {
+        ["audio/mpeg"] = ".mp3",
+        ["audio/wav"] = ".wav",
+        ["audio/ogg"] = ".ogg",
+        ["audio/webm"] = ".webm",
+    };
+
+    private static readonly IReadOnlyDictionary<StorageObjectType, IReadOnlyDictionary<string, string>> ExtensionsByObjectType =
+        new Dictionary<StorageObjectType, IReadOnlyDictionary<string, string>>
+        {
+            [StorageObjectType.Image] = ImageExtensionsByContentType,
+            [StorageObjectType.Video] = VideoExtensionsByContentType,
+            [StorageObjectType.Audio] = AudioExtensionsByContentType,
+        };
+
+    private static readonly IReadOnlyDictionary<StorageObjectType, string> KeyPrefixByObjectType = new Dictionary<StorageObjectType, string>
+    {
+        [StorageObjectType.Image] = "images",
+        [StorageObjectType.Video] = "videos",
+        [StorageObjectType.Audio] = "audio",
+    };
+
+    public Task<StorageObjectDto> UploadImageAsync(Stream content, string contentType, long sizeBytes, int createdByUserId, CancellationToken ct = default) =>
+        UploadMediaAsync(StorageObjectType.Image, content, contentType, sizeBytes, createdByUserId, ct);
+
+    public async Task<StorageObjectDto> UploadMediaAsync(
+        StorageObjectType objectType, Stream content, string contentType, long sizeBytes, int createdByUserId, CancellationToken ct = default)
+    {
+        logger.LogInformation("StorageService::UploadMediaAsync: called with ObjectType={ObjectType} ContentType={ContentType} SizeBytes={SizeBytes} CreatedByUserId={CreatedByUserId}",
+            objectType, contentType, sizeBytes, createdByUserId);
+
+        var extension = ExtensionsByObjectType[objectType].GetValueOrDefault(contentType, string.Empty);
+        var objectKey = $"{KeyPrefixByObjectType[objectType]}/{Guid.NewGuid():N}{extension}";
 
         await fileStorageService.UploadAsync(objectKey, content, contentType, ct);
 
         var storageObject = StorageObject.Create(
-            StorageObjectType.Image, objectKey, contentType, sizeBytes, createdByUserId, timeProvider.GetUtcNow().UtcDateTime);
+            objectType, objectKey, contentType, sizeBytes, createdByUserId, timeProvider.GetUtcNow().UtcDateTime);
 
         try
         {

@@ -46,8 +46,8 @@ function addType({ type, index }) {
   closeToolbox();
 }
 
-function onFile(part, file) {
-  const result = partStore.setMediaFile(props.lessonId, part.id, file);
+async function onFile(part, file) {
+  const result = await partStore.setMediaFile(props.lessonId, part.id, file);
   if (!result.ok) emit('error', t(result.errorKey));
 }
 
@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
           :type="part.type"
           :file-name="part.fileName"
           :object-url="part.objectUrl"
-          :needs-reupload="part.needsReupload"
+          :uploading="part.uploading"
           :disabled="disabled"
           @file="onFile(part, $event)"
         />

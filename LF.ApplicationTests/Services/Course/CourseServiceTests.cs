@@ -359,4 +359,141 @@ public class CourseServiceTests
         Assert.Empty(result!.Chapters.Single().Lessons);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_Owner_ReplacesAllParts()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        var service = CreateService([course], [category], [storageObject], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto>
+        {
+            new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" },
+            new() { PartType = LessonPartType.Image, StorageObjectId = storageObject.Id },
+        };
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(result);
+        var resultParts = result!.Chapters.Single().Lessons.Single().Parts;
+        Assert.Equal(2, resultParts.Count);
+        Assert.Equal(LessonPartType.Text, resultParts[0].PartType);
+        Assert.Equal(LessonPartType.Image, resultParts[1].PartType);
+        Assert.Equal("images/a.png", resultParts[1].StorageObjectKey);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_NotOwnerNotAdmin_ThrowsCourseAuthorizationException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" } };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CourseAuthorizationException>(
+            () => service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 2, isAdmin: false));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_Admin_Succeeds()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var service = CreateService([course], [category], out _);
+        var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" } };
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 999, isAdmin: true);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result!.Chapters.Single().Lessons.Single().Parts);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_CourseNotFound_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], [], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" } };
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(999, 1, 1, parts, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_LessonNotFound_ReturnsNull()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" } };
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, 999, parts, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_UnresolvableStorageObjectId_ThrowsArgumentException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Image, StorageObjectId = 999 } };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 1, isAdmin: false));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_CalledTwice_DiscardsPreviousParts()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var service = CreateService([course], [category], out _);
+        await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id,
+            [new() { PartType = LessonPartType.Text, Html = "<p>First</p>" }], actingUserId: 1, isAdmin: false);
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id,
+            [new() { PartType = LessonPartType.Text, Html = "<p>Second</p>" }], actingUserId: 1, isAdmin: false);
+
+        // Assert
+        var resultParts = result!.Chapters.Single().Lessons.Single().Parts;
+        Assert.Single(resultParts);
+        Assert.Equal("<p>Second</p>", resultParts[0].Html);
+    }
 }

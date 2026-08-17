@@ -9,7 +9,13 @@ internal sealed class CourseMappingConfig : IRegister
     public void Register(TypeAdapterConfig config)
     {
         config.NewConfig<Category, CategoryDto>();
-        config.NewConfig<Lesson, LessonDto>();
+
+        config.NewConfig<LessonPart, LessonPartDto>()
+            .Map(dest => dest.StorageObjectKey, src => src.StorageObject != null ? src.StorageObject.ObjectKey : null)
+            .Map(dest => dest.StorageObjectContentType, src => src.StorageObject != null ? src.StorageObject.ContentType : null);
+
+        config.NewConfig<Lesson, LessonDto>()
+            .Map(dest => dest.Parts, src => src.Parts.OrderBy(p => p.SortOrder));
 
         config.NewConfig<Chapter, ChapterDto>()
             .Map(dest => dest.Lessons, src => src.Lessons.OrderBy(l => l.SortOrder));

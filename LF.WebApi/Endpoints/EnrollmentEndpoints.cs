@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
+using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.AppDomain.Models.Course.Enums;
@@ -32,7 +33,7 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             return TypedResults.Ok(new PagedCourseCatalogResponse([.. result.Items.Select(ToCatalogItemResponse)], result.TotalCount, effectivePage, effectivePageSize));
         });
 
-        group.MapPost("/", async Task<Results<Created<EnrollmentDetailResponse>, UnauthorizedHttpResult, ValidationProblem, Conflict<string>>>
+        group.MapPost("/", async Task<Results<Created<EnrollmentDetailResponse>, UnauthorizedHttpResult, ValidationProblem, Conflict<string>, ForbidHttpResult>>
             (EnrollRequest request, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, CancellationToken ct) =>
         {
             var userId = user.GetUserId();
@@ -45,6 +46,10 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             {
                 var enrollment = await enrollmentService.EnrollAsync(request.CourseId, userId.Value);
                 return TypedResults.Created($"/api/enrollments/{enrollment.Id}", ToDetailResponse(enrollment));
+            }
+            catch (SelfEnrollmentException)
+            {
+                return TypedResults.Forbid();
             }
             catch (InvalidOperationException ex)
             {
@@ -108,6 +113,32 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             }
         });
 
+        group.MapGet("/{id:int}/lessons/{lessonId:int}/parts/{partId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
+            (int id, int lessonId, int partId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            EnrollmentDetailDto? enrollment;
+            try
+            {
+                enrollment = await enrollmentService.GetEnrollmentAsync(id, userId.Value, isAdmin);
+            }
+            catch (EnrollmentAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+
+            var part = enrollment?.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId)?.Parts.FirstOrDefault(p => p.Id == partId);
+            if (part?.StorageObjectKey is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(part.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
+        });
+
         group.MapGet("/courses/{courseId:int}/cover/image", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
             (int courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
         {
@@ -154,11 +185,27 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CourseDescription,
         dto.EnrolledAt,
         dto.CompletedAt,
-        [.. dto.Chapters.Select(ToChapterResponse)]);
+        [.. dto.Chapters.Select(ch => ToChapterResponse(dto.Id, ch))]);
 
-    private static EnrollmentChapterResponse ToChapterResponse(EnrollmentChapterDto chapter) => new(
+    private static EnrollmentChapterResponse ToChapterResponse(int enrollmentId, EnrollmentChapterDto chapter) => new(
         chapter.Id,
         chapter.Title,
         chapter.SortOrder,
-        [.. chapter.Lessons.Select(l => new EnrollmentLessonResponse(l.Id, l.Title, l.Content, l.SortOrder, l.IsCompleted))]);
+        [.. chapter.Lessons.Select(l => ToLessonResponse(enrollmentId, l))]);
+
+    private static EnrollmentLessonResponse ToLessonResponse(int enrollmentId, EnrollmentLessonDto lesson) => new(
+        lesson.Id,
+        lesson.Title,
+        lesson.Content,
+        lesson.SortOrder,
+        lesson.IsCompleted,
+        [.. lesson.Parts.Select(p => ToLessonPartResponse(enrollmentId, lesson.Id, p))]);
+
+    private static LessonPartResponse ToLessonPartResponse(int enrollmentId, int lessonId, LessonPartDto part) => new(
+        part.Id,
+        part.PartType.ToString(),
+        part.SortOrder,
+        part.Html,
+        part.StorageObjectId,
+        part.PartType == LessonPartType.Text ? null : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media");
 }

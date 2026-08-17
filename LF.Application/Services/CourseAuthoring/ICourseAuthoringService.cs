@@ -18,4 +18,5 @@ public interface ICourseAuthoringService
     Task<CourseDetailDto?> MoveLessonAsync(int courseId, int chapterId, int lessonId, MoveDirection direction, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> RemoveLessonAsync(int courseId, int chapterId, int lessonId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin);
+    Task<CourseDetailDto?> ReplaceLessonPartsAsync(int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin);
 }

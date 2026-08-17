@@ -55,6 +55,11 @@ const partsDirty = computed(() => {
   return partStore.isDirty(lessonId.value);
 });
 
+const partsUploading = computed(() => {
+  partsRevision.value;
+  return partStore.hasPendingUploads(lessonId.value);
+});
+
 const isDirty = computed(() =>
   title.value !== savedTitle.value
   || includeInPreview.value !== savedIncludeInPreview.value
@@ -88,7 +93,7 @@ function applyLesson(courseData) {
   savedApiContent.value = lesson.content ?? '';
   savedTitle.value = title.value;
   savedIncludeInPreview.value = includeInPreview.value;
-  partStore.ensureLoaded(lessonId.value, savedApiContent.value);
+  partStore.ensureLoaded(lessonId.value, savedApiContent.value, lesson.parts ?? []);
   return true;
 }
 
@@ -118,6 +123,10 @@ async function persist() {
   if (!isDirty.value) return true;
   if (!title.value.trim()) {
     errorMessage.value = t('courses.lessonEditor.title_required');
+    return false;
+  }
+  if (partsUploading.value) {
+    errorMessage.value = t('courses.lessonEditor.parts.uploads_pending');
     return false;
   }
 
@@ -164,7 +173,15 @@ async function persist() {
   }
 
   if (generation === saveGeneration && partStore.isDirty(lessonId.value)) {
-    partStore.commit(lessonId.value);
+    try {
+      await partStore.commit(courseId.value, chapterId.value, lessonId.value);
+    } catch (err) {
+      if (generation !== saveGeneration) return true;
+      errorMessage.value = err.response?.status === 403
+        ? t('courses.lessonEditor.forbidden')
+        : t('courses.lessonEditor.parts.save_error');
+      return false;
+    }
   }
   return true;
 }
@@ -330,7 +347,7 @@ function discardChanges() {
             <va-button
               color="primary"
               :loading="saving"
-              :disabled="!isDirty && !saving"
+              :disabled="(!isDirty && !saving) || partsUploading"
               @click="onSaveClick"
             >
               {{ $t('courses.lessonEditor.save') }}
@@ -353,13 +370,6 @@ function discardChanges() {
             ×
           </button>
         </div>
-
-        <p
-          v-if="viewMode === 'edit'"
-          class="lesson-forge__mock-banner"
-        >
-          {{ $t('courses.lessonEditor.parts.mock_banner') }}
-        </p>
 
         <div
           v-if="viewMode === 'edit'"
@@ -589,17 +599,6 @@ function discardChanges() {
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
-}
-
-.lesson-forge__mock-banner {
-  margin: 0 0 1.25rem;
-  padding: 0.75rem 1rem;
-  color: var(--color-ink-muted);
-  background: color-mix(in srgb, var(--industrial-accent-wash) 55%, var(--color-surface-950));
-  border: 1px solid var(--industrial-line);
-  border-radius: 0.35rem;
-  font-size: 0.88rem;
-  line-height: 1.45;
 }
 
 .lesson-forge__panel {

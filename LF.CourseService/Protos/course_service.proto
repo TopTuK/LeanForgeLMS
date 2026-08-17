@@ -37,6 +37,8 @@ service CourseServiceRpc {
   rpc RemoveLesson (RemoveLessonRequest) returns (CourseDetailReply);
   // Publish a course (requires at least one chapter, each with at least one lesson)
   rpc PublishCourse (PublishCourseRequest) returns (CourseDetailReply);
+  // Replace a lesson's parts (text/image/video/audio blocks) with a new ordered set
+  rpc ReplaceLessonParts (ReplaceLessonPartsRequest) returns (CourseDetailReply);
   // Browse published courses the acting user is not yet enrolled in, paged
   rpc ListCatalog (ListCatalogRequest) returns (ListCatalogReply);
   // Enroll the acting user in a published course
@@ -71,6 +73,13 @@ enum CourseCoverColor {
   COURSE_COVER_COLOR_AMBER = 3;
   COURSE_COVER_COLOR_SLATE = 4;
   COURSE_COVER_COLOR_BERRY = 5;
+}
+
+enum LessonPartType {
+  LESSON_PART_TYPE_TEXT = 0;
+  LESSON_PART_TYPE_IMAGE = 1;
+  LESSON_PART_TYPE_VIDEO = 2;
+  LESSON_PART_TYPE_AUDIO = 3;
 }
 
 message CreateCourseRequest {
@@ -148,6 +157,32 @@ message LessonReply {
   string content = 3;
   bool include_in_preview = 4;
   int32 sort_order = 5;
+  repeated LessonPartReply parts = 6;
+}
+
+message LessonPartReply {
+  int32 id = 1;
+  LessonPartType part_type = 2;
+  int32 sort_order = 3;
+  google.protobuf.StringValue html = 4;
+  google.protobuf.Int32Value storage_object_id = 5;
+  google.protobuf.StringValue storage_object_key = 6;
+  google.protobuf.StringValue storage_object_content_type = 7;
+}
+
+message LessonPartInput {
+  LessonPartType part_type = 1;
+  google.protobuf.StringValue html = 2;
+  google.protobuf.Int32Value storage_object_id = 3;
+}
+
+message ReplaceLessonPartsRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  int32 lesson_id = 3;
+  repeated LessonPartInput parts = 4;
+  int32 acting_user_id = 5;
+  bool acting_is_admin = 6;
 }
 
 message ListCategoriesRequest {
@@ -348,4 +383,5 @@ message EnrollmentLessonReply {
   string content = 3;
   int32 sort_order = 4;
   bool is_completed = 5;
+  repeated LessonPartReply parts = 6;
 }

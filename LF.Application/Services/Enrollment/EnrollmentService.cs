@@ -1,5 +1,6 @@
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
+using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
             .Include(c => c.CoverImageStorageObject)
-            .Where(c => c.IsPublished && !enrolledCourseIds.Contains(c.Id));
+            .Where(c => c.IsPublished && c.CreatedByUserId != actingUserId && !enrolledCourseIds.Contains(c.Id));
 
         var totalCount = await query.CountAsync();
         var courses = await query
@@ -62,6 +63,9 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         var course = await LoadCourseAsync(courseId);
         if (course is null)
             throw new InvalidOperationException($"Course {courseId} not found.");
+
+        if (course.CreatedByUserId == actingUserId)
+            throw new SelfEnrollmentException("You cannot enroll in a course you created.");
 
         if (!course.IsPublished)
             throw new InvalidOperationException("Cannot enroll in an unpublished course.");
@@ -197,6 +201,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.StorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()
@@ -223,6 +229,18 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                         Content = l.Content,
                         SortOrder = l.SortOrder,
                         IsCompleted = enrollment.CompletedLessonIds.Contains(l.Id),
+                        Parts = [.. l.Parts
+                            .OrderBy(p => p.SortOrder)
+                            .Select(p => new LessonPartDto
+                            {
+                                Id = p.Id,
+                                PartType = p.PartType,
+                                SortOrder = p.SortOrder,
+                                Html = p.Html,
+                                StorageObjectId = p.StorageObjectId,
+                                StorageObjectKey = p.StorageObject?.ObjectKey,
+                                StorageObjectContentType = p.StorageObject?.ContentType,
+                            })],
                     })],
             })],
     };

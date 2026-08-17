@@ -105,6 +105,33 @@ public class EnrollmentServiceTests
     }
 
     [Fact]
+    public async Task EnrollAsync_OwnCourse_ThrowsSelfEnrollmentException()
+    {
+        // Arrange
+        var course = CreatePublishedCourse(createdByUserId: 1);
+        var service = CreateService([course], [], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<SelfEnrollmentException>(() => service.EnrollAsync(course.Id, actingUserId: 1));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_OtherUsersPublishedCourse_Succeeds()
+    {
+        // Arrange
+        var course = CreatePublishedCourse(createdByUserId: 1);
+        var service = CreateService([course], [], out var dbContextMock);
+
+        // Act
+        var result = await service.EnrollAsync(course.Id, actingUserId: 7);
+
+        // Assert
+        Assert.Equal(course.Id, result.CourseId);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task CompleteLessonAsync_Owner_MarksOnlyThatLessonComplete()
     {
         // Arrange
@@ -277,6 +304,22 @@ public class EnrollmentServiceTests
         // Assert
         Assert.Equal(1, result.TotalCount);
         Assert.Equal(availableCourse.Id, result.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task BrowseCatalogAsync_ExcludesActingUsersOwnCourses()
+    {
+        // Arrange
+        var ownCourse = CreatePublishedCourse(id: 1, createdByUserId: 7);
+        var otherCourse = CreatePublishedCourse(id: 2, createdByUserId: 1);
+        var service = CreateService([ownCourse, otherCourse], [], out _);
+
+        // Act
+        var result = await service.BrowseCatalogAsync(page: 1, pageSize: 20, actingUserId: 7);
+
+        // Assert
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(otherCourse.Id, result.Items[0].Id);
     }
 
     [Fact]

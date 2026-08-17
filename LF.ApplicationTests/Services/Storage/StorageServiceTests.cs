@@ -59,6 +59,56 @@ public class StorageServiceTests
     }
 
     [Fact]
+    public async Task UploadMediaAsync_Video_UploadsWithVideosPrefix()
+    {
+        // Arrange
+        var service = CreateService(out var fileStorageServiceMock, out var storageRepositoryMock);
+        using var content = new MemoryStream([1, 2, 3]);
+
+        // Act
+        var result = await service.UploadMediaAsync(StorageObjectType.Video, content, "video/mp4", 3, createdByUserId: 1);
+
+        // Assert
+        Assert.Equal(StorageObjectType.Video, result.ObjectType);
+        Assert.StartsWith("videos/", result.ObjectKey);
+        Assert.EndsWith(".mp4", result.ObjectKey);
+        fileStorageServiceMock.Verify(f => f.UploadAsync(result.ObjectKey, content, "video/mp4", It.IsAny<CancellationToken>()), Times.Once);
+        storageRepositoryMock.Verify(r => r.AddAsync(It.IsAny<StorageObject>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadMediaAsync_Audio_UploadsWithAudioPrefix()
+    {
+        // Arrange
+        var service = CreateService(out var fileStorageServiceMock, out _);
+        using var content = new MemoryStream([1, 2, 3]);
+
+        // Act
+        var result = await service.UploadMediaAsync(StorageObjectType.Audio, content, "audio/mpeg", 3, createdByUserId: 1);
+
+        // Assert
+        Assert.Equal(StorageObjectType.Audio, result.ObjectType);
+        Assert.StartsWith("audio/", result.ObjectKey);
+        Assert.EndsWith(".mp3", result.ObjectKey);
+        fileStorageServiceMock.Verify(f => f.UploadAsync(result.ObjectKey, content, "audio/mpeg", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UploadMediaAsync_RepositoryFails_DeletesUploadedObject()
+    {
+        // Arrange
+        var service = CreateService(out var fileStorageServiceMock, out var storageRepositoryMock);
+        storageRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<StorageObject>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("db down"));
+        using var content = new MemoryStream([1, 2, 3]);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UploadMediaAsync(StorageObjectType.Video, content, "video/mp4", 3, createdByUserId: 1));
+        fileStorageServiceMock.Verify(f => f.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetAsync_NotFound_ReturnsNull()
     {
         // Arrange

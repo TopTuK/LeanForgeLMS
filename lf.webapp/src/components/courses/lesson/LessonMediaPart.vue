@@ -11,7 +11,7 @@ const props = defineProps({
   },
   fileName: { type: String, default: null },
   objectUrl: { type: String, default: null },
-  needsReupload: { type: Boolean, default: false },
+  uploading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
 });
 
@@ -31,12 +31,12 @@ const uploadLabel = computed(() => {
 });
 
 function openPicker() {
-  if (props.disabled) return;
+  if (props.disabled || props.uploading) return;
   inputRef.value?.click();
 }
 
 function onFile(file) {
-  if (!file || props.disabled) return;
+  if (!file || props.disabled || props.uploading) return;
   emit('file', file);
 }
 
@@ -99,10 +99,16 @@ function onDragLeave() {
       />
       <div class="media-part__meta">
         <span class="media-part__name">{{ fileName }}</span>
+        <span
+          v-if="uploading"
+          class="media-part__status"
+        >
+          {{ t('courses.lessonEditor.parts.uploading') }}
+        </span>
         <button
           type="button"
           class="media-part__replace"
-          :disabled="disabled"
+          :disabled="disabled || uploading"
           @click="openPicker"
         >
           {{ t('courses.lessonEditor.parts.replace') }}
@@ -121,10 +127,7 @@ function onDragLeave() {
       @dragleave="onDragLeave"
       @drop="onDrop"
     >
-      <span v-if="needsReupload && fileName">
-        {{ t('courses.lessonEditor.parts.reupload', { fileName }) }}
-      </span>
-      <span v-else>{{ uploadLabel }}</span>
+      <span>{{ uploadLabel }}</span>
     </button>
   </div>
 </template>
@@ -210,6 +213,14 @@ function onDragLeave() {
   color: var(--color-ink-muted);
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.media-part__status {
+  color: var(--color-accent-coral-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .media-part__replace {

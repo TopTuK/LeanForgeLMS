@@ -46,6 +46,10 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         {
             throw new InvalidOperationException(ex.Status.Detail);
         }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new SelfEnrollmentException(ex.Status.Detail);
+        }
     }
 
     public async Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, AppEnrollmentStatusFilter status)

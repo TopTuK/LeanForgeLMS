@@ -40,7 +40,7 @@ public sealed record EnrollmentSummaryResponse(
     string? CoverColor,
     string? CoverImageUrl);
 
-public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted);
+public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted, IReadOnlyList<LessonPartResponse> Parts);
 
 public sealed record EnrollmentChapterResponse(int Id, string Title, int SortOrder, IReadOnlyList<EnrollmentLessonResponse> Lessons);
 

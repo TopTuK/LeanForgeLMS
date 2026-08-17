@@ -194,6 +194,25 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.PublishCourseAsync(request));
     }
 
+    public async Task<CourseDetailDto?> ReplaceLessonPartsAsync(
+        int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("GrpcCourseService::ReplaceLessonPartsAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, actingUserId);
+
+        var request = new ReplaceLessonPartsRequest
+        {
+            CourseId = courseId,
+            ChapterId = chapterId,
+            LessonId = lessonId,
+            ActingUserId = actingUserId,
+            ActingIsAdmin = isAdmin,
+        };
+        request.Parts.AddRange(parts.Adapt<List<LessonPartInput>>());
+
+        return await CallOrDefaultAsync(() => _courseServiceRpcClient.ReplaceLessonPartsAsync(request));
+    }
+
     private static async Task<CourseDetailDto?> CallOrDefaultAsync(Func<AsyncUnaryCall<CourseDetailReply>> call)
     {
         try
@@ -212,6 +231,10 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
         {
             throw new InvalidOperationException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
+        {
+            throw new ArgumentException(ex.Status.Detail);
         }
     }
 }
