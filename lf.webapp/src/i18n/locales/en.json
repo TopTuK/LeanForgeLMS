@@ -239,6 +239,14 @@
             "forbidden": "You do not have access to this lesson.",
             "not_found": "This lesson could not be found.",
             "dismiss_error": "Dismiss",
+            "preview": {
+                "mode_label": "Editor mode",
+                "mode_edit": "Edit",
+                "mode_preview": "Preview",
+                "empty": "Nothing to preview yet. Add a text, image, video, or audio part.",
+                "untitled": "Untitled lesson",
+                "media_missing": "No file in this part yet."
+            },
             "toolbar": {
                 "label": "Formatting",
                 "bold": "Bold",
@@ -256,6 +264,27 @@
                 "undo": "Undo",
                 "redo": "Redo",
                 "clear": "Clear"
+            },
+            "parts": {
+                "mock_banner": "Lesson parts are stored locally in this browser until the API is ready. Title and preview still save to the server.",
+                "empty": "No parts yet. Add text, or upload an image, video, or audio file.",
+                "add": "Add part",
+                "add_after": "Add part after this",
+                "toolbox_label": "Part type",
+                "type_text": "Text",
+                "type_image": "Image",
+                "type_video": "Video",
+                "type_audio": "Audio",
+                "delete": "Remove part",
+                "move_up": "Move up",
+                "move_down": "Move down",
+                "upload_image": "Drop an image or click to upload",
+                "upload_video": "Drop a video or click to upload",
+                "upload_audio": "Drop an audio file or click to upload",
+                "replace": "Replace file",
+                "reupload": "File is not available after refresh. Re-upload {fileName}.",
+                "invalid_type": "That file type is not supported for this part.",
+                "text_placeholder": "Write this part of the lesson…"
             }
         }
     },

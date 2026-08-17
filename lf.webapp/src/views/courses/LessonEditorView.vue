@@ -1,24 +1,26 @@
 <script setup>
 import {
   computed,
-  onBeforeUnmount,
   onMounted,
   onUnmounted,
   ref,
   watch,
 } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { fetchCourse, updateLesson } from '@/services/courseService';
+import { useLessonPartStore } from '@/stores/lessonPartStore';
 import ForgeField from '@/components/courses/forge/ForgeField.vue';
-import ForgeRichEditor from '@/components/courses/forge/ForgeRichEditor.vue';
 import ForgeStatusStamp from '@/components/courses/forge/ForgeStatusStamp.vue';
-
-const AUTOSAVE_MS = 800;
+import LessonPartsEditor from '@/components/courses/lesson/LessonPartsEditor.vue';
+import LessonPreview from '@/components/courses/lesson/LessonPreview.vue';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const partStore = useLessonPartStore();
+const { revision: partsRevision } = storeToRefs(partStore);
 
 const courseId = computed(() => Number(route.params.courseId));
 const chapterId = computed(() => Number(route.params.chapterId));
@@ -32,22 +34,31 @@ const forbidden = ref(false);
 const errorMessage = ref('');
 
 const title = ref('');
-const content = ref('');
 const includeInPreview = ref(false);
+const savedApiContent = ref('');
 
 const savedTitle = ref('');
-const savedContent = ref('');
 const savedIncludeInPreview = ref(false);
 
 const saving = ref(false);
 const loadReady = ref(false);
-let autosaveTimer = null;
+const viewMode = ref('edit');
 let saveGeneration = 0;
+
+const previewParts = computed(() => {
+  partsRevision.value;
+  return partStore.partsFor(lessonId.value);
+});
+
+const partsDirty = computed(() => {
+  partsRevision.value;
+  return partStore.isDirty(lessonId.value);
+});
 
 const isDirty = computed(() =>
   title.value !== savedTitle.value
-  || content.value !== savedContent.value
-  || includeInPreview.value !== savedIncludeInPreview.value,
+  || includeInPreview.value !== savedIncludeInPreview.value
+  || partsDirty.value,
 );
 
 const saveStatus = computed(() => {
@@ -73,11 +84,11 @@ function applyLesson(courseData) {
   course.value = courseData;
   chapter.value = ch;
   title.value = lesson.title ?? '';
-  content.value = lesson.content ?? '';
   includeInPreview.value = Boolean(lesson.includeInPreview);
+  savedApiContent.value = lesson.content ?? '';
   savedTitle.value = title.value;
-  savedContent.value = content.value;
   savedIncludeInPreview.value = includeInPreview.value;
+  partStore.ensureLoaded(lessonId.value, savedApiContent.value);
   return true;
 }
 
@@ -87,6 +98,7 @@ async function load() {
   notFound.value = false;
   forbidden.value = false;
   errorMessage.value = '';
+  viewMode.value = 'edit';
 
   try {
     const data = await fetchCourse(courseId.value);
@@ -101,71 +113,66 @@ async function load() {
   }
 }
 
-async function persist({ force = false } = {}) {
+async function persist() {
   if (!loadReady.value) return false;
-  if (!force && !isDirty.value) return true;
+  if (!isDirty.value) return true;
   if (!title.value.trim()) {
     errorMessage.value = t('courses.lessonEditor.title_required');
     return false;
   }
 
   const generation = ++saveGeneration;
-  saving.value = true;
+  const metaDirty = title.value !== savedTitle.value
+    || includeInPreview.value !== savedIncludeInPreview.value;
+
   errorMessage.value = '';
 
-  const payload = {
-    title: title.value.trim(),
-    content: content.value,
-    includeInPreview: includeInPreview.value,
-  };
+  if (metaDirty) {
+    saving.value = true;
+    const payload = {
+      title: title.value.trim(),
+      content: savedApiContent.value,
+      includeInPreview: includeInPreview.value,
+    };
 
-  try {
-    const data = await updateLesson(
-      courseId.value,
-      chapterId.value,
-      lessonId.value,
-      payload,
-    );
-    if (generation !== saveGeneration) return true;
-    course.value = data;
-    chapter.value = data.chapters.find((c) => c.id === chapterId.value) ?? chapter.value;
-    savedTitle.value = payload.title;
-    savedContent.value = payload.content;
-    savedIncludeInPreview.value = payload.includeInPreview;
-    title.value = payload.title;
-    return true;
-  } catch (err) {
-    if (err.response?.status === 403) {
-      errorMessage.value = t('courses.lessonEditor.forbidden');
-    } else if (err.response?.status === 404) {
-      errorMessage.value = t('courses.lessonEditor.not_found');
-      notFound.value = true;
-    } else {
-      errorMessage.value = t('courses.lessonEditor.save_error');
+    try {
+      const data = await updateLesson(
+        courseId.value,
+        chapterId.value,
+        lessonId.value,
+        payload,
+      );
+      if (generation !== saveGeneration) return true;
+      course.value = data;
+      chapter.value = data.chapters.find((c) => c.id === chapterId.value) ?? chapter.value;
+      savedTitle.value = payload.title;
+      savedIncludeInPreview.value = payload.includeInPreview;
+      title.value = payload.title;
+    } catch (err) {
+      if (err.response?.status === 403) {
+        errorMessage.value = t('courses.lessonEditor.forbidden');
+      } else if (err.response?.status === 404) {
+        errorMessage.value = t('courses.lessonEditor.not_found');
+        notFound.value = true;
+      } else {
+        errorMessage.value = t('courses.lessonEditor.save_error');
+      }
+      return false;
+    } finally {
+      if (generation === saveGeneration) saving.value = false;
     }
-    return false;
-  } finally {
-    if (generation === saveGeneration) saving.value = false;
   }
-}
 
-function scheduleAutosave() {
-  if (!loadReady.value) return;
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => {
-    if (isDirty.value) persist();
-  }, AUTOSAVE_MS);
+  if (generation === saveGeneration && partStore.isDirty(lessonId.value)) {
+    partStore.commit(lessonId.value);
+  }
+  return true;
 }
-
-watch([title, content, includeInPreview], () => {
-  if (!loadReady.value) return;
-  scheduleAutosave();
-});
 
 function onKeydown(event) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
     event.preventDefault();
-    persist({ force: true });
+    persist();
   }
 }
 
@@ -178,24 +185,9 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
 });
 
-onBeforeUnmount(() => {
-  clearTimeout(autosaveTimer);
-  if (loadReady.value && isDirty.value) {
-    persist({ force: true });
-  }
-});
-
-onBeforeRouteLeave(async () => {
-  clearTimeout(autosaveTimer);
-  if (loadReady.value && isDirty.value) {
-    await persist({ force: true });
-  }
-});
-
 watch(
   () => [route.params.courseId, route.params.chapterId, route.params.lessonId],
   () => {
-    clearTimeout(autosaveTimer);
     load();
   },
 );
@@ -205,13 +197,13 @@ function goBack() {
 }
 
 async function onSaveClick() {
-  await persist({ force: true });
+  await persist();
 }
 
 function discardChanges() {
   title.value = savedTitle.value;
-  content.value = savedContent.value;
   includeInPreview.value = savedIncludeInPreview.value;
+  partStore.discard(lessonId.value);
   errorMessage.value = '';
 }
 </script>
@@ -284,6 +276,32 @@ function discardChanges() {
           </div>
 
           <div class="lesson-forge__header-actions">
+            <div
+              class="lesson-forge__mode"
+              role="tablist"
+              :aria-label="$t('courses.lessonEditor.preview.mode_label')"
+            >
+              <button
+                type="button"
+                class="lesson-forge__mode-btn"
+                role="tab"
+                :aria-selected="viewMode === 'edit'"
+                :class="{ 'is-active': viewMode === 'edit' }"
+                @click="viewMode = 'edit'"
+              >
+                {{ $t('courses.lessonEditor.preview.mode_edit') }}
+              </button>
+              <button
+                type="button"
+                class="lesson-forge__mode-btn"
+                role="tab"
+                :aria-selected="viewMode === 'preview'"
+                :class="{ 'is-active': viewMode === 'preview' }"
+                @click="viewMode = 'preview'"
+              >
+                {{ $t('courses.lessonEditor.preview.mode_preview') }}
+              </button>
+            </div>
             <span
               class="lesson-forge__save-status"
               :data-status="saveStatus"
@@ -336,7 +354,17 @@ function discardChanges() {
           </button>
         </div>
 
-        <div class="lesson-forge__panel">
+        <p
+          v-if="viewMode === 'edit'"
+          class="lesson-forge__mock-banner"
+        >
+          {{ $t('courses.lessonEditor.parts.mock_banner') }}
+        </p>
+
+        <div
+          v-if="viewMode === 'edit'"
+          class="lesson-forge__panel"
+        >
           <div class="lesson-forge__meta">
             <ForgeField
               v-model="title"
@@ -363,13 +391,20 @@ function discardChanges() {
                 aria-hidden="true"
               >02</span>
             </div>
-            <ForgeRichEditor
-              v-model="content"
-              :placeholder="$t('courses.lessonEditor.placeholder')"
+            <LessonPartsEditor
+              :lesson-id="lessonId"
               :disabled="saving && !isDirty"
+              @error="errorMessage = $event"
             />
           </div>
         </div>
+
+        <LessonPreview
+          v-else
+          :title="title"
+          :chapter-title="chapter.title"
+          :parts="previewParts"
+        />
 
         <button
           type="button"
@@ -488,6 +523,36 @@ function discardChanges() {
   gap: 0.65rem;
 }
 
+.lesson-forge__mode {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--industrial-line-strong);
+  border-radius: 0.3rem;
+  background: var(--color-surface-950);
+}
+
+.lesson-forge__mode-btn {
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.lesson-forge__mode-btn.is-active {
+  background: var(--industrial-accent-wash);
+  color: var(--color-ink);
+}
+
+.lesson-forge__mode-btn:hover:not(.is-active) {
+  color: var(--color-ink);
+}
+
 .lesson-forge__save-status {
   color: var(--color-ink-muted);
   font-size: 0.78rem;
@@ -524,6 +589,17 @@ function discardChanges() {
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.lesson-forge__mock-banner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  color: var(--color-ink-muted);
+  background: color-mix(in srgb, var(--industrial-accent-wash) 55%, var(--color-surface-950));
+  border: 1px solid var(--industrial-line);
+  border-radius: 0.35rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .lesson-forge__panel {
