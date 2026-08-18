@@ -46,6 +46,10 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         {
             throw new InvalidOperationException(ex.Status.Detail);
         }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new SelfEnrollmentException(ex.Status.Detail);
+        }
     }
 
     public async Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, AppEnrollmentStatusFilter status)
@@ -80,6 +84,22 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
         {
             throw new InvalidOperationException(ex.Status.Detail);
+        }
+    }
+
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+
+        var request = new GetCourseCoverRequest { CourseId = courseId };
+        try
+        {
+            var reply = await _courseServiceRpcClient.GetCourseCoverAsync(request);
+            return reply.CoverImageKey is null ? null : new CourseCoverDto { CoverImageKey = reply.CoverImageKey, CoverImageContentType = reply.CoverImageContentType };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
         }
     }
 

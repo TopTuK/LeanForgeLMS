@@ -1,9 +1,10 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
 import { fetchCourses, fetchCourseCoverImageObjectUrl } from '@/services/courseService';
+import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -11,7 +12,7 @@ const router = useRouter();
 const courses = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
-const coverImageUrls = ref({});
+const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
 
 async function loadCourses() {
   loading.value = true;
@@ -19,7 +20,7 @@ async function loadCourses() {
   try {
     const result = await fetchCourses({ page: 1, pageSize: 50 });
     courses.value = result.items;
-    await loadCoverImages(result.items);
+    await loadCoverImages(result.items, (c) => c.id);
   } catch {
     errorMessage.value = t('courses.teaching.load_error');
   } finally {
@@ -27,25 +28,7 @@ async function loadCourses() {
   }
 }
 
-async function loadCoverImages(items) {
-  Object.values(coverImageUrls.value).forEach((url) => URL.revokeObjectURL(url));
-  coverImageUrls.value = {};
-
-  const imageCourses = items.filter((c) => c.coverType === 'Image');
-  await Promise.all(imageCourses.map(async (c) => {
-    try {
-      coverImageUrls.value[c.id] = await fetchCourseCoverImageObjectUrl(c.id);
-    } catch {
-      // No cover preview if the fetch fails; the card falls back to no banner.
-    }
-  }));
-}
-
 onMounted(loadCourses);
-
-onBeforeUnmount(() => {
-  Object.values(coverImageUrls.value).forEach((url) => URL.revokeObjectURL(url));
-});
 
 function onManage(courseId) {
   router.push({ name: 'CourseEdit', params: { id: courseId } });

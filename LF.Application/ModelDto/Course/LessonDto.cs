@@ -7,4 +7,5 @@ public sealed class LessonDto
     public string Content { get; init; } = string.Empty;
     public bool IncludeInPreview { get; init; }
     public int SortOrder { get; init; }
+    public IReadOnlyList<LessonPartDto> Parts { get; init; } = [];
 }

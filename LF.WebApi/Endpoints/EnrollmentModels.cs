@@ -2,7 +2,16 @@ using FluentValidation;
 
 namespace LF.WebApi.Endpoints;
 
-public sealed record CourseCatalogItemResponse(int Id, string Title, string ShortIntroduction, int CategoryId, string CategoryName, int LessonCount);
+public sealed record CourseCatalogItemResponse(
+    int Id,
+    string Title,
+    string ShortIntroduction,
+    int CategoryId,
+    string CategoryName,
+    int LessonCount,
+    string CoverType,
+    string? CoverColor,
+    string? CoverImageUrl);
 
 public sealed record PagedCourseCatalogResponse(IReadOnlyList<CourseCatalogItemResponse> Items, int TotalCount, int Page, int PageSize);
 
@@ -26,9 +35,12 @@ public sealed record EnrollmentSummaryResponse(
     int CompletedLessonCount,
     int ProgressPercent,
     DateTime EnrolledAt,
-    DateTime? CompletedAt);
+    DateTime? CompletedAt,
+    string CoverType,
+    string? CoverColor,
+    string? CoverImageUrl);
 
-public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted);
+public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted, IReadOnlyList<LessonPartResponse> Parts);
 
 public sealed record EnrollmentChapterResponse(int Id, string Title, int SortOrder, IReadOnlyList<EnrollmentLessonResponse> Lessons);
 

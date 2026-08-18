@@ -239,6 +239,14 @@
             "forbidden": "You do not have access to this lesson.",
             "not_found": "This lesson could not be found.",
             "dismiss_error": "Dismiss",
+            "preview": {
+                "mode_label": "Editor mode",
+                "mode_edit": "Edit",
+                "mode_preview": "Preview",
+                "empty": "Nothing to preview yet. Add a text, image, video, or audio part.",
+                "untitled": "Untitled lesson",
+                "media_missing": "No file in this part yet."
+            },
             "toolbar": {
                 "label": "Formatting",
                 "bold": "Bold",
@@ -256,6 +264,29 @@
                 "undo": "Undo",
                 "redo": "Redo",
                 "clear": "Clear"
+            },
+            "parts": {
+                "empty": "No parts yet. Add text, or upload an image, video, or audio file.",
+                "add": "Add part",
+                "add_after": "Add part after this",
+                "toolbox_label": "Part type",
+                "type_text": "Text",
+                "type_image": "Image",
+                "type_video": "Video",
+                "type_audio": "Audio",
+                "delete": "Remove part",
+                "move_up": "Move up",
+                "move_down": "Move down",
+                "upload_image": "Drop an image or click to upload",
+                "upload_video": "Drop a video or click to upload",
+                "upload_audio": "Drop an audio file or click to upload",
+                "replace": "Replace file",
+                "uploading": "Uploading…",
+                "invalid_type": "That file type is not supported for this part.",
+                "upload_error": "Could not upload this file. Please try again.",
+                "uploads_pending": "Please wait for file uploads to finish before saving.",
+                "save_error": "Could not save the lesson parts. Please try again.",
+                "text_placeholder": "Write this part of the lesson…"
             }
         }
     },

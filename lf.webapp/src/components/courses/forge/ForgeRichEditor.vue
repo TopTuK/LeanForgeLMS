@@ -12,6 +12,8 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   disabled: { type: Boolean, default: false },
+  compact: { type: Boolean, default: false },
+  allowImage: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -129,24 +131,28 @@ const tools = [
   {
     id: 'bold',
     labelKey: 'courses.lessonEditor.toolbar.bold',
+    icon: 'format_bold',
     mark: 'bold',
     action: (chain) => chain.toggleBold(),
   },
   {
     id: 'italic',
     labelKey: 'courses.lessonEditor.toolbar.italic',
+    icon: 'format_italic',
     mark: 'italic',
     action: (chain) => chain.toggleItalic(),
   },
   {
     id: 'underline',
     labelKey: 'courses.lessonEditor.toolbar.underline',
+    icon: 'format_underlined',
     mark: 'underline',
     action: (chain) => chain.toggleUnderline(),
   },
   {
     id: 'strike',
     labelKey: 'courses.lessonEditor.toolbar.strike',
+    icon: 'strikethrough_s',
     mark: 'strike',
     action: (chain) => chain.toggleStrike(),
   },
@@ -156,7 +162,10 @@ const tools = [
 <template>
   <div
     class="forge-rich-editor"
-    :class="{ 'forge-rich-editor--disabled': disabled }"
+    :class="{
+      'forge-rich-editor--disabled': disabled,
+      'forge-rich-editor--compact': compact,
+    }"
   >
     <div
       class="forge-rich-editor__toolbar"
@@ -170,14 +179,13 @@ const tools = [
           size="small"
           preset="secondary"
           border-color="transparent"
+          :icon="tool.icon"
           :color="isActive(tool.mark) ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t(tool.labelKey)"
           :title="$t(tool.labelKey)"
           @click="run(tool.action)"
-        >
-          {{ $t(tool.labelKey) }}
-        </va-button>
+        />
       </div>
 
       <span
@@ -188,6 +196,7 @@ const tools = [
       <div class="forge-rich-editor__group">
         <va-button
           size="small"
+          class="forge-rich-editor__heading"
           preset="secondary"
           border-color="transparent"
           :color="isActive('heading', { level: 2 }) ? 'primary' : undefined"
@@ -200,6 +209,7 @@ const tools = [
         </va-button>
         <va-button
           size="small"
+          class="forge-rich-editor__heading"
           preset="secondary"
           border-color="transparent"
           :color="isActive('heading', { level: 3 }) ? 'primary' : undefined"
@@ -222,50 +232,46 @@ const tools = [
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="format_list_bulleted"
           :color="isActive('bulletList') ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.bullet_list')"
           :title="$t('courses.lessonEditor.toolbar.bullet_list')"
           @click="run((chain) => chain.toggleBulletList())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.bullet_list') }}
-        </va-button>
+        />
         <va-button
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="format_list_numbered"
           :color="isActive('orderedList') ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.ordered_list')"
           :title="$t('courses.lessonEditor.toolbar.ordered_list')"
           @click="run((chain) => chain.toggleOrderedList())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.ordered_list') }}
-        </va-button>
+        />
         <va-button
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="format_quote"
           :color="isActive('blockquote') ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.blockquote')"
           :title="$t('courses.lessonEditor.toolbar.blockquote')"
           @click="run((chain) => chain.toggleBlockquote())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.blockquote') }}
-        </va-button>
+        />
         <va-button
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="code"
           :color="isActive('code') ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.code')"
           :title="$t('courses.lessonEditor.toolbar.code')"
           @click="run((chain) => chain.toggleCode())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.code') }}
-        </va-button>
+        />
       </div>
 
       <span
@@ -278,25 +284,24 @@ const tools = [
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="link"
           :color="isActive('link') ? 'primary' : undefined"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.link')"
           :title="$t('courses.lessonEditor.toolbar.link')"
           @click="setLink"
-        >
-          {{ $t('courses.lessonEditor.toolbar.link') }}
-        </va-button>
+        />
         <va-button
+          v-if="allowImage"
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="image"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.image')"
           :title="$t('courses.lessonEditor.toolbar.image')"
           @click="setImage"
-        >
-          {{ $t('courses.lessonEditor.toolbar.image') }}
-        </va-button>
+        />
       </div>
 
       <span
@@ -309,35 +314,32 @@ const tools = [
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="undo"
           :disabled="disabled || !editor || !canUndo"
           :aria-label="$t('courses.lessonEditor.toolbar.undo')"
           :title="$t('courses.lessonEditor.toolbar.undo')"
           @click="run((chain) => chain.undo())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.undo') }}
-        </va-button>
+        />
         <va-button
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="redo"
           :disabled="disabled || !editor || !canRedo"
           :aria-label="$t('courses.lessonEditor.toolbar.redo')"
           :title="$t('courses.lessonEditor.toolbar.redo')"
           @click="run((chain) => chain.redo())"
-        >
-          {{ $t('courses.lessonEditor.toolbar.redo') }}
-        </va-button>
+        />
         <va-button
           size="small"
           preset="secondary"
           border-color="transparent"
+          icon="format_clear"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.clear')"
           :title="$t('courses.lessonEditor.toolbar.clear')"
           @click="clearFormatting"
-        >
-          {{ $t('courses.lessonEditor.toolbar.clear') }}
-        </va-button>
+        />
       </div>
     </div>
 
@@ -361,6 +363,18 @@ const tools = [
 
 .forge-rich-editor--disabled {
   opacity: 0.72;
+}
+
+.forge-rich-editor--compact {
+  min-height: 10rem;
+  border: 0;
+  border-radius: 0;
+}
+
+.forge-rich-editor--compact .forge-rich-editor__surface,
+.forge-rich-editor--compact .forge-rich-editor__surface :deep(.tiptap),
+.forge-rich-editor--compact .forge-rich-editor__surface :deep(.ProseMirror) {
+  min-height: 8rem;
 }
 
 .forge-rich-editor__toolbar {
@@ -475,9 +489,18 @@ const tools = [
 }
 
 .forge-rich-editor__toolbar :deep(.va-button) {
-  min-width: auto;
+  min-width: 2rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   text-transform: none;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.forge-rich-editor__toolbar :deep(.forge-rich-editor__heading) {
+  width: auto;
+  min-width: 2.1rem;
+  padding: 0 0.4rem;
 }
 </style>

@@ -1,3 +1,5 @@
+using LF.Application.ModelDto.Course;
+
 namespace LF.Application.ModelDto.Enrollment;
 
 public sealed class EnrollmentLessonDto
@@ -7,4 +9,5 @@ public sealed class EnrollmentLessonDto
     public string Content { get; init; } = string.Empty;
     public int SortOrder { get; init; }
     public bool IsCompleted { get; init; }
+    public IReadOnlyList<LessonPartDto> Parts { get; init; } = [];
 }

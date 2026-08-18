@@ -112,4 +112,13 @@ internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> log
 
         return await _grpcCourseService.PublishCourseAsync(courseId, actingUserId, isAdmin);
     }
+
+    public async Task<CourseDetailDto?> ReplaceLessonPartsAsync(
+        int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseAuthoringService::ReplaceLessonPartsAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, actingUserId);
+
+        return await _grpcCourseService.ReplaceLessonPartsAsync(courseId, chapterId, lessonId, parts, actingUserId, isAdmin);
+    }
 }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 using LF.AppDomain.Models.User.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
@@ -95,6 +96,27 @@ public sealed class CourseEndpoints : IEndpointGroup
 
             await using var stream = file.OpenReadStream();
             var storageObject = await storageService.UploadImageAsync(stream, file.ContentType, file.Length, userId.Value, ct);
+
+            return TypedResults.Ok(new UploadCoverImageResponse(storageObject.Id));
+        }).DisableAntiforgery();
+
+        group.MapPost("/lesson-media", async Task<Results<Ok<UploadCoverImageResponse>, UnauthorizedHttpResult, ValidationProblem>>
+            (IFormFile file, ClaimsPrincipal user, IStorageService storageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            if (file.Length == 0 || !LessonMediaUpload.AllowedContentTypes.TryGetValue(file.ContentType, out var mediaInfo)
+                || file.Length > mediaInfo.MaxSizeBytes)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["file"] = ["File must be a supported image, video or audio type within the size limit for that type."],
+                });
+            }
+
+            await using var stream = file.OpenReadStream();
+            var storageObject = await storageService.UploadMediaAsync(mediaInfo.ObjectType, stream, file.ContentType, file.Length, userId.Value, ct);
 
             return TypedResults.Ok(new UploadCoverImageResponse(storageObject.Id));
         }).DisableAntiforgery();
@@ -255,6 +277,67 @@ public sealed class CourseEndpoints : IEndpointGroup
             }
         });
 
+        group.MapPut("/{id:int}/chapters/{chapterId:int}/lessons/{lessonId:int}/parts", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult>>
+            (int id, int chapterId, int lessonId, ReplaceLessonPartsRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var validation = new ReplaceLessonPartsRequestValidator().Validate(request);
+            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+            var parts = request.Parts.Select(p => new ReplaceLessonPartInputDto
+            {
+                PartType = Enum.Parse<LessonPartType>(p.PartType, ignoreCase: true),
+                Html = p.Html,
+                StorageObjectId = p.StorageObjectId,
+            }).ToList();
+
+            try
+            {
+                var course = await courseService.ReplaceLessonPartsAsync(id, chapterId, lessonId, parts, userId.Value, isAdmin);
+                return course is null ? TypedResults.NotFound() : TypedResults.Ok(ToDetailResponse(course));
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (ArgumentException)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["parts"] = ["One or more referenced media items were not found."],
+                });
+            }
+        });
+
+        group.MapGet("/{id:int}/chapters/{chapterId:int}/lessons/{lessonId:int}/parts/{partId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
+            (int id, int chapterId, int lessonId, int partId, ClaimsPrincipal user, ICourseAuthoringService courseService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            CourseDetailDto? course;
+            try
+            {
+                course = await courseService.GetCourseAsync(id, userId.Value, isAdmin);
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+
+            var part = course?.Chapters.FirstOrDefault(ch => ch.Id == chapterId)?.Lessons.FirstOrDefault(l => l.Id == lessonId)?.Parts.FirstOrDefault(p => p.Id == partId);
+            if (part?.StorageObjectKey is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(part.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
+        });
+
         group.MapPost("/{id:int}/chapters/{chapterId:int}/lessons/{lessonId:int}/move", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult>>
             (int id, int chapterId, int lessonId, MoveRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
         {
@@ -334,13 +417,29 @@ public sealed class CourseEndpoints : IEndpointGroup
         course.CategoryName,
         course.CreatedByUserId,
         course.CreatedAt,
-        [.. course.Chapters.Select(ToChapterResponse)]);
+        [.. course.Chapters.Select(ch => ToChapterResponse(course.Id, ch))]);
 
-    private static ChapterResponse ToChapterResponse(ChapterDto chapter) => new(
+    private static ChapterResponse ToChapterResponse(int courseId, ChapterDto chapter) => new(
         chapter.Id,
         chapter.Title,
         chapter.SortOrder,
-        [.. chapter.Lessons.Select(l => new LessonResponse(l.Id, l.Title, l.Content, l.IncludeInPreview, l.SortOrder))]);
+        [.. chapter.Lessons.Select(l => ToLessonResponse(courseId, chapter.Id, l))]);
+
+    private static LessonResponse ToLessonResponse(int courseId, int chapterId, LessonDto lesson) => new(
+        lesson.Id,
+        lesson.Title,
+        lesson.Content,
+        lesson.IncludeInPreview,
+        lesson.SortOrder,
+        [.. lesson.Parts.Select(p => ToLessonPartResponse(courseId, chapterId, lesson.Id, p))]);
+
+    private static LessonPartResponse ToLessonPartResponse(int courseId, int chapterId, int lessonId, LessonPartDto part) => new(
+        part.Id,
+        part.PartType.ToString(),
+        part.SortOrder,
+        part.Html,
+        part.StorageObjectId,
+        part.PartType == LessonPartType.Text ? null : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media");
 
     private static CourseSummaryResponse ToSummaryResponse(CourseSummaryDto course) => new(
         course.Id,

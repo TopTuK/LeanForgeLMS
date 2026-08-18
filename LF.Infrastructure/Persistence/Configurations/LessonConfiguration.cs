@@ -15,5 +15,12 @@ internal sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
         builder.Property(l => l.Title).IsRequired().HasMaxLength(200);
         builder.Property(l => l.Content).IsRequired();
+
+        builder.HasMany(l => l.Parts)
+            .WithOne()
+            .HasForeignKey(p => p.LessonId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(l => l.Parts).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

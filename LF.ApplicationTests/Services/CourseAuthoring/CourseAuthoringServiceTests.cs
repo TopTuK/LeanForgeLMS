@@ -1,3 +1,4 @@
+using LF.AppDomain.Models.Course.Enums;
 using LF.Application.ModelDto.Course;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
@@ -138,5 +139,23 @@ public class CourseAuthoringServiceTests
         // Assert
         Assert.Same(expected, result);
         grpcMock.Verify(s => s.PublishCourseAsync(1, 5, false), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_DelegatesToGrpcCourseService()
+    {
+        // Arrange
+        IReadOnlyList<ReplaceLessonPartInputDto> parts = [new() { PartType = LessonPartType.Text, Html = "<p>Intro</p>" }];
+        var expected = new CourseDetailDto { Id = 1, Title = "Title" };
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.ReplaceLessonPartsAsync(1, 2, 3, parts, 5, false)).ReturnsAsync(expected);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(1, 2, 3, parts, actingUserId: 5, isAdmin: false);
+
+        // Assert
+        Assert.Same(expected, result);
+        grpcMock.Verify(s => s.ReplaceLessonPartsAsync(1, 2, 3, parts, 5, false), Times.Once);
     }
 }

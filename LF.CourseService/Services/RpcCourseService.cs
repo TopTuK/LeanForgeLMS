@@ -7,6 +7,7 @@ using LF.Application.Services.Enrollment;
 using LF.CourseService;
 using Mapster;
 using AppEnrollmentStatusFilter = LF.Application.ModelDto.Enrollment.EnrollmentStatusFilter;
+using AppLessonPartType = LF.AppDomain.Models.Course.Enums.LessonPartType;
 using AppMoveDirection = LF.Application.ModelDto.Course.MoveDirection;
 
 namespace LF.CourseService.Services;
@@ -181,6 +182,23 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return ToReply(course);
     }
 
+    public override async Task<CourseDetailReply> ReplaceLessonParts(ReplaceLessonPartsRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ReplaceLessonParts: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            request.CourseId, request.ChapterId, request.LessonId, request.ActingUserId);
+
+        var parts = request.Parts.Select(p => new ReplaceLessonPartInputDto
+        {
+            PartType = p.PartType.Adapt<AppLessonPartType>(),
+            Html = p.Html,
+            StorageObjectId = p.StorageObjectId,
+        }).ToList();
+
+        var course = await GuardedAsync(() =>
+            _courseService.ReplaceLessonPartsAsync(request.CourseId, request.ChapterId, request.LessonId, parts, request.ActingUserId, request.ActingIsAdmin));
+        return ToReply(course);
+    }
+
     public override async Task<ListCatalogReply> ListCatalog(ListCatalogRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::ListCatalog: called with Page={Page} PageSize={PageSize} ActingUserId={ActingUserId}",
@@ -201,6 +219,10 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             var enrollment = await _enrollmentService.EnrollAsync(request.CourseId, request.ActingUserId);
             return ToEnrollmentReply(enrollment);
+        }
+        catch (SelfEnrollmentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
         }
         catch (InvalidOperationException ex)
         {
@@ -239,6 +261,17 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return ToEnrollmentReply(enrollment);
     }
 
+    public override async Task<CourseCoverReply> GetCourseCover(GetCourseCoverRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::GetCourseCover: called with CourseId={CourseId}", request.CourseId);
+
+        var cover = await _enrollmentService.GetCourseCoverAsync(request.CourseId);
+        if (cover is null)
+            throw new RpcException(new Status(StatusCode.NotFound, "Course not found or has no cover image."));
+
+        return new CourseCoverReply { CoverImageKey = cover.CoverImageKey, CoverImageContentType = cover.CoverImageContentType };
+    }
+
     private static async Task<CourseDetailDto> GuardedAsync(Func<Task<CourseDetailDto?>> operation)
     {
         try
@@ -253,6 +286,10 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         catch (InvalidOperationException ex)
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
         }
     }
 
@@ -285,7 +322,15 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             var chapterReply = chapterDto.Adapt<EnrollmentChapterReply>();
             chapterReply.Lessons.Clear();
-            chapterReply.Lessons.AddRange(chapterDto.Lessons.Adapt<List<EnrollmentLessonReply>>());
+
+            foreach (var lessonDto in chapterDto.Lessons)
+            {
+                var lessonReply = lessonDto.Adapt<EnrollmentLessonReply>();
+                lessonReply.Parts.Clear();
+                lessonReply.Parts.AddRange(lessonDto.Parts.Adapt<List<LessonPartReply>>());
+                chapterReply.Lessons.Add(lessonReply);
+            }
+
             reply.Chapters.Add(chapterReply);
         }
 
@@ -304,7 +349,15 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             var chapterReply = chapterDto.Adapt<ChapterReply>();
             chapterReply.Lessons.Clear();
-            chapterReply.Lessons.AddRange(chapterDto.Lessons.Adapt<List<LessonReply>>());
+
+            foreach (var lessonDto in chapterDto.Lessons)
+            {
+                var lessonReply = lessonDto.Adapt<LessonReply>();
+                lessonReply.Parts.Clear();
+                lessonReply.Parts.AddRange(lessonDto.Parts.Adapt<List<LessonPartReply>>());
+                chapterReply.Lessons.Add(lessonReply);
+            }
+
             reply.Chapters.Add(chapterReply);
         }
 

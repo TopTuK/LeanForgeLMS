@@ -2,7 +2,8 @@
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CourseCard from '@/components/courses/CourseCard.vue';
-import { fetchCatalog, enroll } from '@/services/enrollmentService';
+import { fetchCatalog, enroll, fetchCourseCoverImageObjectUrl } from '@/services/enrollmentService';
+import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
 
@@ -10,6 +11,7 @@ const courses = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 const enrollingId = ref(null);
+const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
 
 async function loadCatalog() {
   loading.value = true;
@@ -17,6 +19,7 @@ async function loadCatalog() {
   try {
     const result = await fetchCatalog({ page: 1, pageSize: 50 });
     courses.value = result.items;
+    await loadCoverImages(result.items, (c) => c.id);
   } catch {
     errorMessage.value = t('courses.available.load_error');
   } finally {
@@ -83,6 +86,9 @@ async function onEnroll(courseId) {
         :description="course.shortIntroduction"
         :category="course.categoryName"
         :busy="enrollingId === course.id"
+        :cover-type="course.coverType"
+        :cover-color="course.coverColor"
+        :cover-image-url="coverImageUrls[course.id] ?? null"
         @enroll="onEnroll(course.id)"
       />
     </div>

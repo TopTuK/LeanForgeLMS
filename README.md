@@ -2,7 +2,7 @@
 
 Lean Forge LMS is a Learning Management System for an online school for developers. It's a solo-developer project built on **.NET 10** with a **Vue 3** SPA frontend, orchestrated locally with **.NET Aspire** and deployed to production as plain **Docker Compose** services.
 
-The domain has moderate business rules (enrollment, progress tracking, course lifecycle) — not CRUD-only, but not a rich DDD domain either. The implemented slice covers authentication, user identity, profile/avatar management, and the full course domain: category-tagged courses with chapters/lessons, cover art (predefined color or an uploaded image), publishing, a student catalog, enrollment, and per-lesson progress tracking.
+The domain has moderate business rules (enrollment, progress tracking, course lifecycle) — not CRUD-only, but not a rich DDD domain either. The implemented slice covers authentication, user identity, profile/avatar management, and the full course domain: category-tagged courses with chapters/lessons made of ordered text/image/video/audio parts, cover art (predefined color or an uploaded image), publishing, a student catalog, ownership-restricted enrollment (a course's own creator can't enroll in it), and per-lesson progress tracking.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ The system runs as **three independently deployable ASP.NET Core processes** plu
 - **`LF.WebApi`** — the only public-facing process. Hosts the Vue SPA, the JWT/Cookie/OIDC authentication pipeline (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s). It never touches user or course data in Postgres directly — only `StorageObjects` (see below).
 - **`LF.IdentityService`** — an internal gRPC-only service that owns the Postgres-backed `AppDbContext` and all user identity data. Not reachable from outside the deployment network.
 - **`LF.CourseService`** — an internal gRPC-only service that owns the course domain: courses, categories, chapters, lessons, and enrollments. Shares the same Postgres database as `LF.IdentityService` (`leanforge`) but only ever touches its own tables. Not reachable from outside the deployment network.
-- **MinIO** — S3-compatible object storage. Only `LF.WebApi` talks to it; it is never exposed to the browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images, and future lesson media).
+- **MinIO** — S3-compatible object storage. Only `LF.WebApi` talks to it; it is never exposed to the browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images, and lesson media — image/video/audio blocks).
 
 ```mermaid
 graph LR
@@ -116,23 +116,25 @@ JWT Bearer is the default authenticate/challenge scheme for the rest of the API;
 Owned entirely by `LF.CourseService`, exposed to `LF.WebApi` over `course_service.proto` (`CourseServiceRpc`):
 
 - **`Course`** — title, short introduction, description, a `Category`, an ordered list of `Chapter`s (each with an ordered list of `Lesson`s), a `CoverType`/`CoverColor`/cover image, and an `IsPublished` flag. `Publish()` enforces the invariant that a course needs at least one chapter and every chapter needs at least one lesson.
+- **`Lesson`** — a title plus, in addition to a legacy single `Content` HTML string (kept for backward compatibility), an ordered list of `LessonPart`s: text blocks (rich HTML) interleaved with image/video/audio blocks, each media block referencing a `StorageObject`. `Lesson.ReplaceParts(...)` is a full bulk-replace — the whole ordered set is swapped in one call, matching how the editor UI batches local edits before saving.
 - **`Category`** — a flat, admin-managed tag set. Seeded with a protected `Common` category (`IsDefault = true`, cannot be deleted) plus a handful of starter categories (Backend, Frontend, DevOps, Design, Career). Categories still assigned to a course can't be deleted either.
-- **`Enrollment`** — tracks a student's progress through a published course, one row per (student, course), with per-lesson completion state.
+- **`Enrollment`** — tracks a student's progress through a published course, one row per (student, course), with per-lesson completion state. A user cannot enroll in a course they created themselves — `EnrollmentService.EnrollAsync` rejects it (`SelfEnrollmentException`, mapped to `403 Forbidden`) and `BrowseCatalogAsync` excludes the acting user's own courses from their catalog results in the first place, so there's no enroll action to even attempt on them. This is an ownership check (`Course.CreatedByUserId`), not a role-based ban — an Instructor or CourseCreator can still enroll in someone else's published course.
 
 Two distinct endpoint groups on `LF.WebApi` reflect the two audiences:
 
-- **`/api/courses`** (`RequireAuthorization("CourseCreatorOrAdmin")`) — course authoring: create a course (with cover), list/get your own courses (or all of them, if admin), add/rename/reorder chapters and lessons, upload/serve a cover image, publish. Backed by `CourseAuthoringService` → `IGrpcCourseService` → `RpcCourseService` → `CourseService` (real EF-backed implementation, inside `LF.CourseService`).
-- **`/api/enrollments`** (`RequireAuthorization()`, any authenticated user) — the student side: browse the published-course catalog, enroll, list your own enrollments, view one enrollment's progress, mark a lesson complete. Backed by `EnrollmentLearningService` → `IGrpcEnrollmentService` → `RpcCourseService` → `EnrollmentService`.
+- **`/api/courses`** (`RequireAuthorization("CourseCreatorOrAdmin")`) — course authoring: create a course (with cover), list/get your own courses (or all of them, if admin), add/rename/reorder chapters and lessons, replace a lesson's parts, upload lesson/cover media and stream it back, publish. Backed by `CourseAuthoringService` → `IGrpcCourseService` → `RpcCourseService` → `CourseService` (real EF-backed implementation, inside `LF.CourseService`).
+- **`/api/enrollments`** (`RequireAuthorization()`, any authenticated user) — the student side: browse the published-course catalog, enroll, list your own enrollments, view one enrollment's progress (including each lesson's parts, streamed via an ownership-checked media endpoint), mark a lesson complete. Backed by `EnrollmentLearningService` → `IGrpcEnrollmentService` → `RpcCourseService` → `EnrollmentService`.
 
-Course authoring only supports setting fields at creation time today — there's no "edit course settings" endpoint yet; editing after creation is limited to chapters, lessons, and publishing (`CourseEditorView.vue`, `LessonEditorView.vue`).
+Course authoring only supports setting fields at creation time today — there's no "edit course settings" endpoint yet; editing after creation is limited to chapters, lessons (including their parts), and publishing (`CourseEditorView.vue`, `LessonEditorView.vue`). Students view lesson parts on `CourseLearnView.vue`, which renders the parts list when present and falls back to the legacy `Content` string for lessons authored before this feature existed.
 
-### Course covers & the Storage service
+### Course covers, lesson media & the Storage service
 
-Course creators pick a cover when creating a course — either a predefined solid color or an uploaded image — via a generic storage abstraction meant to be reused later for lesson media:
+Course creators pick a cover when creating a course — either a predefined solid color or an uploaded image — and can attach images/video/audio to individual lesson parts, both via the same generic storage abstraction:
 
-- **`IStorageService`/`StorageService`** (`LF.Application/Services/Storage`, registered and running inside `LF.WebApi`) exposes `UploadImageAsync`: it uploads the file to the `storage` MinIO bucket via `IFileStorageService`, then persists a `StorageObject` metadata row (key, content type, size, uploader, timestamp) via `IStorageRepository`, and returns both in one call.
+- **`IStorageService`/`StorageService`** (`LF.Application/Services/Storage`, registered and running inside `LF.WebApi`) exposes `UploadMediaAsync(StorageObjectType, ...)`: it uploads the file to the `storage` MinIO bucket via `IFileStorageService`, then persists a `StorageObject` metadata row (key, content type, size, uploader, timestamp) via `IStorageRepository`, and returns both in one call. `UploadImageAsync` (used by the cover-image flow) is now a thin delegation to `UploadMediaAsync(StorageObjectType.Image, ...)` — object keys stay `images/{guid}{ext}` for images, with `videos/{guid}{ext}` and `audio/{guid}{ext}` for lesson video/audio.
 - **`IStorageRepository`/`StorageRepository`** (`LF.Infrastructure/Persistence/Repositories`) is a thin EF wrapper around `IAppDbContext.StorageObjects` — the only repository class in the codebase (an explicit, deliberate exception; every other entity is accessed via `IAppDbContext`/`DbSet<T>` directly).
-- **Flow**: `POST /api/courses/cover-image` uploads the file and returns a `storageObjectId`; `POST /api/courses` (create) references that id (for an image cover) or a `CourseCoverColor` enum value (for a color cover) — `CourseService.CreateCourseAsync` validates and attaches it via `Course.SetImageCover`/`SetColorCover`. `GET /api/courses/{id}/cover/image` streams the stored bytes back, the same blob-then-object-URL pattern as the avatar endpoint.
+- **Cover flow**: `POST /api/courses/cover-image` uploads the file and returns a `storageObjectId`; `POST /api/courses` (create) references that id (for an image cover) or a `CourseCoverColor` enum value (for a color cover) — `CourseService.CreateCourseAsync` validates and attaches it via `Course.SetImageCover`/`SetColorCover`. `GET /api/courses/{id}/cover/image` streams the stored bytes back, the same blob-then-object-URL pattern as the avatar endpoint.
+- **Lesson media flow**: `POST /api/courses/lesson-media` uploads a single file — the target `StorageObjectType` (Image/Video/Audio) is inferred from the file's content type, not passed separately — and returns a `storageObjectId`. The lesson editor uploads media eagerly as each file is picked, then `PUT .../lessons/{id}/parts` bulk-replaces the lesson's ordered part list, referencing already-uploaded media by id. `GET .../lessons/{id}/parts/{partId}/media` streams a part's media back — once from the course-authoring side (ownership-checked) and once from the enrollment side (`/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{partId}/media`, enrollment-ownership-checked) — so a student never needs course-authoring permissions just to view a lesson they're enrolled in.
 - Predefined colors (`CourseCoverColor`: Coral, Ocean, Forest, Amber, Slate, Berry) are backend-validated enum values, not free text — their hex values live as CSS custom properties (`--color-cover-*`) in `lf.webapp/src/main.css`, with separate light/dark-theme variants.
 
 ### Admin area
@@ -149,11 +151,12 @@ Users with `Role = Admin` get an "Administration" entry point in the SPA header 
 - **Self-protection**: an admin can't change their own role or delete their own account — `AdminUserService` throws `SelfAdministrationException`, mapped to `409 Conflict`, checked server-side and mirrored client-side (disabled row actions) so it can't be worked around by calling the API directly.
 - **Testing without a real PMI/Google login**: the dev-login shortcut (`GET /api/dev-auth/{role}`) also accepts `Admin`, alongside the original Student/Instructor/CourseCreator personas.
 
-### File storage (avatars & course covers)
+### File storage (avatars, course covers & lesson media)
 
-- Two MinIO buckets, both provisioned by a small `IHostedService` (`MinioBucketInitializer`) on `LF.WebApi` startup: `avatars` (user avatars) and `storage` (course cover images, keyed as a separate `IFileStorageService` instance via .NET keyed DI).
+- Two MinIO buckets, both provisioned by a small `IHostedService` (`MinioBucketInitializer`) on `LF.WebApi` startup: `avatars` (user avatars) and `storage` (course cover images and lesson media, keyed as a separate `IFileStorageService` instance via .NET keyed DI).
 - Avatar upload (`POST /api/profile/avatar`) validates content-type (PNG/JPEG/WEBP) and size (≤5 MB), stores the file under a fresh `avatars/{userId}/{guid}{ext}` key, persists the key via `ProfileService.UpdateAvatarAsync` → gRPC → Postgres, and deletes the previous object. Download (`GET /api/profile/avatar`) streams the stored object, or falls back to a bundled default SVG (`LF.WebApi/wwwroot/images/default-avatar.svg`) when the user has no custom avatar.
 - Course cover image upload (`POST /api/courses/cover-image`) follows the same size/content-type rules, stores the file under `images/{guid}{ext}` in the `storage` bucket, and returns a `StorageObject` id for the course-creation form to reference (see above).
+- Lesson media upload (`POST /api/courses/lesson-media`) accepts PNG/JPEG/WEBP/GIF images (≤5 MB), MP4/WEBM video (≤200 MB), or MPEG/WAV/OGG/WEBM audio (≤50 MB) — the content type alone determines both the `StorageObjectType` and which limit applies. Files land under `videos/{guid}{ext}` / `audio/{guid}{ext}` / `images/{guid}{ext}` in the same `storage` bucket as cover images; the size limits are current defaults, not product-reviewed final numbers.
 - MinIO is never reachable from the browser, in Aspire dev orchestration or in `docker-compose.yml` — the same internal-only-network posture as Postgres.
 
 ## Project structure
@@ -193,7 +196,7 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 | Frontend | Vue 3 (Composition API) + Vite, Pinia, vue-router, vue-i18n (en/ru), Vuestic UI, Tailwind CSS v4, axios |
 | Containerization | Multi-stage Dockerfiles (Node build → .NET SDK build → ASP.NET runtime), Docker Compose for production |
 
-**Not yet decided / explicitly deferred:** caching (no HybridCache/Redis), inter-service messaging (no Wolverine/MassTransit — gRPC direct calls only), editing course settings after creation, and course covers on the student-facing catalog/active/finished views (creators see their own covers today; the browse/enrolled views don't render them yet).
+**Not yet decided / explicitly deferred:** caching (no HybridCache/Redis), inter-service messaging (no Wolverine/MassTransit — gRPC direct calls only), editing course settings after creation, course covers on the student-facing catalog/active/finished views (creators see their own covers today; the browse/enrolled views don't render them yet), and the lesson video/audio upload size limits (200 MB / 50 MB) — current placeholders, not yet verified against Kestrel/dev-proxy request-body-size limits or signed off as final by anyone but the implementer.
 
 ## Getting started
 

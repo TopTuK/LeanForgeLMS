@@ -1,3 +1,5 @@
+using LF.AppDomain.Models.Course.Enums;
+
 namespace LF.Application.ModelDto.Enrollment;
 
 public sealed class EnrollmentSummaryDto
@@ -12,4 +14,8 @@ public sealed class EnrollmentSummaryDto
     public int ProgressPercent { get; init; }
     public DateTime EnrolledAt { get; init; }
     public DateTime? CompletedAt { get; init; }
+    public CourseCoverType CoverType { get; init; }
+    public CourseCoverColor? CoverColor { get; init; }
+    public string? CoverImageKey { get; init; }
+    public string? CoverImageContentType { get; init; }
 }

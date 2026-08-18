@@ -1,5 +1,6 @@
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
+using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
-            .Where(c => c.IsPublished && !enrolledCourseIds.Contains(c.Id));
+            .Include(c => c.CoverImageStorageObject)
+            .Where(c => c.IsPublished && c.CreatedByUserId != actingUserId && !enrolledCourseIds.Contains(c.Id));
 
         var totalCount = await query.CountAsync();
         var courses = await query
@@ -45,6 +47,10 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             CategoryId = c.CategoryId,
             CategoryName = c.Category.Name,
             LessonCount = c.Chapters.Sum(ch => ch.Lessons.Count),
+            CoverType = c.CoverType,
+            CoverColor = c.CoverColor,
+            CoverImageKey = c.CoverImageStorageObject?.ObjectKey,
+            CoverImageContentType = c.CoverImageStorageObject?.ContentType,
         }).ToList();
 
         return new PagedCourseCatalogDto { Items = items, TotalCount = totalCount };
@@ -57,6 +63,9 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         var course = await LoadCourseAsync(courseId);
         if (course is null)
             throw new InvalidOperationException($"Course {courseId} not found.");
+
+        if (course.CreatedByUserId == actingUserId)
+            throw new SelfEnrollmentException("You cannot enroll in a course you created.");
 
         if (!course.IsPublished)
             throw new InvalidOperationException("Cannot enroll in an unpublished course.");
@@ -90,6 +99,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .Include(c => c.CoverImageStorageObject)
             .Where(c => courseIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id);
 
@@ -112,6 +122,10 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                     ProgressPercent = e.ProgressPercent(totalLessons),
                     EnrolledAt = e.EnrolledAt,
                     CompletedAt = e.CompletedAt,
+                    CoverType = course.CoverType,
+                    CoverColor = course.CoverColor,
+                    CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
+                    CoverImageContentType = course.CoverImageStorageObject?.ContentType,
                 };
             })];
     }
@@ -159,6 +173,22 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         return ToDetailDto(enrollment, course);
     }
 
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    {
+        _logger.LogInformation("EnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+
+        // No ownership/enrollment check beyond "published" — a course can only be enrolled in once
+        // published, so this single check already covers both the catalog and enrolled-course cases.
+        var course = await _dbContext.Courses.AsNoTracking()
+            .Include(c => c.CoverImageStorageObject)
+            .FirstOrDefaultAsync(c => c.Id == courseId && c.IsPublished);
+
+        if (course?.CoverImageStorageObject is not { } storageObject)
+            return null;
+
+        return new CourseCoverDto { CoverImageKey = storageObject.ObjectKey, CoverImageContentType = storageObject.ContentType };
+    }
+
     private static void EnsureOwnership(DomainEnrollment enrollment, int actingUserId, bool isAdmin)
     {
         if (!isAdmin && enrollment.UserId != actingUserId)
@@ -171,6 +201,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .Include(c => c.Category)
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.StorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()
@@ -197,6 +229,18 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                         Content = l.Content,
                         SortOrder = l.SortOrder,
                         IsCompleted = enrollment.CompletedLessonIds.Contains(l.Id),
+                        Parts = [.. l.Parts
+                            .OrderBy(p => p.SortOrder)
+                            .Select(p => new LessonPartDto
+                            {
+                                Id = p.Id,
+                                PartType = p.PartType,
+                                SortOrder = p.SortOrder,
+                                Html = p.Html,
+                                StorageObjectId = p.StorageObjectId,
+                                StorageObjectKey = p.StorageObject?.ObjectKey,
+                                StorageObjectContentType = p.StorageObject?.ContentType,
+                            })],
                     })],
             })],
     };

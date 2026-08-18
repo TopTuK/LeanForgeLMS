@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Models.Course.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
@@ -277,6 +278,52 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         return course.Adapt<CourseDetailDto>();
     }
 
+    public async Task<CourseDetailDto?> ReplaceLessonPartsAsync(
+        int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::ReplaceLessonPartsAsync: called with CourseId={CourseId} ChapterId={ChapterId} LessonId={LessonId} ActingUserId={ActingUserId}",
+            courseId, chapterId, lessonId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var chapter = course.Chapters.FirstOrDefault(c => c.Id == chapterId);
+        var lesson = chapter?.Lessons.FirstOrDefault(l => l.Id == lessonId);
+        if (lesson is null)
+            return null;
+
+        var storageObjectIds = parts
+            .Where(p => p.StorageObjectId is not null)
+            .Select(p => p.StorageObjectId!.Value)
+            .Distinct()
+            .ToList();
+
+        var storageObjectsById = storageObjectIds.Count == 0
+            ? []
+            : await _dbContext.StorageObjects.Where(s => storageObjectIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id);
+
+        var inputs = new List<LessonPartInput>(parts.Count);
+        foreach (var part in parts)
+        {
+            StorageObject? storageObject = null;
+            if (part.StorageObjectId is { } storageObjectId)
+            {
+                if (!storageObjectsById.TryGetValue(storageObjectId, out storageObject))
+                    throw new ArgumentException($"Storage object {storageObjectId} not found.", nameof(parts));
+            }
+
+            inputs.Add(new LessonPartInput(part.PartType, part.Html, storageObject));
+        }
+
+        lesson.ReplaceParts(inputs);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
     public async Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseService::PublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
@@ -307,6 +354,8 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         _dbContext.Courses
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.StorageObject)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -316,6 +365,8 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .AsNoTracking()
             .Include(c => c.Chapters)
             .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.StorageObject)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);

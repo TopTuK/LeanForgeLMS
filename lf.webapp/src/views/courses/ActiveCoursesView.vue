@@ -3,7 +3,8 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
-import { fetchMyEnrollments } from '@/services/enrollmentService';
+import { fetchMyEnrollments, fetchCourseCoverImageObjectUrl } from '@/services/enrollmentService';
+import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -11,12 +12,14 @@ const router = useRouter();
 const enrollments = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
+const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
 
 async function loadEnrollments() {
   loading.value = true;
   errorMessage.value = '';
   try {
     enrollments.value = await fetchMyEnrollments({ status: 'active' });
+    await loadCoverImages(enrollments.value, (e) => e.courseId);
   } catch {
     errorMessage.value = t('courses.active.load_error');
   } finally {
@@ -74,6 +77,9 @@ function onContinue(enrollmentId) {
         :description="item.courseShortIntroduction"
         :category="item.categoryName"
         :progress="item.progressPercent"
+        :cover-type="item.coverType"
+        :cover-color="item.coverColor"
+        :cover-image-url="coverImageUrls[item.courseId] ?? null"
         @continue="onContinue(item.id)"
       />
     </div>

@@ -11,12 +11,6 @@
   --color-accent-coral: #ec683c;
   --color-accent-coral-dark: #d4552a;
   --color-accent-soft: #fef0eb;
-  --color-cover-coral: #ec683c;
-  --color-cover-ocean: #2f6690;
-  --color-cover-forest: #3a7d44;
-  --color-cover-amber: #d9a441;
-  --color-cover-slate: #4b5563;
-  --color-cover-berry: #8e3b6b;
   --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --radius-card: 0.5rem;
   --radius-pill: 999px;
@@ -32,6 +26,12 @@
   --industrial-hero-start: rgba(255, 255, 255, 0.98);
   --industrial-hero-middle: rgba(255, 255, 255, 0.93);
   --industrial-hero-end: rgba(254, 240, 235, 0.78);
+  --color-cover-coral: #ec683c;
+  --color-cover-ocean: #2f6690;
+  --color-cover-forest: #3a7d44;
+  --color-cover-amber: #d9a441;
+  --color-cover-slate: #4b5563;
+  --color-cover-berry: #8e3b6b;
 }
 
 html[data-theme="dark"] {
