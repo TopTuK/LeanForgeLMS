@@ -3,13 +3,14 @@ defineProps({
     icon: {
         type: String,
         required: true,
-        validator: (value) =>
-            ['backend', 'frontend', 'devops', 'databases', 'architecture', 'career'].includes(value),
+        validator: (value) => ['llm', 'kanban'].includes(value),
     },
     title: { type: String, required: true },
     description: { type: String, required: true },
     duration: { type: String, required: true },
     category: { type: String, required: true },
+    cta: { type: String, default: '' },
+    to: { type: [String, Object], default: null },
 });
 </script>
 
@@ -17,45 +18,37 @@ defineProps({
   <article class="flat-card rounded-card p-6 flex flex-col gap-4 h-full hover:border-ink/30 transition">
     <div class="w-11 h-11 rounded-md bg-accent-soft flex items-center justify-center text-accent-coral">
       <svg
-        v-if="icon === 'backend'"
+        v-if="icon === 'llm'"
         width="22"
         height="22"
         viewBox="0 0 24 24"
         fill="none"
       >
         <rect
-          x="3"
-          y="4"
-          width="18"
-          height="6"
-          rx="1.5"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-        <rect
-          x="3"
-          y="14"
-          width="18"
-          height="6"
-          rx="1.5"
+          x="7"
+          y="7"
+          width="10"
+          height="10"
+          rx="2"
           stroke="currentColor"
           stroke-width="1.5"
         />
         <circle
-          cx="7"
-          cy="7"
-          r="1"
-          fill="currentColor"
+          cx="12"
+          cy="12"
+          r="2"
+          stroke="currentColor"
+          stroke-width="1.5"
         />
-        <circle
-          cx="7"
-          cy="17"
-          r="1"
-          fill="currentColor"
+        <path
+          d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
         />
       </svg>
       <svg
-        v-else-if="icon === 'frontend'"
+        v-else-if="icon === 'kanban'"
         width="22"
         height="22"
         viewBox="0 0 24 24"
@@ -71,83 +64,33 @@ defineProps({
           stroke-width="1.5"
         />
         <path
-          d="M3 8H21"
+          d="M9 4v16M15 4v16"
           stroke="currentColor"
           stroke-width="1.5"
         />
-      </svg>
-      <svg
-        v-else-if="icon === 'devops'"
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 3a9 9 0 0 1 9 9M12 3a9 9 0 0 0-9 9M21 12a9 9 0 0 1-9 9M3 12a9 9 0 0 0 9 9"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
+        <rect
+          x="5"
+          y="7"
+          width="2"
+          height="5"
+          rx="0.5"
+          fill="currentColor"
         />
-        <circle
-          cx="12"
-          cy="12"
-          r="2.5"
-          stroke="currentColor"
-          stroke-width="1.5"
+        <rect
+          x="11"
+          y="7"
+          width="2"
+          height="8"
+          rx="0.5"
+          fill="currentColor"
         />
-      </svg>
-      <svg
-        v-else-if="icon === 'databases'"
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <ellipse
-          cx="12"
-          cy="6"
-          rx="8"
-          ry="3"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-        <path
-          d="M4 6V18C4 19.6569 7.58172 21 12 21C16.4183 21 20 19.6569 20 18V6"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-        <path
-          d="M4 12C4 13.6569 7.58172 15 12 15C16.4183 15 20 13.6569 20 12"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-      </svg>
-      <svg
-        v-else-if="icon === 'architecture'"
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M4 7h6v6H4V7zm10 0h6v4h-6V7zM4 15h6v4H4v-4zm10 2h6v2h-6v-2z"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-      </svg>
-      <svg
-        v-else
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-      >
-        <path
-          d="M12 3l2.2 6.6H21l-5.4 3.9 2.1 6.5L12 16.8 6.3 20l2.1-6.5L3 9.6h6.8L12 3z"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linejoin="round"
+        <rect
+          x="17"
+          y="7"
+          width="2"
+          height="3"
+          rx="0.5"
+          fill="currentColor"
         />
       </svg>
     </div>
@@ -163,5 +106,14 @@ defineProps({
     <p class="text-sm text-ink-muted flex-1 leading-relaxed">
       {{ description }}
     </p>
+
+    <router-link
+      v-if="cta && to"
+      :to="to"
+      class="inline-flex items-center gap-2 w-fit text-sm font-semibold text-accent-coral hover:text-accent-coral-dark transition border-b border-accent-coral/40 hover:border-accent-coral-dark"
+    >
+      {{ cta }}
+      <span aria-hidden="true">→</span>
+    </router-link>
   </article>
 </template>

@@ -1,22 +1,15 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { availableLocales, setLocale, i18n } from '@/i18n/index.js';
-import { currentTheme, toggleTheme } from '@/theme/index.js';
 import { useAuthStore } from '@/stores/authStore';
+import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
+import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
 import logo from '@/assets/logo.svg';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const isMobileMenuOpen = ref(false);
-
-const currentLocale = computed(() => i18n.global.locale.value);
-const nextLocale = computed(() => availableLocales.find((locale) => locale.code !== currentLocale.value));
-
-function toggleLocale() {
-    if (nextLocale.value) setLocale(nextLocale.value.code);
-}
 
 function closeMobileMenu() {
     isMobileMenuOpen.value = false;
@@ -76,58 +69,8 @@ async function onLogout() {
       </nav>
 
       <div class="hidden md:flex items-center gap-4">
-        <button
-          type="button"
-          class="theme-toggle"
-          :aria-label="$t(currentTheme === 'dark' ? 'nav.theme_light' : 'nav.theme_dark')"
-          :title="$t(currentTheme === 'dark' ? 'nav.theme_light' : 'nav.theme_dark')"
-          @click="toggleTheme"
-        >
-          <svg
-            v-if="currentTheme === 'light'"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 3V1M12 23v-2M3 12H1M23 12h-2M5.64 5.64 4.22 4.22M19.78 19.78l-1.42-1.42M18.36 5.64l1.42-1.42M4.22 19.78l1.42-1.42"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-            />
-            <circle
-              cx="12"
-              cy="12"
-              r="4"
-              stroke="currentColor"
-              stroke-width="1.7"
-            />
-          </svg>
-          <svg
-            v-else
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M20.5 15.2A8.8 8.8 0 0 1 8.8 3.5 9 9 0 1 0 20.5 15.2Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
-          @click="toggleLocale"
-        >
-          {{ nextLocale?.code.toUpperCase() }}
-        </button>
+        <ThemeToggleButton />
+        <LocaleToggleButton />
         <router-link
           :to="{ name: 'Profile' }"
           class="app-header__profile-link"
@@ -228,56 +171,8 @@ async function onLogout() {
       </router-link>
       <div class="flex items-center justify-between px-6 py-3 border-t border-border-subtle">
         <div class="flex items-center gap-4">
-          <button
-            type="button"
-            class="theme-toggle"
-            :aria-label="$t(currentTheme === 'dark' ? 'nav.theme_light' : 'nav.theme_dark')"
-            @click="toggleTheme"
-          >
-            <svg
-              v-if="currentTheme === 'light'"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="4"
-                stroke="currentColor"
-                stroke-width="1.7"
-              />
-              <path
-                d="M12 3V1M12 23v-2M3 12H1M23 12h-2"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-              />
-            </svg>
-            <svg
-              v-else
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M20.5 15.2A8.8 8.8 0 0 1 8.8 3.5 9 9 0 1 0 20.5 15.2Z"
-                stroke="currentColor"
-                stroke-width="1.7"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            class="text-sm font-medium text-ink-muted hover:text-ink transition"
-            @click="toggleLocale"
-          >
-            {{ nextLocale?.code.toUpperCase() }}
-          </button>
+          <ThemeToggleButton />
+          <LocaleToggleButton />
         </div>
         <button
           type="button"
@@ -329,24 +224,6 @@ async function onLogout() {
     height: 1.75rem;
     border-radius: 999px;
     object-fit: cover;
-}
-
-.theme-toggle {
-    display: inline-flex;
-    width: 2.25rem;
-    height: 2.25rem;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-ink-muted);
-    background: var(--color-surface-900);
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 999px;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.theme-toggle:hover {
-    color: var(--color-ink);
-    border-color: var(--color-ink-faint);
 }
 
 .header-signin {

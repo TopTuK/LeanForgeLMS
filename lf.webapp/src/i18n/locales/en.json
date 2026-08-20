@@ -4,12 +4,12 @@
         "author_name": "Sergey Sidorov",
         "created_date": "2026"
     },
-    "home_view_title": "Lean Forge LMS — Online School for Developers",
+    "home_view_title": "Lean Forge LMS — Practical Skills for IT Teams",
     "nav": {
         "courses": "Courses",
         "events": "Events",
         "certificates": "Certificates",
-        "reviews": "Reviews",
+        "faq": "FAQ",
         "contacts": "Contacts",
         "login": "Enter school",
         "profile": "Profile",
@@ -341,152 +341,57 @@
     "home": {
         "hero": {
             "brand_line": "Lean Forge LMS",
-            "headline": "Become more valuable on the job market",
-            "subheadline": "We help developers write code and design systems that survive production.",
-            "cta_primary": "Browse courses",
-            "trust_line": "Practice in every course · no fluff · real code review"
+            "headline": "Practical skills for IT teams, from agents to flow",
+            "subheadline": "A learning platform for developers, project and product managers, and system analysts — starting with two hands-on courses: Agentic Development with LLMs, and Kanban in practice.",
+            "cta_primary": "See the courses",
+            "trust_line": "Practice-first · real tools · one instructor, no assembly line"
         },
-        "stats": {
-            "completion_value": "70%",
-            "completion_label": "of students finish each course on average",
-            "practice_value": "1",
-            "practice_label": "hands-on practice with every expert",
-            "courses_value": "8",
-            "courses_label": "author-led courses, not a factory line",
-            "rating_value": "4.9",
-            "rating_label": "average graduate rating"
-        },
-        "courses": {
-            "title": "Our courses",
-            "show_more": "{n} more courses",
-            "show_less": "Show less",
-            "filters": {
-                "all": "All",
-                "backend": "Backend",
-                "frontend": "Frontend",
-                "devops": "DevOps",
-                "architecture": "Design",
-                "career": "Career"
-            },
+        "audience": {
+            "title": "Who it's for",
+            "subtitle": "Built for IT teams, not developers alone.",
             "items": {
-                "backend": {
-                    "title": ".NET Backend Engineering",
-                    "description": "A 5-week course on APIs that hold under load: ASP.NET Core, EF Core, clean architecture.",
-                    "duration": "5 weeks",
-                    "category": "Backend",
-                    "filter": "backend"
+                "developer": {
+                    "title": "Developers",
+                    "description": "Get hands-on with agentic development workflows and see where AI agents actually fit in day-to-day engineering."
                 },
-                "frontend": {
-                    "title": "Vue 3 Frontend Engineering",
-                    "description": "Composition API, state management, and component architecture for real SPAs.",
-                    "duration": "5 weeks",
-                    "category": "Frontend",
-                    "filter": "frontend"
+                "manager": {
+                    "title": "Project & product managers",
+                    "description": "Run delivery with Kanban and understand what agentic development changes for your roadmap and your team."
                 },
-                "devops": {
-                    "title": "DevOps & CI/CD",
-                    "description": "A 4-week course on Docker, pipelines, and deploys without 2 a.m. pages.",
-                    "duration": "4 weeks",
-                    "category": "DevOps",
-                    "filter": "devops"
+                "analyst": {
+                    "title": "System analysts",
+                    "description": "Use LLM agents to speed up specs and analysis, and structure the flow of work with Kanban."
                 },
-                "databases": {
-                    "title": "Databases in Practice",
-                    "description": "Schema design, indexing, and queries that do not choke on real data.",
-                    "duration": "4 weeks",
-                    "category": "Backend",
-                    "filter": "backend"
-                },
-                "architecture": {
-                    "title": "Systems Analysis",
-                    "description": "A 5-week course on designing systems — new ones you will not rewrite, old ones you can untangle and speed up.",
-                    "duration": "5 weeks",
-                    "category": "Design",
-                    "filter": "architecture"
-                },
-                "communications": {
-                    "title": "System Communications",
-                    "description": "A 7-week course on designing service boundaries so you do not end up with a distributed monolith.",
-                    "duration": "7 weeks",
-                    "category": "Design",
-                    "filter": "architecture"
-                },
-                "simple_code": {
-                    "title": "Simple Code",
-                    "description": "A 5-week course on writing simple code that solves hard problems and stays maintainable.",
-                    "duration": "5 weeks",
-                    "category": "Design",
-                    "filter": "architecture"
-                },
-                "career": {
-                    "title": "Professional Growth",
-                    "description": "A 4-week course on growing yourself and building systemic growth for your team.",
-                    "duration": "4 weeks",
-                    "category": "Career",
-                    "filter": "career"
+                "other": {
+                    "title": "Other IT specialists",
+                    "description": "QA, DevOps, support — anyone whose job just started including AI agents and flow-based delivery."
                 }
             }
         },
-        "testimonials": {
-            "title": "Reviews after the course",
-            "show_more": "More reviews",
-            "show_less": "Show less",
-            "filters": {
-                "all": "All",
-                "difference": "How we differ",
-                "audience": "Who it is for",
-                "after": "What changed"
-            },
+        "courses": {
+            "title": "Launch courses",
+            "subtitle": "The first two courses on the platform — practical, hands-on, and built for real IT work.",
+            "cta": "Learn more",
             "items": {
-                "1": {
-                    "quote": "Finally a course without the fluff. I finished the DevOps track and used it at work the same week.",
-                    "name": "Dmitry Volkov",
-                    "role": "Backend Developer",
-                    "tag": "What changed",
-                    "filter": "after"
+                "llm_agentic": {
+                    "title": "Introduction to LLM: Agentic Development",
+                    "description": "How large language models work, and how to build and use AI agents in real development workflows — from prompts to autonomous tool use.",
+                    "duration": "New course",
+                    "category": "AI & Agents"
                 },
-                "2": {
-                    "quote": "The depth of the material stands out. Theory and practice stay aligned — they show how to do it, not just talk about it.",
-                    "name": "Anna Kravtsova",
-                    "role": "Frontend Developer",
-                    "tag": "How we differ",
-                    "filter": "difference"
-                },
-                "3": {
-                    "quote": "For mid-level+ developers who want to grow further — not another “learn a framework in a month” factory.",
-                    "name": "Igor Plotnikov",
-                    "role": "Fullstack Developer",
-                    "tag": "Who it is for",
-                    "filter": "audience"
-                },
-                "4": {
-                    "quote": "I systematized what I knew and found a role with more responsibility right after the course.",
-                    "name": "Maria Orlova",
-                    "role": "Senior Developer",
-                    "tag": "What changed",
-                    "filter": "after"
-                },
-                "5": {
-                    "quote": "Little fluff, advanced topics. First school where I actually finish every homework — and enjoy it.",
-                    "name": "Pavel Nesterov",
-                    "role": "Tech Lead",
-                    "tag": "How we differ",
-                    "filter": "difference"
-                },
-                "6": {
-                    "quote": "For people ready for the next step — mid to senior, or into team leadership.",
-                    "name": "Elena Savelyeva",
-                    "role": "Engineering Manager",
-                    "tag": "Who it is for",
-                    "filter": "audience"
+                "kanban": {
+                    "title": "Introduction to Kanban",
+                    "description": "Visualize work, limit work in progress, and manage flow — a practical Kanban course for teams shipping continuously.",
+                    "duration": "New course",
+                    "category": "Delivery"
                 }
             }
         },
         "author": {
-            "title": "About the author",
-            "subtitle": "The school is run by a practitioner, not a slide-deck theorist.",
+            "title": "Built by a practitioner",
+            "subtitle": "Not a slide-deck theorist — someone who ships.",
             "name": "Sergey Sidorov",
-            "role": "School author · project lead and product manager",
+            "role": "Founder · project lead and product manager",
             "bio": "A professional in project management and IT product development. Much of his career was spent on flagship projects at Kaspersky Lab. He removes uncertainty, drives initiatives to completion, and designs systems that survive production. .NET, architecture, systems analysis, and AI — in one skill set.",
             "highlights": [
                 "Project management",
@@ -498,59 +403,39 @@
             "cta": "Read full bio",
             "url": "https://s-sidorov.ru"
         },
-        "experts": {
-            "title": "School experts",
-            "subtitle": "We invite people for professional craft, not for big logos on a resume.",
-            "items": {
-                "1": {
-                    "name": "Anna Belova",
-                    "role": "Frontend engineer, Vue and developer experience"
-                },
-                "2": {
-                    "name": "Maxim Kozlov",
-                    "role": "DevOps and platform engineering"
-                },
-                "3": {
-                    "name": "Olga Petrova",
-                    "role": "Databases and query performance"
-                }
-            }
-        },
         "faq": {
             "title": "Questions and answers",
             "items": {
                 "1": {
-                    "question": "Do you work with companies?",
-                    "answer": "Yes. Employees can join current cohorts, or we can run a dedicated stream for your team. Company pricing is slightly higher due to contracts and paperwork."
+                    "question": "Who is Lean Forge LMS for?",
+                    "answer": "IT professionals who want practical skills, not certificates for their own sake — developers, project and product managers, system analysts, and other IT specialists."
                 },
                 "2": {
-                    "question": "What payment methods do you accept?",
-                    "answer": "Pay online by card or via internet banking. Need something else — write to support and we will figure it out."
+                    "question": "Do I need to already know how to code?",
+                    "answer": "It depends on the course. Neither launch course has a hard coding prerequisite — check each course's description before enrolling."
                 },
                 "3": {
-                    "question": "Is installment payment available?",
-                    "answer": "Yes, you can split payment into parts. Terms depend on the course — details are on the payment screen."
+                    "question": "How are courses delivered?",
+                    "answer": "Courses are self-paced inside the platform: chapters and lessons with text, images, video, and audio, with your progress tracked as you go."
                 },
                 "4": {
-                    "question": "What if the course is not a fit?",
-                    "answer": "If within the first week you realize the format is not for you, we refund without a hassle."
+                    "question": "Can I suggest a course topic?",
+                    "answer": "Yes. Email support{'@'}leanforge.dev — we keep every request, and courses can be shaped by what people actually ask for."
                 },
                 "5": {
-                    "question": "I want to suggest a course topic. How?",
-                    "answer": "Email support{'@'}leanforge.dev — we will keep the request. If we have expertise in that area, we will launch a cohort."
+                    "question": "Who built this platform?",
+                    "answer": "One person, so far — see the section above. More instructors may join as the course catalog grows."
                 }
             }
         },
         "contacts": {
             "title": "Contacts",
             "subtitle": "Questions? Write us — we reply within a day.",
-            "email_label": "Email",
-            "email_placeholder": "you{'@'}example.com",
-            "consent": "By clicking the button I agree to the personal data processing rules",
-            "subscribe": "Subscribe",
             "support": "support{'@'}leanforge.dev",
-            "newsletter_title": "We will write about new courses",
-            "newsletter_subtitle": "And offer a discount. No more than once a month."
+            "notify_title": "Get notified about new courses",
+            "notify_subtitle": "We'll email you when a new course launches — no spam, no schedule.",
+            "notify_subject": "Notify me about new courses",
+            "notify_cta": "Email us"
         }
     },
     "vuestic": {
