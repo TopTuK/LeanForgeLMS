@@ -15,3 +15,9 @@ export const completeLesson = (enrollmentId, lessonId) =>
 
 export const fetchCourseCoverImageObjectUrl = (courseId) =>
   api.get(`/enrollments/courses/${courseId}/cover/image`, { responseType: 'blob' }).then((r) => URL.createObjectURL(r.data));
+
+// Lesson media endpoints require auth, so a plain <img>/<video>/<audio> src can't hit them
+// directly (no bearer header on a browser-initiated resource fetch) — blob-fetch instead.
+export const fetchEnrollmentLessonMediaObjectUrl = (enrollmentId, lessonId, partId) =>
+  api.get(`/enrollments/${enrollmentId}/lessons/${lessonId}/parts/${partId}/media`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));

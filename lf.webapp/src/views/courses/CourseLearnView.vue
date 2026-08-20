@@ -1,8 +1,8 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { fetchEnrollment, completeLesson } from '@/services/enrollmentService';
+import { fetchEnrollment, completeLesson, fetchEnrollmentLessonMediaObjectUrl } from '@/services/enrollmentService';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -47,6 +47,34 @@ const selectedLessonParts = computed(() => {
   }));
 });
 
+// Media endpoints require auth, so a plain <img>/<video>/<audio> src can't hit them directly
+// (no bearer header on a browser-initiated resource fetch) — blob-fetch and cache per part id.
+const mediaObjectUrls = ref({});
+
+function clearMediaObjectUrls() {
+  Object.values(mediaObjectUrls.value).forEach((url) => URL.revokeObjectURL(url));
+  mediaObjectUrls.value = {};
+}
+
+async function loadMediaForSelectedLesson() {
+  const lesson = selectedLesson.value;
+  if (!lesson) return;
+
+  const pending = selectedLessonParts.value.filter(
+    (part) => part.type !== 'text' && part.mediaUrl && !mediaObjectUrls.value[part.id],
+  );
+  await Promise.all(pending.map(async (part) => {
+    try {
+      const objectUrl = await fetchEnrollmentLessonMediaObjectUrl(enrollmentId.value, lesson.id, part.id);
+      mediaObjectUrls.value = { ...mediaObjectUrls.value, [part.id]: objectUrl };
+    } catch {
+      // Leave unresolved; the media block just won't render for this part.
+    }
+  }));
+}
+
+onBeforeUnmount(clearMediaObjectUrls);
+
 async function load() {
   loading.value = true;
   notFound.value = false;
@@ -57,6 +85,7 @@ async function load() {
     enrollment.value = await fetchEnrollment(enrollmentId.value);
     const firstIncomplete = flatLessons.value.find((l) => !l.isCompleted);
     selectedLessonId.value = (firstIncomplete ?? flatLessons.value[0])?.id ?? null;
+    await loadMediaForSelectedLesson();
   } catch (err) {
     if (err.response?.status === 404) notFound.value = true;
     else if (err.response?.status === 403) forbidden.value = true;
@@ -71,6 +100,7 @@ watch(() => route.params.enrollmentId, load);
 
 function selectLesson(lessonId) {
   selectedLessonId.value = lessonId;
+  loadMediaForSelectedLesson();
 }
 
 async function markComplete() {
@@ -218,21 +248,21 @@ function goToCourses() {
                   class="course-learn__media"
                 >
                   <img
-                    v-if="part.type === 'image' && part.mediaUrl"
-                    :src="part.mediaUrl"
+                    v-if="part.type === 'image' && mediaObjectUrls[part.id]"
+                    :src="mediaObjectUrls[part.id]"
                     alt=""
                     class="course-learn__media-image"
                   >
                   <video
-                    v-else-if="part.type === 'video' && part.mediaUrl"
-                    :src="part.mediaUrl"
+                    v-else-if="part.type === 'video' && mediaObjectUrls[part.id]"
+                    :src="mediaObjectUrls[part.id]"
                     class="course-learn__media-player"
                     controls
                     preload="metadata"
                   />
                   <audio
-                    v-else-if="part.type === 'audio' && part.mediaUrl"
-                    :src="part.mediaUrl"
+                    v-else-if="part.type === 'audio' && mediaObjectUrls[part.id]"
+                    :src="mediaObjectUrls[part.id]"
                     class="course-learn__media-player course-learn__media-player--audio"
                     controls
                     preload="metadata"
@@ -413,6 +443,7 @@ function goToCourses() {
   font-size: 0.88rem;
   text-align: left;
   cursor: pointer;
+  overflow-wrap: anywhere;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -441,10 +472,12 @@ function goToCourses() {
 }
 
 .course-learn__content {
+  min-width: 0;
   padding: 1.75rem;
   background: var(--industrial-panel);
   border: 1px solid var(--industrial-line-strong);
   border-radius: 0.4rem;
+  overflow-wrap: anywhere;
 }
 
 .course-learn__content-header {
@@ -499,6 +532,7 @@ function goToCourses() {
   color: var(--color-ink);
   font-size: 1rem;
   line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
 .course-learn__prose :deep(h2) {

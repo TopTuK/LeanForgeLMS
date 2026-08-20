@@ -93,7 +93,10 @@ function applyLesson(courseData) {
   savedApiContent.value = lesson.content ?? '';
   savedTitle.value = title.value;
   savedIncludeInPreview.value = includeInPreview.value;
-  partStore.ensureLoaded(lessonId.value, savedApiContent.value, lesson.parts ?? []);
+  partStore.ensureLoaded(lessonId.value, savedApiContent.value, lesson.parts ?? [], {
+    courseId: courseId.value,
+    chapterId: chapterId.value,
+  });
   return true;
 }
 

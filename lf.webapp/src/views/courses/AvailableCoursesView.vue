@@ -1,11 +1,13 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
 import { fetchCatalog, enroll, fetchCourseCoverImageObjectUrl } from '@/services/enrollmentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
+const router = useRouter();
 
 const courses = ref([]);
 const loading = ref(false);
@@ -33,11 +35,10 @@ async function onEnroll(courseId) {
   enrollingId.value = courseId;
   errorMessage.value = '';
   try {
-    await enroll(courseId);
-    courses.value = courses.value.filter((c) => c.id !== courseId);
+    const enrollment = await enroll(courseId);
+    router.push({ name: 'CourseLearn', params: { enrollmentId: enrollment.id } });
   } catch {
     errorMessage.value = t('courses.available.enroll_error');
-  } finally {
     enrollingId.value = null;
   }
 }
