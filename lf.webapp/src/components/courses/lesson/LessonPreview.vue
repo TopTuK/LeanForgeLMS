@@ -97,10 +97,12 @@ function mediaPlaceholder(part) {
 
 <style scoped>
 .lesson-preview {
+  min-width: 0;
   padding: 1.75rem;
   background: var(--industrial-panel);
   border: 1px solid var(--industrial-line-strong);
   border-radius: 0.4rem;
+  overflow-wrap: anywhere;
 }
 
 .lesson-preview__header {

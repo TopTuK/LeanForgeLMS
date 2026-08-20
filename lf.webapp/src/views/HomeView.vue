@@ -1,126 +1,25 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CourseCard from '@/components/home/CourseCard.vue';
-import TestimonialCard from '@/components/home/TestimonialCard.vue';
+import AudienceCard from '@/components/home/AudienceCard.vue';
 import AuthorCard from '@/components/home/AuthorCard.vue';
-import ExpertCard from '@/components/home/ExpertCard.vue';
 import FaqItem from '@/components/home/FaqItem.vue';
 
 const { tm, t } = useI18n();
 
-const COURSE_KEYS = [
-    'backend',
-    'frontend',
-    'devops',
-    'databases',
-    'architecture',
-    'communications',
-    'simple_code',
-    'career',
+const COURSES = [
+    { key: 'llm_agentic', icon: 'llm' },
+    { key: 'kanban', icon: 'kanban' },
 ];
 
-const COURSE_ICONS = {
-    backend: 'backend',
-    frontend: 'frontend',
-    devops: 'devops',
-    databases: 'databases',
-    architecture: 'architecture',
-    communications: 'architecture',
-    simple_code: 'architecture',
-    career: 'career',
-};
-
-const COURSE_FILTERS = ['all', 'backend', 'frontend', 'devops', 'architecture', 'career'];
-const REVIEW_FILTERS = ['all', 'difference', 'audience', 'after'];
-const TESTIMONIAL_KEYS = ['1', '2', '3', '4', '5', '6'];
-const EXPERT_KEYS = ['1', '2', '3'];
+const AUDIENCE_KEYS = ['developer', 'manager', 'analyst', 'other'];
 const FAQ_KEYS = ['1', '2', '3', '4', '5'];
 
 const authorHighlights = computed(() => {
     const items = tm('home.author.highlights');
     return Array.isArray(items) ? items : [];
 });
-
-const INITIAL_COURSE_COUNT = 4;
-const INITIAL_REVIEW_COUNT = 3;
-
-const courseFilter = ref('all');
-const reviewFilter = ref('all');
-const coursesExpanded = ref(false);
-const reviewsExpanded = ref(false);
-const newsletterEmail = ref('');
-
-const stats = [
-    { value: 'home.stats.completion_value', label: 'home.stats.completion_label' },
-    { value: 'home.stats.practice_value', label: 'home.stats.practice_label' },
-    { value: 'home.stats.courses_value', label: 'home.stats.courses_label' },
-    { value: 'home.stats.rating_value', label: 'home.stats.rating_label' },
-];
-
-const filteredCourses = computed(() => {
-    const items = COURSE_KEYS.map((key) => {
-        const meta = tm(`home.courses.items.${key}`);
-        return {
-            key,
-            icon: COURSE_ICONS[key],
-            filter: typeof meta === 'object' && meta?.filter ? meta.filter : key,
-        };
-    });
-
-    if (courseFilter.value === 'all') return items;
-    return items.filter((item) => item.filter === courseFilter.value);
-});
-
-const visibleCourses = computed(() => {
-    if (coursesExpanded.value || filteredCourses.value.length <= INITIAL_COURSE_COUNT) {
-        return filteredCourses.value;
-    }
-    return filteredCourses.value.slice(0, INITIAL_COURSE_COUNT);
-});
-
-const hiddenCourseCount = computed(() =>
-    Math.max(0, filteredCourses.value.length - INITIAL_COURSE_COUNT),
-);
-
-const filteredTestimonials = computed(() => {
-    const items = TESTIMONIAL_KEYS.map((key) => {
-        const meta = tm(`home.testimonials.items.${key}`);
-        return {
-            key,
-            filter: typeof meta === 'object' && meta?.filter ? meta.filter : 'all',
-        };
-    });
-
-    if (reviewFilter.value === 'all') return items;
-    return items.filter((item) => item.filter === reviewFilter.value);
-});
-
-const visibleTestimonials = computed(() => {
-    if (reviewsExpanded.value || filteredTestimonials.value.length <= INITIAL_REVIEW_COUNT) {
-        return filteredTestimonials.value;
-    }
-    return filteredTestimonials.value.slice(0, INITIAL_REVIEW_COUNT);
-});
-
-const hiddenReviewCount = computed(() =>
-    Math.max(0, filteredTestimonials.value.length - INITIAL_REVIEW_COUNT),
-);
-
-function onCourseFilter(filter) {
-    courseFilter.value = filter;
-    coursesExpanded.value = false;
-}
-
-function onReviewFilter(filter) {
-    reviewFilter.value = filter;
-    reviewsExpanded.value = false;
-}
-
-function onNewsletterSubmit(event) {
-    event.preventDefault();
-    newsletterEmail.value = '';
-}
 </script>
 
 <template>
@@ -200,19 +99,28 @@ function onNewsletterSubmit(event) {
       </div>
     </section>
 
-    <section class="industrial-band border-y border-border-subtle">
-      <div class="container mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 py-14">
-        <div
-          v-for="stat in stats"
-          :key="stat.value"
-          class="flex flex-col gap-2"
-        >
-          <p class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
-            {{ $t(stat.value) }}
+    <section
+      id="audience"
+      class="industrial-band border-y border-border-subtle py-20 md:py-24"
+    >
+      <div class="container mx-auto px-6">
+        <div class="max-w-2xl mb-10">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+            {{ $t('home.audience.title') }}
+          </h2>
+          <p class="mt-3 text-ink-muted leading-relaxed">
+            {{ $t('home.audience.subtitle') }}
           </p>
-          <p class="text-sm text-ink-muted leading-snug max-w-[16rem]">
-            {{ $t(stat.label) }}
-          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <AudienceCard
+            v-for="key in AUDIENCE_KEYS"
+            :key="key"
+            :icon="key"
+            :title="$t(`home.audience.items.${key}.title`)"
+            :description="$t(`home.audience.items.${key}.description`)"
+          />
         </div>
       </div>
     </section>
@@ -226,113 +134,34 @@ function onNewsletterSubmit(event) {
         aria-hidden="true"
       />
       <div class="container mx-auto px-6">
-        <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
-          {{ $t('home.courses.title') }}
-        </h2>
-
-        <div class="flex flex-wrap gap-2 mb-10">
-          <button
-            v-for="filter in COURSE_FILTERS"
-            :key="filter"
-            type="button"
-            class="filter-chip rounded-pill px-4 py-2 text-sm font-medium"
-            :class="{ 'is-active': courseFilter === filter }"
-            @click="onCourseFilter(filter)"
-          >
-            {{ $t(`home.courses.filters.${filter}`) }}
-          </button>
+        <div class="max-w-2xl mb-10">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+            {{ $t('home.courses.title') }}
+          </h2>
+          <p class="mt-3 text-ink-muted leading-relaxed">
+            {{ $t('home.courses.subtitle') }}
+          </p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl">
           <CourseCard
-            v-for="course in visibleCourses"
+            v-for="course in COURSES"
             :key="course.key"
             :icon="course.icon"
             :title="$t(`home.courses.items.${course.key}.title`)"
             :description="$t(`home.courses.items.${course.key}.description`)"
             :duration="$t(`home.courses.items.${course.key}.duration`)"
             :category="$t(`home.courses.items.${course.key}.category`)"
+            :cta="$t('home.courses.cta')"
+            :to="{ name: 'Login' }"
           />
-        </div>
-
-        <div
-          v-if="hiddenCourseCount > 0"
-          class="mt-10"
-        >
-          <button
-            type="button"
-            class="text-sm font-semibold text-accent-coral hover:text-accent-coral-dark transition border-b border-accent-coral/40 hover:border-accent-coral-dark"
-            @click="coursesExpanded = !coursesExpanded"
-          >
-            {{
-              coursesExpanded
-                ? $t('home.courses.show_less')
-                : $t('home.courses.show_more', { n: hiddenCourseCount })
-            }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section
-      id="testimonials"
-      class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
-    >
-      <div
-        class="industrial-square industrial-square--reviews"
-        aria-hidden="true"
-      />
-      <div class="container mx-auto px-6">
-        <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
-          {{ $t('home.testimonials.title') }}
-        </h2>
-
-        <div class="flex flex-wrap gap-2 mb-10">
-          <button
-            v-for="filter in REVIEW_FILTERS"
-            :key="filter"
-            type="button"
-            class="filter-chip rounded-pill px-4 py-2 text-sm font-medium"
-            :class="{ 'is-active': reviewFilter === filter }"
-            @click="onReviewFilter(filter)"
-          >
-            {{ $t(`home.testimonials.filters.${filter}`) }}
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <TestimonialCard
-            v-for="item in visibleTestimonials"
-            :key="item.key"
-            :quote="$t(`home.testimonials.items.${item.key}.quote`)"
-            :name="$t(`home.testimonials.items.${item.key}.name`)"
-            :role="$t(`home.testimonials.items.${item.key}.role`)"
-            :tag="$t(`home.testimonials.items.${item.key}.tag`)"
-          />
-        </div>
-
-        <div
-          v-if="hiddenReviewCount > 0"
-          class="mt-10"
-        >
-          <button
-            type="button"
-            class="text-sm font-semibold text-accent-coral hover:text-accent-coral-dark transition border-b border-accent-coral/40 hover:border-accent-coral-dark"
-            @click="reviewsExpanded = !reviewsExpanded"
-          >
-            {{
-              reviewsExpanded
-                ? $t('home.testimonials.show_less')
-                : $t('home.testimonials.show_more')
-            }}
-          </button>
         </div>
       </div>
     </section>
 
     <section
       id="author"
-      class="industrial-section py-20 md:py-24"
+      class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
     >
       <div
         class="industrial-square industrial-square--author"
@@ -360,33 +189,8 @@ function onNewsletterSubmit(event) {
     </section>
 
     <section
-      id="experts"
-      class="industrial-section py-20 md:py-24"
-    >
-      <div class="container mx-auto px-6">
-        <div class="max-w-2xl mb-10">
-          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
-            {{ $t('home.experts.title') }}
-          </h2>
-          <p class="mt-3 text-ink-muted leading-relaxed">
-            {{ $t('home.experts.subtitle') }}
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 max-w-4xl">
-          <ExpertCard
-            v-for="key in EXPERT_KEYS"
-            :key="key"
-            :name="$t(`home.experts.items.${key}.name`)"
-            :role="$t(`home.experts.items.${key}.role`)"
-          />
-        </div>
-      </div>
-    </section>
-
-    <section
       id="faq"
-      class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
+      class="industrial-section py-20 md:py-24"
     >
       <div
         class="industrial-curve industrial-curve--faq"
@@ -409,60 +213,40 @@ function onNewsletterSubmit(event) {
 
     <section
       id="contacts"
-      class="industrial-section py-20 md:py-24 overflow-hidden"
+      class="industrial-band industrial-section py-20 md:py-24 overflow-hidden border-t border-border-subtle"
     >
       <div
         class="industrial-square industrial-square--contact"
         aria-hidden="true"
       />
       <div class="container mx-auto px-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
-          <div>
-            <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
-              {{ $t('home.contacts.title') }}
-            </h2>
-            <p class="mt-3 text-ink-muted leading-relaxed max-w-md">
-              {{ $t('home.contacts.subtitle') }}
-            </p>
-            <a
-              :href="`mailto:${$t('home.contacts.support')}`"
-              class="inline-block mt-6 text-accent-coral font-semibold border-b border-accent-coral/40 hover:border-accent-coral transition"
-            >
-              {{ $t('home.contacts.support') }}
-            </a>
-          </div>
+        <div class="max-w-2xl">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+            {{ $t('home.contacts.title') }}
+          </h2>
+          <p class="mt-3 text-ink-muted leading-relaxed">
+            {{ $t('home.contacts.subtitle') }}
+          </p>
+          <a
+            :href="`mailto:${$t('home.contacts.support')}`"
+            class="inline-block mt-6 text-accent-coral font-semibold border-b border-accent-coral/40 hover:border-accent-coral transition"
+          >
+            {{ $t('home.contacts.support') }}
+          </a>
 
-          <div class="flat-card rounded-card p-6 md:p-8">
+          <div class="flat-card rounded-card p-6 md:p-8 mt-10 max-w-md">
             <h3 class="text-xl font-bold text-ink">
-              {{ $t('home.contacts.newsletter_title') }}
+              {{ $t('home.contacts.notify_title') }}
             </h3>
             <p class="mt-2 text-sm text-ink-muted">
-              {{ $t('home.contacts.newsletter_subtitle') }}
+              {{ $t('home.contacts.notify_subtitle') }}
             </p>
-            <form
-              class="mt-6 flex flex-col gap-4"
-              @submit="onNewsletterSubmit"
+            <a
+              :href="`mailto:${$t('home.contacts.support')}?subject=${$t('home.contacts.notify_subject')}`"
+              class="btn-accent inline-flex items-center justify-center rounded-pill px-6 py-3 text-sm font-semibold w-fit mt-6"
             >
-              <label class="flex flex-col gap-1.5">
-                <span class="text-xs font-medium text-ink-muted">{{ $t('home.contacts.email_label') }}</span>
-                <input
-                  v-model="newsletterEmail"
-                  type="email"
-                  required
-                  :placeholder="$t('home.contacts.email_placeholder')"
-                  class="rounded-md border border-border-subtle bg-surface-950 px-4 py-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-ink"
-                >
-              </label>
-              <button
-                type="submit"
-                class="btn-accent rounded-pill px-6 py-3 text-sm font-semibold w-fit"
-              >
-                {{ $t('home.contacts.subscribe') }}
-              </button>
-              <p class="text-xs text-ink-faint leading-relaxed">
-                {{ $t('home.contacts.consent') }}
-              </p>
-            </form>
+              {{ $t('home.contacts.notify_cta') }}
+            </a>
           </div>
         </div>
       </div>
@@ -544,13 +328,6 @@ function onNewsletterSubmit(event) {
   bottom: 10%;
   border-color: var(--industrial-line);
   transform: rotate(-8deg);
-}
-
-.industrial-square--reviews {
-  width: 8rem;
-  height: 8rem;
-  right: -2rem;
-  top: 3rem;
 }
 
 .industrial-square--author {

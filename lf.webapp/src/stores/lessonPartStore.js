@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { uploadLessonMedia, replaceLessonParts } from '@/services/lessonPartService';
+import { uploadLessonMedia, replaceLessonParts, fetchLessonMediaObjectUrl } from '@/services/lessonPartService';
 
 export const PART_TYPES = ['text', 'image', 'video', 'audio'];
 
@@ -126,7 +126,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     return partsFor(lessonId).some((part) => part.uploading);
   }
 
-  function ensureLoaded(lessonId, apiContent = '', apiParts = []) {
+  async function ensureLoaded(lessonId, apiContent = '', apiParts = [], mediaContext = {}) {
     const key = lessonKey(lessonId);
     if (partsByLessonId.value[key]) return;
 
@@ -137,7 +137,9 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
         sortOrder: p.sortOrder,
         html: p.html ?? '',
         storageObjectId: p.storageObjectId ?? null,
-        objectUrl: p.mediaUrl ?? null,
+        // p.mediaUrl is an authenticated API route, not something a plain <img>/<video>
+        // src can load directly — resolve it to a blob object URL below instead.
+        objectUrl: null,
       }));
     } else {
       const html = typeof apiContent === 'string' ? apiContent.trim() : '';
@@ -149,6 +151,22 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
       [key]: reindex(seeded),
     };
     commitSaved(lessonId);
+
+    const { courseId, chapterId } = mediaContext;
+    if (courseId == null || chapterId == null) return;
+
+    const mediaParts = seeded.filter((part) => part.type !== 'text' && part.storageObjectId);
+    await Promise.all(mediaParts.map(async (part) => {
+      try {
+        const objectUrl = await fetchLessonMediaObjectUrl(courseId, chapterId, lessonId, part.id);
+        setParts(
+          lessonId,
+          partsFor(lessonId).map((item) => (item.id === part.id ? { ...item, objectUrl } : item)),
+        );
+      } catch {
+        // Leave objectUrl null; the media block just shows its empty/dropzone state.
+      }
+    }));
   }
 
   function addPart(lessonId, type, index) {

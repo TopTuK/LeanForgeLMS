@@ -418,6 +418,7 @@ const tools = [
   font-size: 1rem;
   line-height: 1.65;
   outline: none;
+  overflow-wrap: anywhere;
 }
 
 .forge-rich-editor__surface :deep(.ProseMirror:focus) {
