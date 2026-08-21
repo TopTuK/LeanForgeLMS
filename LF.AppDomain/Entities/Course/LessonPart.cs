@@ -5,6 +5,10 @@ namespace LF.AppDomain.Entities.Course;
 
 public sealed class LessonPart
 {
+    public const int DefaultQuizPassThresholdPercent = 60;
+
+    private readonly List<QuizQuestion> _quizQuestions = [];
+
     private LessonPart()
     {
     }
@@ -16,26 +20,52 @@ public sealed class LessonPart
     public int? StorageObjectId { get; private set; }
     public StorageObject? StorageObject { get; private set; }
     public int LessonId { get; private set; }
+    public IReadOnlyList<QuizQuestion> QuizQuestions => _quizQuestions.AsReadOnly();
+    public int? QuizPassThresholdPercent { get; private set; }
 
-    internal static LessonPart Create(LessonPartType partType, int sortOrder, string? html, StorageObject? storageObject)
+    internal static LessonPart Create(
+        LessonPartType partType,
+        int sortOrder,
+        string? html,
+        StorageObject? storageObject,
+        IReadOnlyList<QuizQuestionInput>? quizQuestions = null,
+        int? quizPassThresholdPercent = null)
     {
         if (partType == LessonPartType.Text)
         {
             if (string.IsNullOrWhiteSpace(html))
                 throw new ArgumentException("Text lesson parts require non-empty content.", nameof(html));
         }
+        else if (partType == LessonPartType.Quiz)
+        {
+            ArgumentNullException.ThrowIfNull(quizQuestions);
+            if (quizQuestions.Count == 0)
+                throw new ArgumentException("Quiz lesson parts require at least one question.", nameof(quizQuestions));
+
+            if (quizPassThresholdPercent is < 1 or > 100)
+                throw new ArgumentOutOfRangeException(nameof(quizPassThresholdPercent), "Quiz pass threshold must be between 1 and 100.");
+        }
         else
         {
             ArgumentNullException.ThrowIfNull(storageObject);
         }
 
-        return new LessonPart
+        var part = new LessonPart
         {
             PartType = partType,
             SortOrder = sortOrder,
             Html = partType == LessonPartType.Text ? html!.Trim() : null,
             StorageObjectId = storageObject?.Id,
-            StorageObject = storageObject,
+            StorageObject = partType == LessonPartType.Quiz ? null : storageObject,
+            QuizPassThresholdPercent = partType == LessonPartType.Quiz ? quizPassThresholdPercent ?? DefaultQuizPassThresholdPercent : null,
         };
+
+        if (partType == LessonPartType.Quiz)
+        {
+            for (var i = 0; i < quizQuestions!.Count; i++)
+                part._quizQuestions.Add(QuizQuestion.Create(quizQuestions[i].Text, quizQuestions[i].QuestionType, i + 1, quizQuestions[i].Options));
+        }
+
+        return part;
     }
 }

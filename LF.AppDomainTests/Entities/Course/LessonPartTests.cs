@@ -78,4 +78,120 @@ public class LessonPartTests
         Assert.Single(lesson.Parts);
         Assert.Equal("<p>Second</p>", lesson.Parts[0].Html);
     }
+
+    private static QuizQuestionInput SingleChoiceQuestion(int correctCount = 1) => new(
+        "Q1",
+        QuestionType.SingleChoice,
+        1,
+        [
+            new QuizOptionInput("A", correctCount >= 1, 1),
+            new QuizOptionInput("B", correctCount >= 2, 2),
+        ]);
+
+    [Fact]
+    public void ReplaceParts_QuizWithNoQuestions_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, QuizQuestions: []) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_QuizQuestionWithOneOption_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var question = new QuizQuestionInput("Q1", QuestionType.SingleChoice, 1, [new QuizOptionInput("A", true, 1)]);
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [question]) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_SingleChoiceWithTwoCorrectOptions_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion(correctCount: 2)]) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_SingleChoiceWithNoCorrectOptions_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion(correctCount: 0)]) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_MultipleChoiceWithNoCorrectOptions_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var question = new QuizQuestionInput("Q1", QuestionType.MultipleChoice, 1,
+            [new QuizOptionInput("A", false, 1), new QuizOptionInput("B", false, 2)]);
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [question]) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public void ReplaceParts_QuizPassThresholdOutOfRange_Throws(int threshold)
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion()], threshold) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_QuizWithoutExplicitThreshold_DefaultsTo60()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion()]) };
+
+        // Act
+        lesson.ReplaceParts(parts);
+
+        // Assert
+        Assert.Equal(LessonPart.DefaultQuizPassThresholdPercent, lesson.Parts[0].QuizPassThresholdPercent);
+    }
+
+    [Fact]
+    public void ReplaceParts_ValidQuiz_BuildsQuestionsAndOptionsInOrder()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var multipleChoice = new QuizQuestionInput("Q2", QuestionType.MultipleChoice, 2,
+            [new QuizOptionInput("A", true, 1), new QuizOptionInput("B", true, 2), new QuizOptionInput("C", false, 3)]);
+        var parts = new[] { new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion(), multipleChoice], 80) };
+
+        // Act
+        lesson.ReplaceParts(parts);
+
+        // Assert
+        var quiz = lesson.Parts[0];
+        Assert.Equal(LessonPartType.Quiz, quiz.PartType);
+        Assert.Equal(80, quiz.QuizPassThresholdPercent);
+        Assert.Equal(2, quiz.QuizQuestions.Count);
+        Assert.Equal(QuestionType.SingleChoice, quiz.QuizQuestions[0].QuestionType);
+        Assert.Equal(2, quiz.QuizQuestions[0].Options.Count);
+        Assert.Equal(3, quiz.QuizQuestions[1].Options.Count);
+    }
 }

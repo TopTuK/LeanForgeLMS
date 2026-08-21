@@ -58,6 +58,33 @@ function mediaPlaceholder(part) {
         <!-- eslint-enable vue/no-v-html -->
 
         <div
+          v-else-if="part.type === 'quiz'"
+          class="lesson-preview__quiz"
+        >
+          <p class="lesson-preview__quiz-threshold">
+            {{ t('courses.lessonEditor.preview.quiz_threshold', { percent: part.quizPassThreshold }) }}
+          </p>
+          <div
+            v-for="(question, qIndex) in part.quizQuestions"
+            :key="question.id"
+            class="lesson-preview__quiz-question"
+          >
+            <p class="lesson-preview__quiz-question-text">
+              {{ qIndex + 1 }}. {{ question.text || t('courses.lessonEditor.preview.quiz_untitled_question') }}
+            </p>
+            <ul class="lesson-preview__quiz-options">
+              <li
+                v-for="option in question.options"
+                :key="option.id"
+                :class="{ 'lesson-preview__quiz-option--correct': option.isCorrect }"
+              >
+                {{ option.text }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div
           v-else
           class="lesson-preview__media"
         >
@@ -224,5 +251,48 @@ function mediaPlaceholder(part) {
   border: 1px dashed var(--industrial-line-strong);
   border-radius: 0.35rem;
   background: var(--color-surface-950);
+}
+
+.lesson-preview__quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  border: 1px solid var(--industrial-line);
+  border-radius: 0.35rem;
+  background: var(--color-surface-950);
+}
+
+.lesson-preview__quiz-threshold {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lesson-preview__quiz-question {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lesson-preview__quiz-question-text {
+  margin: 0;
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.lesson-preview__quiz-options {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-ink-muted);
+  font-size: 0.92rem;
+}
+
+.lesson-preview__quiz-option--correct {
+  color: var(--color-accent-coral-dark);
+  font-weight: 700;
 }
 </style>

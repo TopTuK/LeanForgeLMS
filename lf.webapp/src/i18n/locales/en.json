@@ -143,7 +143,19 @@
             "complete_error": "Could not mark this lesson complete. Please try again.",
             "mark_complete": "Mark lesson complete",
             "completing": "Saving…",
-            "completed": "Lesson completed"
+            "completed": "Lesson completed",
+            "quiz": {
+                "complete_via_quiz_hint": "Pass the quiz below to complete this lesson.",
+                "submit": "Submit answers",
+                "submitting": "Grading…",
+                "submit_error": "Could not submit your answers. Please try again.",
+                "score_label": "Score: {percent}%",
+                "passed": "You passed!",
+                "failed": "Not quite — you can try again.",
+                "correct": "Correct",
+                "incorrect": "Incorrect",
+                "retry": "Try again"
+            }
         },
         "create": {
             "eyebrow": "Course forge",
@@ -245,7 +257,9 @@
                 "mode_preview": "Preview",
                 "empty": "Nothing to preview yet. Add a text, image, video, or audio part.",
                 "untitled": "Untitled lesson",
-                "media_missing": "No file in this part yet."
+                "media_missing": "No file in this part yet.",
+                "quiz_threshold": "Pass threshold: {percent}%",
+                "quiz_untitled_question": "Untitled question"
             },
             "toolbar": {
                 "label": "Formatting",
@@ -274,6 +288,7 @@
                 "type_image": "Image",
                 "type_video": "Video",
                 "type_audio": "Audio",
+                "type_quiz": "Quiz",
                 "delete": "Remove part",
                 "move_up": "Move up",
                 "move_down": "Move down",
@@ -286,7 +301,22 @@
                 "upload_error": "Could not upload this file. Please try again.",
                 "uploads_pending": "Please wait for file uploads to finish before saving.",
                 "save_error": "Could not save the lesson parts. Please try again.",
-                "text_placeholder": "Write this part of the lesson…"
+                "text_placeholder": "Write this part of the lesson…",
+                "quiz": {
+                    "pass_threshold": "Pass threshold",
+                    "question_label": "Question {number}",
+                    "question_placeholder": "Write the question…",
+                    "option_placeholder": "Option text…",
+                    "question_type_single": "Single choice",
+                    "question_type_multiple": "Multiple choice",
+                    "correct_answer": "Mark as correct answer",
+                    "add_question": "Add question",
+                    "remove_question": "Remove question",
+                    "add_option": "Add option",
+                    "remove_option": "Remove option",
+                    "drag_question": "Drag to reorder question",
+                    "drag_option": "Drag to reorder option"
+                }
             }
         }
     },

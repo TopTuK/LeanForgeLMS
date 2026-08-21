@@ -52,3 +52,27 @@ public sealed record EnrollmentDetailResponse(
     DateTime EnrolledAt,
     DateTime? CompletedAt,
     IReadOnlyList<EnrollmentChapterResponse> Chapters);
+
+public sealed record QuizAnswerRequest(int QuestionId, IReadOnlyList<int> SelectedOptionIds);
+
+public sealed record SubmitQuizAttemptRequest(IReadOnlyList<QuizAnswerRequest> Answers);
+
+public sealed class SubmitQuizAttemptRequestValidator : AbstractValidator<SubmitQuizAttemptRequest>
+{
+    public SubmitQuizAttemptRequestValidator()
+    {
+        RuleFor(x => x.Answers).NotEmpty().WithMessage("At least one answer is required.");
+
+        RuleForEach(x => x.Answers).ChildRules(answer =>
+        {
+            answer.RuleFor(a => a.QuestionId).GreaterThan(0);
+            answer.RuleFor(a => a.SelectedOptionIds).NotEmpty().WithMessage("Each answer requires at least one selected option.");
+        });
+    }
+}
+
+public sealed record QuizQuestionResultResponse(int QuestionId, bool IsCorrect, IReadOnlyList<int> CorrectOptionIds);
+
+public sealed record QuizAttemptResultResponse(int ScorePercent, bool Passed, IReadOnlyList<QuizQuestionResultResponse> Questions);
+
+public sealed record QuizSubmissionResponse(QuizAttemptResultResponse Result, EnrollmentDetailResponse Enrollment);

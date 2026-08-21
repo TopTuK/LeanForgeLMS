@@ -49,6 +49,8 @@ service CourseServiceRpc {
   rpc GetEnrollment (GetEnrollmentRequest) returns (EnrollmentDetailReply);
   // Mark a lesson complete for an enrollment
   rpc CompleteLesson (CompleteLessonRequest) returns (EnrollmentDetailReply);
+  // Grade a quiz lesson part submission; a passing attempt completes the lesson
+  rpc SubmitQuizAttempt (SubmitQuizAttemptRequest) returns (QuizAttemptResultReply);
   // Resolve a published course's cover image key/content-type for streaming; no ownership check
   // beyond "published", since published courses are already publicly listed in the catalog
   rpc GetCourseCover (GetCourseCoverRequest) returns (CourseCoverReply);
@@ -80,6 +82,12 @@ enum LessonPartType {
   LESSON_PART_TYPE_IMAGE = 1;
   LESSON_PART_TYPE_VIDEO = 2;
   LESSON_PART_TYPE_AUDIO = 3;
+  LESSON_PART_TYPE_QUIZ = 4;
+}
+
+enum QuestionType {
+  QUESTION_TYPE_SINGLE_CHOICE = 0;
+  QUESTION_TYPE_MULTIPLE_CHOICE = 1;
 }
 
 message CreateCourseRequest {
@@ -168,12 +176,44 @@ message LessonPartReply {
   google.protobuf.Int32Value storage_object_id = 5;
   google.protobuf.StringValue storage_object_key = 6;
   google.protobuf.StringValue storage_object_content_type = 7;
+  repeated QuizQuestionReply quiz_questions = 8;
+  google.protobuf.Int32Value quiz_pass_threshold_percent = 9;
 }
 
 message LessonPartInput {
   LessonPartType part_type = 1;
   google.protobuf.StringValue html = 2;
   google.protobuf.Int32Value storage_object_id = 3;
+  repeated QuizQuestionInput quiz_questions = 4;
+  google.protobuf.Int32Value quiz_pass_threshold_percent = 5;
+}
+
+message QuizOptionInput {
+  string text = 1;
+  bool is_correct = 2;
+  int32 sort_order = 3;
+}
+
+message QuizQuestionInput {
+  string text = 1;
+  QuestionType question_type = 2;
+  int32 sort_order = 3;
+  repeated QuizOptionInput options = 4;
+}
+
+message QuizOptionReply {
+  int32 id = 1;
+  string text = 2;
+  bool is_correct = 3;
+  int32 sort_order = 4;
+}
+
+message QuizQuestionReply {
+  int32 id = 1;
+  string text = 2;
+  QuestionType question_type = 3;
+  int32 sort_order = 4;
+  repeated QuizOptionReply options = 5;
 }
 
 message ReplaceLessonPartsRequest {
@@ -384,4 +424,31 @@ message EnrollmentLessonReply {
   int32 sort_order = 4;
   bool is_completed = 5;
   repeated LessonPartReply parts = 6;
+}
+
+message QuizAnswerInput {
+  int32 question_id = 1;
+  repeated int32 selected_option_ids = 2;
+}
+
+message SubmitQuizAttemptRequest {
+  int32 id = 1;
+  int32 lesson_id = 2;
+  int32 part_id = 3;
+  repeated QuizAnswerInput answers = 4;
+  int32 acting_user_id = 5;
+  bool acting_is_admin = 6;
+}
+
+message QuizQuestionResultReply {
+  int32 question_id = 1;
+  bool is_correct = 2;
+  repeated int32 correct_option_ids = 3;
+}
+
+message QuizAttemptResultReply {
+  int32 score_percent = 1;
+  bool passed = 2;
+  repeated QuizQuestionResultReply questions = 3;
+  EnrollmentDetailReply enrollment = 4;
 }

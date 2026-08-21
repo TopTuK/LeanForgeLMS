@@ -113,6 +113,33 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             }
         });
 
+        group.MapPost("/{id:int}/lessons/{lessonId:int}/parts/{partId:int}/quiz/submit", async Task<Results<Ok<QuizSubmissionResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult, Conflict<string>>>
+            (int id, int lessonId, int partId, SubmitQuizAttemptRequest request, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var validation = new SubmitQuizAttemptRequestValidator().Validate(request);
+            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+            var answers = request.Answers.Select(a => new QuizAnswerInputDto { QuestionId = a.QuestionId, SelectedOptionIds = a.SelectedOptionIds }).ToList();
+
+            try
+            {
+                var submission = await enrollmentService.SubmitQuizAttemptAsync(id, lessonId, partId, answers, userId.Value, isAdmin);
+                return submission is null ? TypedResults.NotFound() : TypedResults.Ok(ToQuizSubmissionResponse(submission));
+            }
+            catch (EnrollmentAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.Conflict(ex.Message);
+            }
+        });
+
         group.MapGet("/{id:int}/lessons/{lessonId:int}/parts/{partId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
             (int id, int lessonId, int partId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService,
              [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
@@ -178,6 +205,13 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CoverColor?.ToString(),
         dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.CourseId}/cover/image" : null);
 
+    private static QuizSubmissionResponse ToQuizSubmissionResponse(QuizSubmissionDto dto) => new(
+        new QuizAttemptResultResponse(
+            dto.Result.ScorePercent,
+            dto.Result.Passed,
+            [.. dto.Result.Questions.Select(q => new QuizQuestionResultResponse(q.QuestionId, q.IsCorrect, q.CorrectOptionIds))]),
+        ToDetailResponse(dto.Enrollment));
+
     private static EnrollmentDetailResponse ToDetailResponse(EnrollmentDetailDto dto) => new(
         dto.Id,
         dto.CourseId,
@@ -201,11 +235,23 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         lesson.IsCompleted,
         [.. lesson.Parts.Select(p => ToLessonPartResponse(enrollmentId, lesson.Id, p))]);
 
+    // Correct answers must never reach a learner before they submit — IsCorrect/CorrectOptionIds are
+    // deliberately nulled out here even though the underlying LessonPartDto carries the real values
+    // (the authoring-side mapping in CourseEndpoints keeps them, since that path is owner/admin only).
     private static LessonPartResponse ToLessonPartResponse(int enrollmentId, int lessonId, LessonPartDto part) => new(
         part.Id,
         part.PartType.ToString(),
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType == LessonPartType.Text ? null : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media");
+        part.PartType is LessonPartType.Text or LessonPartType.Quiz ? null : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media",
+        part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToLearnerQuizQuestionResponse)] : null,
+        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null);
+
+    private static QuizQuestionResponse ToLearnerQuizQuestionResponse(QuizQuestionDto question) => new(
+        question.Id,
+        question.Text,
+        question.QuestionType.ToString(),
+        question.SortOrder,
+        [.. question.Options.Select(o => new QuizOptionResponse(o.Id, o.Text, null, o.SortOrder))]);
 }

@@ -11,4 +11,6 @@ public sealed class LessonPartDto
     public int? StorageObjectId { get; init; }
     public string? StorageObjectKey { get; init; }
     public string? StorageObjectContentType { get; init; }
+    public IReadOnlyList<QuizQuestionDto> QuizQuestions { get; init; } = [];
+    public int? QuizPassThresholdPercent { get; init; }
 }

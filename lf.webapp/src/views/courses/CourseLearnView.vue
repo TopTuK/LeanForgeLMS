@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { fetchEnrollment, completeLesson, fetchEnrollmentLessonMediaObjectUrl } from '@/services/enrollmentService';
+import LearnerQuizPart from '@/components/courses/lesson/LearnerQuizPart.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -44,8 +45,12 @@ const selectedLessonParts = computed(() => {
     type: String(part.partType).toLowerCase(),
     html: part.html ?? '',
     mediaUrl: part.mediaUrl ?? null,
+    quizQuestions: part.quizQuestions ?? [],
+    quizPassThreshold: part.quizPassThresholdPercent ?? null,
   }));
 });
+
+const hasQuizPart = computed(() => selectedLessonParts.value.some((part) => part.type === 'quiz'));
 
 // Media endpoints require auth, so a plain <img>/<video>/<audio> src can't hit them directly
 // (no bearer header on a browser-initiated resource fetch) — blob-fetch and cache per part id.
@@ -116,6 +121,10 @@ async function markComplete() {
   } finally {
     completing.value = false;
   }
+}
+
+function onQuizSubmitted(updatedEnrollment) {
+  enrollment.value = updatedEnrollment;
 }
 
 function goToCourses() {
@@ -243,6 +252,13 @@ function goToCourses() {
                   class="course-learn__prose"
                   v-html="part.html"
                 />
+                <LearnerQuizPart
+                  v-else-if="part.type === 'quiz'"
+                  :part="part"
+                  :enrollment-id="enrollmentId"
+                  :lesson-id="selectedLesson.id"
+                  @submitted="onQuizSubmitted"
+                />
                 <div
                   v-else
                   class="course-learn__media"
@@ -285,6 +301,12 @@ function goToCourses() {
               >
                 {{ $t('courses.learn.completed') }}
               </button>
+              <p
+                v-else-if="hasQuizPart"
+                class="course-learn__quiz-hint"
+              >
+                {{ $t('courses.learn.quiz.complete_via_quiz_hint') }}
+              </p>
               <button
                 v-else
                 type="button"
@@ -617,6 +639,12 @@ function goToCourses() {
   background: transparent;
   color: var(--color-ink-muted);
   border-color: var(--color-border-subtle);
+}
+
+.course-learn__quiz-hint {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.88rem;
 }
 
 @media (min-width: 1024px) {

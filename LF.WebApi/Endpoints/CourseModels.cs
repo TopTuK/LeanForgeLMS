@@ -6,7 +6,19 @@ namespace LF.WebApi.Endpoints;
 
 public sealed record CategoryResponse(int Id, string Name, bool IsDefault);
 
-public sealed record LessonPartResponse(int Id, string PartType, int SortOrder, string? Html, int? StorageObjectId, string? MediaUrl);
+public sealed record QuizOptionResponse(int Id, string Text, bool? IsCorrect, int SortOrder);
+
+public sealed record QuizQuestionResponse(int Id, string Text, string QuestionType, int SortOrder, IReadOnlyList<QuizOptionResponse> Options);
+
+public sealed record LessonPartResponse(
+    int Id,
+    string PartType,
+    int SortOrder,
+    string? Html,
+    int? StorageObjectId,
+    string? MediaUrl,
+    IReadOnlyList<QuizQuestionResponse>? QuizQuestions = null,
+    int? QuizPassThresholdPercent = null);
 
 public sealed record LessonResponse(int Id, string Title, string Content, bool IncludeInPreview, int SortOrder, IReadOnlyList<LessonPartResponse> Parts);
 
@@ -139,7 +151,16 @@ public sealed class UpdateLessonRequestValidator : AbstractValidator<UpdateLesso
     }
 }
 
-public sealed record LessonPartRequest(string PartType, string? Html, int? StorageObjectId);
+public sealed record QuizOptionRequest(string Text, bool IsCorrect, int SortOrder);
+
+public sealed record QuizQuestionRequest(string Text, string QuestionType, int SortOrder, IReadOnlyList<QuizOptionRequest> Options);
+
+public sealed record LessonPartRequest(
+    string PartType,
+    string? Html,
+    int? StorageObjectId,
+    IReadOnlyList<QuizQuestionRequest>? QuizQuestions = null,
+    int? QuizPassThresholdPercent = null);
 
 public sealed record ReplaceLessonPartsRequest(IReadOnlyList<LessonPartRequest> Parts);
 
@@ -150,16 +171,50 @@ public sealed class ReplaceLessonPartsRequestValidator : AbstractValidator<Repla
         RuleForEach(x => x.Parts).ChildRules(part =>
         {
             part.RuleFor(p => p.PartType).Must(t => Enum.TryParse<LessonPartType>(t, ignoreCase: true, out _))
-                .WithMessage("Part type must be one of Text, Image, Video, Audio.");
+                .WithMessage("Part type must be one of Text, Image, Video, Audio, Quiz.");
 
             part.RuleFor(p => p.Html).NotEmpty()
-                .When(p => string.Equals(p.PartType, nameof(LessonPartType.Text), StringComparison.OrdinalIgnoreCase))
+                .When(p => IsPartType(p.PartType, LessonPartType.Text))
                 .WithMessage("Text parts require non-empty content.");
 
             part.RuleFor(p => p.StorageObjectId).GreaterThan(0)
-                .When(p => !string.Equals(p.PartType, nameof(LessonPartType.Text), StringComparison.OrdinalIgnoreCase))
+                .When(p => !IsPartType(p.PartType, LessonPartType.Text) && !IsPartType(p.PartType, LessonPartType.Quiz))
                 .WithMessage("Media parts require a storage object id.");
+
+            part.RuleFor(p => p.QuizQuestions).NotEmpty()
+                .When(p => IsPartType(p.PartType, LessonPartType.Quiz))
+                .WithMessage("Quiz parts require at least one question.");
+
+            part.RuleForEach(p => p.QuizQuestions).ChildRules(question =>
+            {
+                question.RuleFor(q => q.Text).NotEmpty().WithMessage("Quiz question text cannot be empty.");
+
+                question.RuleFor(q => q.QuestionType).Must(t => Enum.TryParse<QuestionType>(t, ignoreCase: true, out _))
+                    .WithMessage("Question type must be SingleChoice or MultipleChoice.");
+
+                question.RuleFor(q => q.Options).Must(o => o.Count >= 2)
+                    .WithMessage("Each quiz question requires at least two options.");
+
+                question.RuleFor(q => q).Must(HaveValidCorrectOptionCount)
+                    .WithMessage("Single-choice questions require exactly one correct option; multiple-choice questions require at least one.");
+            }).When(p => IsPartType(p.PartType, LessonPartType.Quiz));
+
+            part.RuleFor(p => p.QuizPassThresholdPercent).InclusiveBetween(1, 100)
+                .When(p => IsPartType(p.PartType, LessonPartType.Quiz) && p.QuizPassThresholdPercent is not null)
+                .WithMessage("Quiz pass threshold must be between 1 and 100.");
         });
+    }
+
+    private static bool IsPartType(string partType, LessonPartType expected) =>
+        Enum.TryParse<LessonPartType>(partType, ignoreCase: true, out var parsed) && parsed == expected;
+
+    private static bool HaveValidCorrectOptionCount(QuizQuestionRequest question)
+    {
+        if (!Enum.TryParse<QuestionType>(question.QuestionType, ignoreCase: true, out var questionType))
+            return true; // caught separately by the QuestionType rule above
+
+        var correctCount = question.Options.Count(o => o.IsCorrect);
+        return questionType == QuestionType.SingleChoice ? correctCount == 1 : correctCount >= 1;
     }
 }
 

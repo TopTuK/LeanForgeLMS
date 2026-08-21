@@ -2,7 +2,22 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { uploadLessonMedia, replaceLessonParts, fetchLessonMediaObjectUrl } from '@/services/lessonPartService';
 
-export const PART_TYPES = ['text', 'image', 'video', 'audio'];
+export const PART_TYPES = ['text', 'image', 'video', 'audio', 'quiz'];
+
+export const DEFAULT_QUIZ_PASS_THRESHOLD = 60;
+
+export function createBlankQuizOption() {
+  return { id: crypto.randomUUID(), text: '', isCorrect: false };
+}
+
+export function createBlankQuizQuestion() {
+  return {
+    id: crypto.randomUUID(),
+    text: '',
+    questionType: 'single',
+    options: [createBlankQuizOption(), createBlankQuizOption()],
+  };
+}
 
 export const MEDIA_ACCEPT = {
   image: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'],
@@ -32,11 +47,23 @@ function createPart(type, extras = {}) {
     storageObjectId: null,
     uploading: false,
     uploadError: false,
+    quizQuestions: [],
+    quizPassThreshold: DEFAULT_QUIZ_PASS_THRESHOLD,
     ...extras,
   };
 }
 
 function serializePart(part) {
+  if (part.type === 'quiz') {
+    return {
+      id: part.id,
+      type: part.type,
+      sortOrder: part.sortOrder,
+      quizQuestions: part.quizQuestions ?? [],
+      quizPassThreshold: part.quizPassThreshold ?? DEFAULT_QUIZ_PASS_THRESHOLD,
+    };
+  }
+
   return {
     id: part.id,
     type: part.type,
@@ -47,6 +74,25 @@ function serializePart(part) {
 }
 
 function toApiPart(part) {
+  if (part.type === 'quiz') {
+    return {
+      partType: 'quiz',
+      html: null,
+      storageObjectId: null,
+      quizQuestions: (part.quizQuestions ?? []).map((q, qIndex) => ({
+        text: q.text ?? '',
+        questionType: q.questionType === 'multiple' ? 'MultipleChoice' : 'SingleChoice',
+        sortOrder: qIndex,
+        options: (q.options ?? []).map((o, oIndex) => ({
+          text: o.text ?? '',
+          isCorrect: !!o.isCorrect,
+          sortOrder: oIndex,
+        })),
+      })),
+      quizPassThresholdPercent: part.quizPassThreshold ?? DEFAULT_QUIZ_PASS_THRESHOLD,
+    };
+  }
+
   return {
     partType: part.type,
     html: part.type === 'text' ? (part.html ?? '') : null,
@@ -140,6 +186,17 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
         // p.mediaUrl is an authenticated API route, not something a plain <img>/<video>
         // src can load directly — resolve it to a blob object URL below instead.
         objectUrl: null,
+        quizQuestions: Array.isArray(p.quizQuestions) ? p.quizQuestions.map((q) => ({
+          id: crypto.randomUUID(),
+          text: q.text ?? '',
+          questionType: q.questionType === 'MultipleChoice' ? 'multiple' : 'single',
+          options: (q.options ?? []).map((o) => ({
+            id: crypto.randomUUID(),
+            text: o.text ?? '',
+            isCorrect: !!o.isCorrect,
+          })),
+        })) : [],
+        quizPassThreshold: p.quizPassThresholdPercent ?? DEFAULT_QUIZ_PASS_THRESHOLD,
       }));
     } else {
       const html = typeof apiContent === 'string' ? apiContent.trim() : '';
@@ -172,7 +229,8 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
   function addPart(lessonId, type, index) {
     if (!PART_TYPES.includes(type)) return null;
     const current = [...partsFor(lessonId)];
-    const part = createPart(type);
+    const extras = type === 'quiz' ? { quizQuestions: [createBlankQuizQuestion()] } : {};
+    const part = createPart(type, extras);
     const insertAt = index == null ? current.length : Math.max(0, Math.min(index, current.length));
     current.splice(insertAt, 0, part);
     setParts(lessonId, current);
@@ -202,6 +260,17 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
       partsFor(lessonId).map((part) => (
         part.id === partId && part.type === 'text'
           ? { ...part, html }
+          : part
+      )),
+    );
+  }
+
+  function updateQuiz(lessonId, partId, { quizQuestions, quizPassThreshold }) {
+    setParts(
+      lessonId,
+      partsFor(lessonId).map((part) => (
+        part.id === partId && part.type === 'quiz'
+          ? { ...part, quizQuestions, quizPassThreshold }
           : part
       )),
     );
@@ -283,6 +352,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     removePart,
     movePart,
     updateText,
+    updateQuiz,
     setMediaFile,
     commit,
     discard,

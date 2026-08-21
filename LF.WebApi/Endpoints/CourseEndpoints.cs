@@ -292,6 +292,19 @@ public sealed class CourseEndpoints : IEndpointGroup
                 PartType = Enum.Parse<LessonPartType>(p.PartType, ignoreCase: true),
                 Html = p.Html,
                 StorageObjectId = p.StorageObjectId,
+                QuizPassThresholdPercent = p.QuizPassThresholdPercent,
+                QuizQuestions = p.QuizQuestions?.Select(q => new QuizQuestionInputDto
+                {
+                    Text = q.Text,
+                    QuestionType = Enum.Parse<QuestionType>(q.QuestionType, ignoreCase: true),
+                    SortOrder = q.SortOrder,
+                    Options = [.. q.Options.Select(o => new QuizOptionInputDto
+                    {
+                        Text = o.Text,
+                        IsCorrect = o.IsCorrect,
+                        SortOrder = o.SortOrder,
+                    })],
+                }).ToList(),
             }).ToList();
 
             try
@@ -439,7 +452,16 @@ public sealed class CourseEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType == LessonPartType.Text ? null : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media");
+        part.PartType is LessonPartType.Text or LessonPartType.Quiz ? null : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media",
+        part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToQuizQuestionResponse)] : null,
+        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null);
+
+    private static QuizQuestionResponse ToQuizQuestionResponse(QuizQuestionDto question) => new(
+        question.Id,
+        question.Text,
+        question.QuestionType.ToString(),
+        question.SortOrder,
+        [.. question.Options.Select(o => new QuizOptionResponse(o.Id, o.Text, o.IsCorrect, o.SortOrder))]);
 
     private static CourseSummaryResponse ToSummaryResponse(CourseSummaryDto course) => new(
         course.Id,

@@ -10,10 +10,11 @@ const emit = defineEmits(['select']);
 const { t } = useI18n();
 
 const types = [
-  { type: 'text', labelKey: 'courses.lessonEditor.parts.type_text' },
-  { type: 'image', labelKey: 'courses.lessonEditor.parts.type_image' },
-  { type: 'video', labelKey: 'courses.lessonEditor.parts.type_video' },
-  { type: 'audio', labelKey: 'courses.lessonEditor.parts.type_audio' },
+  { type: 'text', labelKey: 'courses.lessonEditor.parts.type_text', icon: 'notes' },
+  { type: 'image', labelKey: 'courses.lessonEditor.parts.type_image', icon: 'image' },
+  { type: 'video', labelKey: 'courses.lessonEditor.parts.type_video', icon: 'movie' },
+  { type: 'audio', labelKey: 'courses.lessonEditor.parts.type_audio', icon: 'graphic_eq' },
+  { type: 'quiz', labelKey: 'courses.lessonEditor.parts.type_quiz', icon: 'quiz' },
 ];
 
 function choose(type) {
@@ -35,40 +36,85 @@ function choose(type) {
       role="menuitem"
       @click="choose(item.type)"
     >
-      {{ t(item.labelKey) }}
+      <span class="part-toolbox__icon">
+        <va-icon :name="item.icon" />
+      </span>
+      <span class="part-toolbox__label">{{ t(item.labelKey) }}</span>
     </button>
   </div>
 </template>
 
 <style scoped>
 .part-toolbox {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.45rem;
-  background: var(--color-surface-950);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  padding: 0.6rem;
+  background: var(--industrial-panel);
   border: 1px solid var(--industrial-line-strong);
-  border-radius: 0.35rem;
-  box-shadow: 0 14px 32px -22px rgb(15 23 42 / 0.55);
+  border-radius: 0.4rem;
+  box-shadow: 0 18px 40px -22px rgb(15 23 42 / 0.6);
+  animation: part-toolbox-pop 0.14s ease;
+}
+
+@keyframes part-toolbox-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .part-toolbox__item {
-  min-width: 5.5rem;
-  padding: 0.45rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.5rem;
   border: 1px solid var(--industrial-line);
-  border-radius: 0.25rem;
+  border-radius: 0.3rem;
   background: var(--color-surface-900);
-  color: var(--color-ink);
-  font-size: 0.82rem;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.part-toolbox__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  background: var(--color-surface-950);
+  color: var(--color-ink-muted);
+  font-size: 1.15rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.part-toolbox__label {
+  font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  cursor: pointer;
+  text-transform: uppercase;
 }
 
 .part-toolbox__item:hover,
 .part-toolbox__item:focus-visible {
   border-color: var(--color-accent-coral);
-  color: var(--color-accent-coral-dark);
+  color: var(--color-ink);
+  background: var(--industrial-accent-wash);
+  transform: translateY(-2px);
   outline: none;
 }
+
+.part-toolbox__item:hover .part-toolbox__icon,
+.part-toolbox__item:focus-visible .part-toolbox__icon {
+  background: var(--color-accent-coral);
+  color: #ffffff;
+}
+
 </style>

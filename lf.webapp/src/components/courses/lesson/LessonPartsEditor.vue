@@ -7,6 +7,7 @@ import LessonPartBlock from './LessonPartBlock.vue';
 import LessonPartToolbox from './LessonPartToolbox.vue';
 import LessonTextPart from './LessonTextPart.vue';
 import LessonMediaPart from './LessonMediaPart.vue';
+import LessonQuizPart from './LessonQuizPart.vue';
 
 const props = defineProps({
   lessonId: { type: Number, required: true },
@@ -119,6 +120,12 @@ onBeforeUnmount(() => {
           :model-value="part.html"
           :disabled="disabled"
           @update:model-value="partStore.updateText(lessonId, part.id, $event)"
+        />
+        <LessonQuizPart
+          v-else-if="part.type === 'quiz'"
+          :model-value="{ quizQuestions: part.quizQuestions, quizPassThreshold: part.quizPassThreshold }"
+          :disabled="disabled"
+          @update:model-value="partStore.updateQuiz(lessonId, part.id, $event)"
         />
         <LessonMediaPart
           v-else

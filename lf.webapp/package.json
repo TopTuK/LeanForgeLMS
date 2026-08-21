@@ -24,6 +24,7 @@
     "vue": "^3.5.40",
     "vue-i18n": "^11.4.7",
     "vue-router": "^5.2.0",
+    "vuedraggable": "^4.1.0",
     "vuestic-ui": "^1.10.3"
   },
   "devDependencies": {
