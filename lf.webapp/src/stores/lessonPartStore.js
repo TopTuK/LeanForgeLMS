@@ -254,6 +254,11 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     setParts(lessonId, current);
   }
 
+  function reorderParts(lessonId, nextParts) {
+    if (!Array.isArray(nextParts)) return;
+    setParts(lessonId, nextParts);
+  }
+
   function updateText(lessonId, partId, html) {
     setParts(
       lessonId,
@@ -351,6 +356,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     addPart,
     removePart,
     movePart,
+    reorderParts,
     updateText,
     updateQuiz,
     setMediaFile,

@@ -355,8 +355,8 @@ const tools = [
   display: flex;
   flex-direction: column;
   min-height: 22rem;
-  border: 1px solid var(--industrial-line-strong);
-  border-radius: 0.35rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.65rem;
   background: var(--color-surface-950);
   overflow: hidden;
 }
@@ -366,15 +366,46 @@ const tools = [
 }
 
 .forge-rich-editor--compact {
-  min-height: 10rem;
+  min-height: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  overflow: visible;
+}
+
+.forge-rich-editor--compact .forge-rich-editor__toolbar {
+  position: sticky;
+  top: 3.5rem;
+  z-index: 4;
+  margin: 0 0 0.15rem;
+  padding: 0.3rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.55rem;
+  background: var(--color-surface-950);
+  box-shadow: 0 8px 20px -16px rgb(15 23 42 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.forge-rich-editor--compact:focus-within .forge-rich-editor__toolbar {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .forge-rich-editor--compact .forge-rich-editor__surface,
 .forge-rich-editor--compact .forge-rich-editor__surface :deep(.tiptap),
 .forge-rich-editor--compact .forge-rich-editor__surface :deep(.ProseMirror) {
-  min-height: 8rem;
+  min-height: 4.5rem;
+}
+
+.forge-rich-editor--compact .forge-rich-editor__surface :deep(.tiptap),
+.forge-rich-editor--compact .forge-rich-editor__surface :deep(.ProseMirror) {
+  padding: 0.55rem 0.65rem 0.85rem;
+}
+
+.forge-rich-editor--compact .forge-rich-editor__surface :deep(.ProseMirror:focus) {
+  box-shadow: none;
 }
 
 .forge-rich-editor__toolbar {
@@ -383,13 +414,8 @@ const tools = [
   align-items: center;
   gap: 0.35rem 0.5rem;
   padding: 0.55rem 0.65rem;
-  border-bottom: 1px solid var(--industrial-line);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--industrial-panel) 88%, transparent) 0%,
-      var(--color-surface-900) 100%
-    );
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-900);
 }
 
 .forge-rich-editor__group {
@@ -401,7 +427,7 @@ const tools = [
 .forge-rich-editor__sep {
   width: 1px;
   height: 1.4rem;
-  background: var(--industrial-line-strong);
+  background: var(--color-border-subtle);
   margin: 0 0.15rem;
 }
 
@@ -422,7 +448,7 @@ const tools = [
 }
 
 .forge-rich-editor__surface :deep(.ProseMirror:focus) {
-  box-shadow: inset 0 0 0 2px var(--industrial-accent-wash);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-accent-coral) 16%, transparent);
 }
 
 .forge-rich-editor__surface :deep(.ProseMirror p.is-editor-empty:first-child::before) {
@@ -469,7 +495,7 @@ const tools = [
   padding: 0.12rem 0.35rem;
   border-radius: 0.2rem;
   background: var(--color-surface-900);
-  border: 1px solid var(--industrial-line);
+  border: 1px solid var(--color-border-subtle);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.88em;
 }
@@ -485,8 +511,8 @@ const tools = [
   max-width: 100%;
   height: auto;
   margin: 0.85rem 0;
-  border: 1px solid var(--industrial-line);
-  border-radius: 0.25rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.45rem;
 }
 
 .forge-rich-editor__toolbar :deep(.va-button) {

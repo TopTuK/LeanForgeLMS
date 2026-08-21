@@ -1,4 +1,5 @@
 <script setup>
+import { nextTick } from 'vue';
 import ForgeRichEditor from '@/components/courses/forge/ForgeRichEditor.vue';
 
 defineProps({
@@ -6,7 +7,24 @@ defineProps({
   disabled: { type: Boolean, default: false },
 });
 
-defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'slash']);
+
+function plainText(html) {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .trim();
+}
+
+function onUpdate(html) {
+  if (plainText(html) === '/') {
+    emit('update:modelValue', '');
+    nextTick(() => emit('slash'));
+    return;
+  }
+  emit('update:modelValue', html);
+}
 </script>
 
 <template>
@@ -16,6 +34,6 @@ defineEmits(['update:modelValue']);
     :allow-image="false"
     :disabled="disabled"
     :placeholder="$t('courses.lessonEditor.parts.text_placeholder')"
-    @update:model-value="$emit('update:modelValue', $event)"
+    @update:model-value="onUpdate"
   />
 </template>
