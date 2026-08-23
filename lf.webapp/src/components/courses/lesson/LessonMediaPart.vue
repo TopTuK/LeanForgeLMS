@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Image, Video, AudioLines } from 'lucide-vue-next';
 import { MEDIA_ACCEPT_ATTR } from '@/stores/lessonPartStore';
 
 const props = defineProps({
@@ -23,6 +24,12 @@ const inputRef = ref(null);
 
 const accept = computed(() => MEDIA_ACCEPT_ATTR[props.type] ?? '');
 const hasPreview = computed(() => Boolean(props.objectUrl));
+
+const TypeIcon = computed(() => {
+  if (props.type === 'image') return Image;
+  if (props.type === 'video') return Video;
+  return AudioLines;
+});
 
 const uploadLabel = computed(() => {
   if (props.type === 'image') return t('courses.lessonEditor.parts.upload_image');
@@ -127,14 +134,21 @@ function onDragLeave() {
       @dragleave="onDragLeave"
       @drop="onDrop"
     >
-      <span>{{ uploadLabel }}</span>
+      <span class="media-part__drop-icon">
+        <component
+          :is="TypeIcon"
+          :size="22"
+        />
+      </span>
+      <span class="media-part__drop-label">{{ uploadLabel }}</span>
     </button>
   </div>
 </template>
 
 <style scoped>
 .media-part {
-  min-height: 8rem;
+  min-height: 6rem;
+  padding: 0.35rem;
 }
 
 .media-part__input {
@@ -143,30 +157,48 @@ function onDragLeave() {
 
 .media-part__dropzone {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   width: 100%;
-  min-height: 8.5rem;
-  padding: 1.25rem 1.5rem;
-  border: 1px dashed var(--industrial-line-strong);
-  border-radius: 0.25rem;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--industrial-panel) 70%, transparent) 0%,
-      var(--color-surface-950) 100%
-    );
+  min-height: 8rem;
+  padding: 1.35rem 1.25rem;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: 0.65rem;
+  background: var(--color-surface-950);
   color: var(--color-ink-muted);
-  font-size: 0.92rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.media-part__drop-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.65rem;
+  background: var(--color-surface-900);
+  color: var(--color-ink-muted);
+}
+
+.media-part__drop-label {
+  font-size: 0.9rem;
   font-weight: 600;
   text-align: center;
-  cursor: pointer;
 }
 
 .media-part__dropzone:hover:not(:disabled),
 .media-part__dropzone--drag {
   border-color: var(--color-accent-coral);
+  background: color-mix(in srgb, var(--color-accent-coral) 6%, var(--color-surface-950));
   color: var(--color-ink);
+}
+
+.media-part__dropzone:hover:not(:disabled) .media-part__drop-icon,
+.media-part__dropzone--drag .media-part__drop-icon {
+  background: color-mix(in srgb, var(--color-accent-coral) 14%, transparent);
+  color: var(--color-accent-coral-dark);
 }
 
 .media-part__dropzone:disabled {
@@ -177,8 +209,8 @@ function onDragLeave() {
 .media-part__preview {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.85rem;
+  gap: 0.65rem;
+  padding: 0.35rem;
 }
 
 .media-part__image {
@@ -186,14 +218,14 @@ function onDragLeave() {
   max-width: 100%;
   max-height: 22rem;
   margin: 0 auto;
-  border: 1px solid var(--industrial-line);
-  border-radius: 0.25rem;
+  border-radius: 0.55rem;
 }
 
 .media-part__player {
   display: block;
   width: 100%;
   max-height: 22rem;
+  border-radius: 0.55rem;
   background: var(--color-surface-900);
 }
 
@@ -219,8 +251,6 @@ function onDragLeave() {
   color: var(--color-accent-coral-dark);
   font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .media-part__replace {
@@ -231,8 +261,6 @@ function onDragLeave() {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
 }
 
 .media-part__replace:disabled {

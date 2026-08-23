@@ -87,6 +87,49 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         }
     }
 
+    public async Task<QuizSubmissionDto?> SubmitQuizAttemptAsync(int id, int lessonId, int partId, IReadOnlyList<QuizAnswerInputDto> answers, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::SubmitQuizAttemptAsync: called with Id={Id} LessonId={LessonId} PartId={PartId} ActingUserId={ActingUserId}",
+            id, lessonId, partId, actingUserId);
+
+        var request = new SubmitQuizAttemptRequest { Id = id, LessonId = lessonId, PartId = partId, ActingUserId = actingUserId, ActingIsAdmin = isAdmin };
+        request.Answers.AddRange(answers.Select(a =>
+        {
+            var input = new QuizAnswerInput { QuestionId = a.QuestionId };
+            input.SelectedOptionIds.AddRange(a.SelectedOptionIds);
+            return input;
+        }));
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.SubmitQuizAttemptAsync(request);
+            return ToQuizSubmissionDto(reply);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new EnrollmentAuthorizationException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
+        }
+    }
+
+    private static QuizSubmissionDto ToQuizSubmissionDto(QuizAttemptResultReply reply) => new()
+    {
+        Result = new QuizAttemptResultDto
+        {
+            ScorePercent = reply.ScorePercent,
+            Passed = reply.Passed,
+            Questions = reply.Questions.Adapt<List<QuizQuestionResultDto>>(),
+        },
+        Enrollment = reply.Enrollment.Adapt<EnrollmentDetailDto>(),
+    };
+
     public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
     {
         _logger.LogInformation("GrpcEnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);

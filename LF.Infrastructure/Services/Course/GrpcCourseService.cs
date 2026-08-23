@@ -208,9 +208,32 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
             ActingUserId = actingUserId,
             ActingIsAdmin = isAdmin,
         };
-        request.Parts.AddRange(parts.Adapt<List<LessonPartInput>>());
+        request.Parts.AddRange(parts.Select(ToLessonPartInput));
 
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.ReplaceLessonPartsAsync(request));
+    }
+
+    // Mapster's top-level Adapt<T>() isn't trusted here to populate nested `repeated` fields
+    // correctly (same reasoning as RpcCourseService.ToReply/ToEnrollmentReply on the server side) —
+    // build the message scalar-first, then fill QuizQuestions/Options manually. Without this, quiz
+    // parts round-trip with an empty QuizQuestions list, which the domain then rejects as invalid.
+    private static LessonPartInput ToLessonPartInput(ReplaceLessonPartInputDto dto)
+    {
+        var input = dto.Adapt<LessonPartInput>();
+        input.QuizQuestions.Clear();
+
+        if (dto.QuizQuestions is not null)
+        {
+            input.QuizQuestions.AddRange(dto.QuizQuestions.Select(q =>
+            {
+                var question = q.Adapt<QuizQuestionInput>();
+                question.Options.Clear();
+                question.Options.AddRange(q.Options.Adapt<List<QuizOptionInput>>());
+                return question;
+            }));
+        }
+
+        return input;
     }
 
     private static async Task<CourseDetailDto?> CallOrDefaultAsync(Func<AsyncUnaryCall<CourseDetailReply>> call)

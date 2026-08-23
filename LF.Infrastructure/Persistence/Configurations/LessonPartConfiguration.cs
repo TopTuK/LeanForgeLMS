@@ -16,10 +16,18 @@ internal sealed class LessonPartConfiguration : IEntityTypeConfiguration<LessonP
         builder.Property(p => p.PartType).IsRequired();
         builder.Property(p => p.SortOrder).IsRequired();
         builder.Property(p => p.Html);
+        builder.Property(p => p.QuizPassThresholdPercent);
 
         builder.HasOne(p => p.StorageObject)
             .WithMany()
             .HasForeignKey(p => p.StorageObjectId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(p => p.QuizQuestions)
+            .WithOne()
+            .HasForeignKey(q => q.LessonPartId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(p => p.QuizQuestions).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -1,3 +1,5 @@
+using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Models.Course.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
@@ -159,9 +161,12 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         if (course is null)
             return null;
 
-        var lessonExists = course.Chapters.Any(ch => ch.Lessons.Any(l => l.Id == lessonId));
-        if (!lessonExists)
+        var lesson = course.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId);
+        if (lesson is null)
             throw new InvalidOperationException($"Lesson {lessonId} not found on this course.");
+
+        if (lesson.Parts.Any(p => p.PartType == LessonPartType.Quiz))
+            throw new QuizCompletionRequiredException("This lesson contains a quiz and can only be completed by passing it.");
 
         var totalLessons = course.Chapters.Sum(ch => ch.Lessons.Count);
         var changed = enrollment.CompleteLesson(lessonId);
@@ -171,6 +176,56 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             await _dbContext.SaveChangesAsync();
 
         return ToDetailDto(enrollment, course);
+    }
+
+    public async Task<QuizSubmissionDto?> SubmitQuizAttemptAsync(
+        int id, int lessonId, int partId, IReadOnlyList<QuizAnswerInputDto> answers, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("EnrollmentService::SubmitQuizAttemptAsync: called with Id={Id} LessonId={LessonId} PartId={PartId} ActingUserId={ActingUserId}",
+            id, lessonId, partId, actingUserId);
+
+        var enrollment = await _dbContext.Enrollments.FirstOrDefaultAsync(e => e.Id == id);
+        if (enrollment is null)
+            return null;
+
+        EnsureOwnership(enrollment, actingUserId, isAdmin);
+
+        var course = await LoadCourseAsync(enrollment.CourseId);
+        if (course is null)
+            return null;
+
+        var lesson = course.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId);
+        var quizPart = lesson?.Parts.FirstOrDefault(p => p.Id == partId && p.PartType == LessonPartType.Quiz);
+        if (quizPart is null)
+            throw new InvalidOperationException($"Quiz part {partId} not found on lesson {lessonId}.");
+
+        var selectedByQuestionId = answers.ToDictionary(a => a.QuestionId, IReadOnlyList<int> (a) => a.SelectedOptionIds);
+        var attempt = QuizAttempt.Grade(quizPart, selectedByQuestionId, enrollment.Id, lessonId, _timeProvider.GetUtcNow());
+
+        _dbContext.QuizAttempts.Add(attempt);
+
+        if (attempt.Passed)
+        {
+            var totalLessons = course.Chapters.Sum(ch => ch.Lessons.Count);
+            enrollment.CompleteLesson(lessonId);
+            enrollment.RecalculateCompletion(totalLessons, _timeProvider.GetUtcNow().UtcDateTime);
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        var result = new QuizAttemptResultDto
+        {
+            ScorePercent = attempt.ScorePercent,
+            Passed = attempt.Passed,
+            Questions = [.. quizPart.QuizQuestions.Select(q => new QuizQuestionResultDto
+            {
+                QuestionId = q.Id,
+                IsCorrect = q.IsAnsweredCorrectly(selectedByQuestionId.TryGetValue(q.Id, out var selected) ? selected : []),
+                CorrectOptionIds = [.. q.Options.Where(o => o.IsCorrect).Select(o => o.Id)],
+            })],
+        };
+
+        return new QuizSubmissionDto { Result = result, Enrollment = ToDetailDto(enrollment, course) };
     }
 
     public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
@@ -203,6 +258,11 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .ThenInclude(ch => ch.Lessons)
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.StorageObject)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.QuizQuestions)
+            .ThenInclude(q => q.Options)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()
@@ -240,6 +300,25 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                                 StorageObjectId = p.StorageObjectId,
                                 StorageObjectKey = p.StorageObject?.ObjectKey,
                                 StorageObjectContentType = p.StorageObject?.ContentType,
+                                QuizPassThresholdPercent = p.QuizPassThresholdPercent,
+                                QuizQuestions = [.. p.QuizQuestions
+                                    .OrderBy(q => q.SortOrder)
+                                    .Select(q => new QuizQuestionDto
+                                    {
+                                        Id = q.Id,
+                                        Text = q.Text,
+                                        QuestionType = q.QuestionType,
+                                        SortOrder = q.SortOrder,
+                                        Options = [.. q.Options
+                                            .OrderBy(o => o.SortOrder)
+                                            .Select(o => new QuizOptionDto
+                                            {
+                                                Id = o.Id,
+                                                Text = o.Text,
+                                                IsCorrect = o.IsCorrect,
+                                                SortOrder = o.SortOrder,
+                                            })],
+                                    })],
                             })],
                     })],
             })],

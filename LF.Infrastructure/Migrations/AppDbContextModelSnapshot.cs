@@ -205,6 +205,9 @@ namespace LF.Infrastructure.Migrations
                     b.Property<int>("PartType")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("QuizPassThresholdPercent")
+                        .HasColumnType("integer");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
@@ -218,6 +221,117 @@ namespace LF.Infrastructure.Migrations
                     b.HasIndex("StorageObjectId");
 
                     b.ToTable("LFLessonParts", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("QuizAttemptId")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<int[]>("SelectedOptionIds")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizAttemptId");
+
+                    b.ToTable("LFQuizAnswers", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAttempt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ScorePercent")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.ToTable("LFQuizAttempts", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizOption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.ToTable("LFQuizOptions", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("LessonPartId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("QuestionType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonPartId");
+
+                    b.ToTable("LFQuizQuestions", (string)null);
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Storage.StorageObject", b =>
@@ -355,6 +469,42 @@ namespace LF.Infrastructure.Migrations
                     b.Navigation("StorageObject");
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.QuizAttempt", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("QuizAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAttempt", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Enrollment", null)
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizOption", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.QuizQuestion", null)
+                        .WithMany("Options")
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizQuestion", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.LessonPart", null)
+                        .WithMany("QuizQuestions")
+                        .HasForeignKey("LessonPartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Chapter", b =>
                 {
                     b.Navigation("Lessons");
@@ -368,6 +518,21 @@ namespace LF.Infrastructure.Migrations
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Lesson", b =>
                 {
                     b.Navigation("Parts");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.LessonPart", b =>
+                {
+                    b.Navigation("QuizQuestions");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAttempt", b =>
+                {
+                    b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizQuestion", b =>
+                {
+                    b.Navigation("Options");
                 });
 #pragma warning restore 612, 618
         }

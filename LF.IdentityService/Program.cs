@@ -3,26 +3,43 @@ using LF.Application;
 using LF.Infrastructure;
 using LF.Infrastructure.Persistence.Seed;
 using Mapster;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Microsoft.Extensions.Hosting.Extensions.CreateBootstrapLogger();
 
-builder.AddServiceDefaults();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-TypeAdapterConfig.GlobalSettings.Scan(typeof(Program).Assembly);
+    builder.AddServiceDefaults();
 
-// Add services to the container.
-builder.Services.AddGrpc();
-builder.Services.AddUserApplication();
-builder.Services.AddInfrastructureDatabase(builder.Configuration);
+    TypeAdapterConfig.GlobalSettings.Scan(typeof(Program).Assembly);
 
-var app = builder.Build();
+    // Add services to the container.
+    builder.Services.AddGrpc();
+    builder.Services.AddUserApplication();
+    builder.Services.AddInfrastructureDatabase(builder.Configuration);
 
-await app.Services.InitializeDatabaseAsync();
+    var app = builder.Build();
+    app.UseDefaultRequestLogging();
 
-app.MapDefaultEndpoints();
+    await app.Services.InitializeDatabaseAsync();
 
-// Configure the HTTP request pipeline.
-app.MapGrpcService<RpcUserService>();
-app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+    app.MapDefaultEndpoints();
 
-app.Run();
+    // Configure the HTTP request pipeline.
+    // Note: gRPC status codes live in HTTP/2 trailers, not the HTTP status code the request-logging
+    // middleware reads, so a failed RPC still shows up as "200" in the summary line above.
+    app.MapGrpcService<RpcUserService>();
+    app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "LF.IdentityService application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

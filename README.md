@@ -164,7 +164,7 @@ Users with `Role = Admin` get an "Administration" entry point in the SPA header 
 ```
 LeanForgeLMS.slnx
 LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), lf-identityservice, lf-courseservice, lf-webapi
-LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: OpenTelemetry, health checks, service discovery, HTTP resilience
+LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: OpenTelemetry, health checks, service discovery, HTTP resilience, Serilog console logging
 LF.AppDomain/                    # Domain layer — Entities/{User,Course,Storage}, Models/{User,Course,Storage}/Enums
 LF.AppDomainTests/               # xUnit v3 unit tests for LF.AppDomain entities
 LF.Application/                  # Application layer — Services/{Authentication,Profile,User,Admin,Course,CourseAuthoring,Enrollment,EnrollmentLearning,Storage}, ModelDto/*, Common/Interfaces, Common/Mapping
@@ -190,7 +190,7 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 | Authentication | JWT Bearer (primary scheme) + Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google |
 | Object mapping | Mapster |
 | Validation | FluentValidation (referenced in `LF.WebApi` today) |
-| Logging | Serilog (`Serilog.AspNetCore`) |
+| Logging | Serilog (`Serilog.AspNetCore`), centralized in `LeanForgeLMS.ServiceDefaults` and applied to all three backend hosts — colorized console output, two-stage bootstrap (captures startup errors before DI is up), one summary line per request/RPC |
 | Observability | OpenTelemetry (traces + metrics) via `LeanForgeLMS.ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
 | Testing | xUnit v3 + Moq + MockQueryable.Moq (unit tests only today — Testcontainers/WebApplicationFactory integration testing is planned, not yet built) |
 | Frontend | Vue 3 (Composition API) + Vite, Pinia, vue-router, vue-i18n (en/ru), Vuestic UI, Tailwind CSS v4, axios |

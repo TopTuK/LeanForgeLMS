@@ -9,10 +9,11 @@ import {
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { ChevronLeft } from 'lucide-vue-next';
 import { fetchCourse, updateLesson } from '@/services/courseService';
 import { useLessonPartStore } from '@/stores/lessonPartStore';
-import ForgeField from '@/components/courses/forge/ForgeField.vue';
-import ForgeStatusStamp from '@/components/courses/forge/ForgeStatusStamp.vue';
+import StudioShell from '@/components/courses/studio/StudioShell.vue';
+import StudioButton from '@/components/courses/studio/StudioButton.vue';
 import LessonPartsEditor from '@/components/courses/lesson/LessonPartsEditor.vue';
 import LessonPreview from '@/components/courses/lesson/LessonPreview.vue';
 
@@ -176,6 +177,7 @@ async function persist() {
   }
 
   if (generation === saveGeneration && partStore.isDirty(lessonId.value)) {
+    saving.value = true;
     try {
       await partStore.commit(courseId.value, chapterId.value, lessonId.value);
     } catch (err) {
@@ -184,6 +186,8 @@ async function persist() {
         ? t('courses.lessonEditor.forbidden')
         : t('courses.lessonEditor.parts.save_error');
       return false;
+    } finally {
+      if (generation === saveGeneration) saving.value = false;
     }
   }
   return true;
@@ -229,502 +233,309 @@ function discardChanges() {
 </script>
 
 <template>
-  <div class="lesson-forge">
-    <div
-      class="lesson-forge__square"
-      aria-hidden="true"
-    />
-    <div
-      class="lesson-forge__curve"
-      aria-hidden="true"
-    />
+  <StudioShell narrow>
+    <template v-if="loading">
+      <p class="lesson-studio__hint">
+        {{ $t('courses.lessonEditor.loading') }}
+      </p>
+    </template>
 
-    <div class="container mx-auto px-6 py-10 md:py-14 relative z-10">
-      <template v-if="loading">
-        <p class="lesson-forge__hint">
-          {{ $t('courses.lessonEditor.loading') }}
-        </p>
-      </template>
-
-      <template v-else-if="notFound">
-        <div class="lesson-forge__state">
-          <p class="lesson-forge__eyebrow">
-            {{ $t('courses.lessonEditor.eyebrow') }}
-          </p>
-          <h1>{{ $t('courses.lessonEditor.not_found') }}</h1>
-          <button
-            type="button"
-            class="lesson-forge__back-btn"
-            @click="goBack"
-          >
-            {{ $t('courses.lessonEditor.back') }}
-          </button>
-        </div>
-      </template>
-
-      <template v-else-if="forbidden">
-        <div class="lesson-forge__state">
-          <p class="lesson-forge__eyebrow">
-            {{ $t('courses.lessonEditor.eyebrow') }}
-          </p>
-          <h1>{{ $t('courses.lessonEditor.forbidden') }}</h1>
-          <button
-            type="button"
-            class="lesson-forge__back-btn"
-            @click="goBack"
-          >
-            {{ $t('courses.lessonEditor.back') }}
-          </button>
-        </div>
-      </template>
-
-      <template v-else-if="course && chapter">
-        <header class="lesson-forge__header">
-          <div class="lesson-forge__header-copy">
-            <p class="lesson-forge__eyebrow">
-              {{ $t('courses.lessonEditor.eyebrow') }}
-            </p>
-            <h1>{{ $t('courses.lessonEditor.title') }}</h1>
-            <p class="lesson-forge__context">
-              <span>{{ course.title }}</span>
-              <span
-                class="lesson-forge__context-sep"
-                aria-hidden="true"
-              >/</span>
-              <span>{{ chapter.title }}</span>
-            </p>
-          </div>
-
-          <div class="lesson-forge__header-actions">
-            <div
-              class="lesson-forge__mode"
-              role="tablist"
-              :aria-label="$t('courses.lessonEditor.preview.mode_label')"
-            >
-              <button
-                type="button"
-                class="lesson-forge__mode-btn"
-                role="tab"
-                :aria-selected="viewMode === 'edit'"
-                :class="{ 'is-active': viewMode === 'edit' }"
-                @click="viewMode = 'edit'"
-              >
-                {{ $t('courses.lessonEditor.preview.mode_edit') }}
-              </button>
-              <button
-                type="button"
-                class="lesson-forge__mode-btn"
-                role="tab"
-                :aria-selected="viewMode === 'preview'"
-                :class="{ 'is-active': viewMode === 'preview' }"
-                @click="viewMode = 'preview'"
-              >
-                {{ $t('courses.lessonEditor.preview.mode_preview') }}
-              </button>
-            </div>
-            <span
-              class="lesson-forge__save-status"
-              :data-status="saveStatus"
-              role="status"
-            >
-              {{ saveStatusLabel }}
-            </span>
-            <ForgeStatusStamp
-              v-if="course.isPublished"
-              variant="published"
-              :label="$t('courses.editor.published')"
-            />
-            <ForgeStatusStamp
-              v-else
-              variant="draft"
-              :label="$t('courses.editor.draft')"
-            />
-            <va-button
-              preset="secondary"
-              border-color="#c4c4c4"
-              :disabled="!isDirty || saving"
-              @click="discardChanges"
-            >
-              {{ $t('courses.lessonEditor.discard') }}
-            </va-button>
-            <va-button
-              color="primary"
-              :loading="saving"
-              :disabled="(!isDirty && !saving) || partsUploading"
-              @click="onSaveClick"
-            >
-              {{ $t('courses.lessonEditor.save') }}
-            </va-button>
-          </div>
-        </header>
-
-        <div
-          v-if="errorMessage"
-          class="lesson-forge__alert"
-          role="alert"
-        >
-          <span>{{ errorMessage }}</span>
-          <button
-            type="button"
-            class="lesson-forge__alert-close"
-            :aria-label="$t('courses.lessonEditor.dismiss_error')"
-            @click="errorMessage = ''"
-          >
-            ×
-          </button>
-        </div>
-
-        <div
-          v-if="viewMode === 'edit'"
-          class="lesson-forge__panel"
-        >
-          <div class="lesson-forge__meta">
-            <ForgeField
-              v-model="title"
-              class="lesson-forge__title-field"
-              :label="$t('courses.lessonEditor.field_title')"
-              index="01"
-              required
-            />
-            <label class="lesson-forge__preview">
-              <span class="lesson-forge__preview-label">
-                {{ $t('courses.lessonEditor.include_in_preview') }}
-              </span>
-              <va-switch v-model="includeInPreview" />
-            </label>
-          </div>
-
-          <div class="lesson-forge__body">
-            <div class="lesson-forge__body-meta">
-              <span class="lesson-forge__body-label">
-                {{ $t('courses.lessonEditor.field_content') }}
-              </span>
-              <span
-                class="lesson-forge__body-index"
-                aria-hidden="true"
-              >02</span>
-            </div>
-            <LessonPartsEditor
-              :lesson-id="lessonId"
-              :disabled="saving && !isDirty"
-              @error="errorMessage = $event"
-            />
-          </div>
-        </div>
-
-        <LessonPreview
-          v-else
-          :title="title"
-          :chapter-title="chapter.title"
-          :parts="previewParts"
-        />
-
-        <button
-          type="button"
-          class="lesson-forge__back"
+    <template v-else-if="notFound || forbidden">
+      <div class="lesson-studio__state">
+        <h1>{{ notFound ? $t('courses.lessonEditor.not_found') : $t('courses.lessonEditor.forbidden') }}</h1>
+        <StudioButton
+          variant="ghost"
           @click="goBack"
         >
+          <ChevronLeft :size="16" />
           {{ $t('courses.lessonEditor.back') }}
+        </StudioButton>
+      </div>
+    </template>
+
+    <template v-else-if="course && chapter">
+      <header class="lesson-studio__bar">
+        <button
+          type="button"
+          class="lesson-studio__back"
+          @click="goBack"
+        >
+          <ChevronLeft :size="16" />
+          <span>{{ chapter.title }}</span>
         </button>
-      </template>
-    </div>
-  </div>
+
+        <div class="lesson-studio__bar-actions">
+          <div
+            class="lesson-studio__mode"
+            role="tablist"
+            :aria-label="$t('courses.lessonEditor.preview.mode_label')"
+          >
+            <button
+              type="button"
+              class="lesson-studio__mode-btn"
+              role="tab"
+              :aria-selected="viewMode === 'edit'"
+              :class="{ 'is-active': viewMode === 'edit' }"
+              @click="viewMode = 'edit'"
+            >
+              {{ $t('courses.lessonEditor.preview.mode_edit') }}
+            </button>
+            <button
+              type="button"
+              class="lesson-studio__mode-btn"
+              role="tab"
+              :aria-selected="viewMode === 'preview'"
+              :class="{ 'is-active': viewMode === 'preview' }"
+              @click="viewMode = 'preview'"
+            >
+              {{ $t('courses.lessonEditor.preview.mode_preview') }}
+            </button>
+          </div>
+
+          <span
+            class="lesson-studio__status"
+            :data-status="saveStatus"
+            role="status"
+          >
+            {{ saveStatusLabel }}
+          </span>
+
+          <StudioButton
+            variant="ghost"
+            size="sm"
+            :disabled="!isDirty || saving"
+            @click="discardChanges"
+          >
+            {{ $t('courses.lessonEditor.discard') }}
+          </StudioButton>
+          <StudioButton
+            variant="primary"
+            size="sm"
+            :disabled="(!isDirty && !saving) || partsUploading"
+            @click="onSaveClick"
+          >
+            {{ saving ? $t('courses.lessonEditor.saving') : $t('courses.lessonEditor.save') }}
+          </StudioButton>
+        </div>
+      </header>
+
+      <div
+        v-if="errorMessage"
+        class="lesson-studio__alert"
+        role="alert"
+      >
+        <span>{{ errorMessage }}</span>
+        <button
+          type="button"
+          class="lesson-studio__alert-close"
+          :aria-label="$t('courses.lessonEditor.dismiss_error')"
+          @click="errorMessage = ''"
+        >
+          ×
+        </button>
+      </div>
+
+      <div
+        v-if="viewMode === 'edit'"
+        class="lesson-studio__canvas"
+      >
+        <input
+          v-model="title"
+          class="lesson-studio__title"
+          type="text"
+          :placeholder="$t('courses.lessonEditor.field_title')"
+          :aria-label="$t('courses.lessonEditor.field_title')"
+        >
+
+        <label class="lesson-studio__preview-toggle">
+          <input
+            v-model="includeInPreview"
+            type="checkbox"
+          >
+          <span>{{ $t('courses.lessonEditor.include_in_preview') }}</span>
+        </label>
+
+        <p class="lesson-studio__context">
+          {{ course.title }}
+        </p>
+
+        <LessonPartsEditor
+          :lesson-id="lessonId"
+          :disabled="saving && !isDirty"
+          @error="errorMessage = $event"
+        />
+      </div>
+
+      <LessonPreview
+        v-else
+        :title="title"
+        :chapter-title="chapter.title"
+        :parts="previewParts"
+      />
+    </template>
+  </StudioShell>
 </template>
 
 <style scoped>
-.lesson-forge {
-  position: relative;
-  min-height: calc(100vh - 4.5rem);
-  overflow: hidden;
-  isolation: isolate;
-  background-color: var(--color-surface-950);
-  background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(
-      115deg,
-      var(--industrial-hero-start) 0%,
-      var(--industrial-hero-middle) 58%,
-      var(--industrial-hero-end) 100%
-    );
-  background-size: 40px 40px, 40px 40px, auto;
-}
-
-.lesson-forge__square,
-.lesson-forge__curve {
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.lesson-forge__square {
-  top: 4.5rem;
-  right: 7%;
-  width: 5.5rem;
-  height: 5.5rem;
-  border: 1px solid var(--industrial-line);
-  transform: rotate(12deg);
-  animation: lesson-forge-drift 10s ease-in-out infinite alternate;
-}
-
-.lesson-forge__square::after {
-  content: "";
-  position: absolute;
-  inset: 0.65rem;
-  background: var(--industrial-accent-wash);
-  border: 1px solid var(--industrial-line);
-}
-
-.lesson-forge__curve {
-  width: 14rem;
-  height: 14rem;
-  left: -4.5rem;
-  bottom: 10%;
-  border: 1px solid var(--industrial-line);
-  border-radius: 50%;
-  box-shadow: 0 0 0 32px var(--industrial-grid);
-}
-
-.lesson-forge__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1.25rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--industrial-line);
-  animation: lesson-forge-rise 0.4s ease both;
-}
-
-.lesson-forge__eyebrow {
-  margin: 0 0 0.55rem;
-  color: var(--color-accent-coral);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.lesson-forge__header-copy h1 {
-  margin: 0;
-  color: var(--color-ink);
-  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-
-.lesson-forge__context {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0.55rem 0 0;
-  color: var(--color-ink-muted);
-  font-size: 0.92rem;
-}
-
-.lesson-forge__context-sep {
-  color: var(--color-ink-faint);
-}
-
-.lesson-forge__header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.lesson-forge__mode {
-  display: inline-flex;
-  padding: 0.15rem;
-  border: 1px solid var(--industrial-line-strong);
-  border-radius: 0.3rem;
-  background: var(--color-surface-950);
-}
-
-.lesson-forge__mode-btn {
-  padding: 0.4rem 0.75rem;
-  border: 0;
-  border-radius: 0.2rem;
-  background: transparent;
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.lesson-forge__mode-btn.is-active {
-  background: var(--industrial-accent-wash);
-  color: var(--color-ink);
-}
-
-.lesson-forge__mode-btn:hover:not(.is-active) {
-  color: var(--color-ink);
-}
-
-.lesson-forge__save-status {
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.lesson-forge__save-status[data-status='unsaved'] {
-  color: var(--color-accent-coral-dark);
-}
-
-.lesson-forge__save-status[data-status='saving'] {
-  color: var(--color-ink);
-}
-
-.lesson-forge__alert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding: 0.85rem 1rem;
-  color: var(--color-ink);
-  background: color-mix(in srgb, var(--color-accent-coral) 12%, var(--color-surface-950));
-  border: 1px solid var(--color-accent-coral);
-  border-radius: 0.35rem;
-}
-
-.lesson-forge__alert-close {
-  border: 0;
-  background: transparent;
-  color: var(--color-ink-muted);
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.lesson-forge__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-  padding: 1.35rem 1.35rem 1.5rem;
-  background: var(--industrial-panel);
-  border: 1px solid var(--industrial-line-strong);
-  border-radius: 0.4rem;
-  box-shadow: 0 18px 40px -28px rgb(15 23 42 / 0.45);
-  animation: lesson-forge-rise 0.45s ease both;
-}
-
-.lesson-forge__meta {
-  display: grid;
-  gap: 1rem;
-}
-
-@media (min-width: 768px) {
-  .lesson-forge__meta {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-  }
-}
-
-.lesson-forge__preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 3.1rem;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.35rem;
-  background: var(--color-surface-950);
-}
-
-.lesson-forge__preview-label {
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.lesson-forge__body-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.lesson-forge__body-label {
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.lesson-forge__body-index {
-  color: var(--color-ink-faint);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.lesson-forge__hint,
-.lesson-forge__state h1 {
-  color: var(--color-ink);
-}
-
-.lesson-forge__hint {
+.lesson-studio__hint {
   margin: 2rem 0;
-  font-size: 0.95rem;
+  color: var(--color-ink-muted);
 }
 
-.lesson-forge__state {
-  max-width: 36rem;
+.lesson-studio__state {
   padding: 2rem 0;
 }
 
-.lesson-forge__state h1 {
-  margin: 0 0 1.25rem;
-  font-size: 1.75rem;
+.lesson-studio__state h1 {
+  margin: 0 0 1rem;
+  font-size: 1.6rem;
   font-weight: 800;
 }
 
-.lesson-forge__back,
-.lesson-forge__back-btn {
-  display: inline-flex;
-  margin-top: 1.75rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-ink-muted);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+.lesson-studio__bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 -0.25rem 1.25rem;
+  padding: 0.85rem 0.25rem;
+  background: color-mix(in srgb, var(--color-surface-950) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.lesson-forge__back:hover,
-.lesson-forge__back-btn:hover {
+.lesson-studio__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.4rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-studio__back:hover {
+  background: var(--color-surface-900);
+  color: var(--color-ink);
+}
+
+.lesson-studio__bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lesson-studio__mode {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.5rem;
+  background: var(--color-surface-900);
+}
+
+.lesson-studio__mode-btn {
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-studio__mode-btn.is-active {
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.lesson-studio__status {
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.lesson-studio__status[data-status='unsaved'] {
   color: var(--color-accent-coral-dark);
 }
 
-@keyframes lesson-forge-drift {
-  from { transform: rotate(12deg) translateY(0); }
-  to { transform: rotate(18deg) translateY(0.6rem); }
+.lesson-studio__alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--color-accent-coral);
+  border-radius: 0.6rem;
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+  font-size: 0.9rem;
 }
 
-@keyframes lesson-forge-rise {
-  from {
-    opacity: 0;
-    transform: translateY(0.55rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.lesson-studio__alert-close {
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.lesson-studio__canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 4rem;
+}
+
+.lesson-studio__title {
+  width: 100%;
+  padding: 0.35rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: clamp(1.85rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  outline: none;
+}
+
+.lesson-studio__title::placeholder {
+  color: var(--color-ink-faint);
+}
+
+.lesson-studio__preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 560;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lesson-studio__preview-toggle input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--color-accent-coral);
+}
+
+.lesson-studio__context {
+  margin: 0 0 0.5rem;
+  color: var(--color-ink-faint);
+  font-size: 0.82rem;
 }
 </style>

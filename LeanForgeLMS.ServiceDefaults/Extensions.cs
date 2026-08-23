@@ -7,10 +7,14 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
+using System.Reflection;
 
 namespace Microsoft.Extensions.Hosting;
 
-// Adds common Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
+// Adds common Aspire services: service discovery, resilience, health checks, OpenTelemetry, and Serilog console logging.
 // This project should be referenced by each service project in your solution.
 // To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
@@ -18,8 +22,44 @@ public static class Extensions
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
 
+    // Shared by the bootstrap logger (below) and the full logger (AddServiceDefaults) so console output
+    // never diverges in appearance between the two Serilog stages.
+    private const string ConsoleOutputTemplate =
+        "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] ({Application}) {Message:lj}{NewLine}{Exception}";
+
+    // Stage 1 of Serilog's two-stage setup (https://github.com/serilog/serilog-aspnetcore) — captures
+    // errors that happen before the DI container is available. Call before WebApplication.CreateBuilder,
+    // so IHostEnvironment isn't available yet; the app name is derived from the entry assembly instead,
+    // matching what ASP.NET Core uses for IHostEnvironment.ApplicationName by default.
+    public static void CreateBootstrapLogger()
+    {
+        var applicationName = Assembly.GetEntryAssembly()!.GetName().Name!;
+
+        Log.Logger = new LoggerConfiguration()
+            .Enrich.WithProperty("Application", applicationName)
+            .WriteTo.Console(theme: AnsiConsoleTheme.Code, outputTemplate: ConsoleOutputTemplate)
+            .CreateBootstrapLogger();
+    }
+
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        // ClearProviders must run before ConfigureOpenTelemetry (which adds the OpenTelemetry logging
+        // provider) — otherwise it would wipe that provider too and silently break the Aspire dashboard's
+        // log view. It only removes the default Console/Debug/EventSource providers CreateBuilder adds.
+        builder.Logging.ClearProviders();
+
+        // Stage 2 — the full logger, with DI services and configuration available.
+        builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
+            // AddSerilog() bypasses the standard Logging:LogLevel filtering pipeline for its own provider,
+            // so appsettings.json's "Microsoft.AspNetCore": "Warning" override no longer applies — replicate
+            // it here to keep framework request/routing noise out of the console.
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .WriteTo.Console(theme: AnsiConsoleTheme.Code, outputTemplate: ConsoleOutputTemplate));
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -104,6 +144,23 @@ public static class Extensions
             .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
 
         return builder;
+    }
+
+    // Collapses ASP.NET Core's/gRPC's default multi-line-per-request logging into one structured summary
+    // line. Health/liveness polling is demoted to Verbose (below the default Information minimum) so it
+    // doesn't spam the console — those paths are polled frequently in Development.
+    public static WebApplication UseDefaultRequestLogging(this WebApplication app)
+    {
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.GetLevel = (httpContext, _, _) =>
+                httpContext.Request.Path.StartsWithSegments(HealthEndpointPath)
+                || httpContext.Request.Path.StartsWithSegments(AlivenessEndpointPath)
+                    ? LogEventLevel.Verbose
+                    : LogEventLevel.Information;
+        });
+
+        return app;
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)

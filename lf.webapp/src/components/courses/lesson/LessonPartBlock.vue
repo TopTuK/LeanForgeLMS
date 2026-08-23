@@ -1,16 +1,15 @@
 <script setup>
+import { GripVertical, Plus, Trash2 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import LessonPartToolbox from './LessonPartToolbox.vue';
 
 defineProps({
   index: { type: Number, required: true },
   total: { type: Number, required: true },
   toolboxOpen: { type: Boolean, default: false },
-  insertIndex: { type: Number, default: 0 },
   disabled: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['add', 'select-type', 'move-up', 'move-down', 'remove']);
+const emit = defineEmits(['add', 'remove']);
 
 const { t } = useI18n();
 </script>
@@ -23,6 +22,15 @@ const { t } = useI18n();
     <div class="part-block__gutter">
       <button
         type="button"
+        class="part-block__handle part-block-drag"
+        :disabled="disabled"
+        :title="t('courses.lessonEditor.parts.drag')"
+        :aria-label="t('courses.lessonEditor.parts.drag')"
+      >
+        <GripVertical :size="16" />
+      </button>
+      <button
+        type="button"
         class="part-block__plus"
         :disabled="disabled"
         :title="t('courses.lessonEditor.parts.add_after')"
@@ -30,27 +38,7 @@ const { t } = useI18n();
         :aria-expanded="toolboxOpen"
         @click="emit('add')"
       >
-        +
-      </button>
-      <button
-        type="button"
-        class="part-block__icon"
-        :disabled="disabled || index === 0"
-        :title="t('courses.lessonEditor.parts.move_up')"
-        :aria-label="t('courses.lessonEditor.parts.move_up')"
-        @click="emit('move-up')"
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        class="part-block__icon"
-        :disabled="disabled || index === total - 1"
-        :title="t('courses.lessonEditor.parts.move_down')"
-        :aria-label="t('courses.lessonEditor.parts.move_down')"
-        @click="emit('move-down')"
-      >
-        ↓
+        <Plus :size="14" />
       </button>
       <button
         type="button"
@@ -60,20 +48,11 @@ const { t } = useI18n();
         :aria-label="t('courses.lessonEditor.parts.delete')"
         @click="emit('remove')"
       >
-        ×
+        <Trash2 :size="14" />
       </button>
     </div>
 
     <div class="part-block__main">
-      <div
-        v-if="toolboxOpen"
-        class="part-block__toolbox"
-      >
-        <LessonPartToolbox
-          :insert-index="insertIndex"
-          @select="emit('select-type', $event)"
-        />
-      </div>
       <div class="part-block__body">
         <slot />
       </div>
@@ -84,25 +63,24 @@ const { t } = useI18n();
 <style scoped>
 .part-block {
   display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr);
-  gap: 0.65rem;
+  grid-template-columns: 2.1rem minmax(0, 1fr);
+  gap: 0.35rem;
   align-items: start;
+  padding: 0.15rem 0;
+  border-radius: 0.55rem;
 }
 
 .part-block__gutter {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  padding-top: 0.35rem;
+  gap: 0.15rem;
+  padding-top: 0.45rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
 }
 
 @media (hover: hover) {
-  .part-block__gutter {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-
   .part-block:hover .part-block__gutter,
   .part-block:focus-within .part-block__gutter,
   .part-block--toolbox-open .part-block__gutter {
@@ -110,36 +88,45 @@ const { t } = useI18n();
   }
 }
 
+@media (hover: none) {
+  .part-block__gutter {
+    opacity: 1;
+  }
+}
+
+.part-block__handle,
 .part-block__plus,
 .part-block__icon {
-  width: 1.7rem;
-  height: 1.7rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
   padding: 0;
-  border: 1px solid var(--industrial-line);
-  border-radius: 0.25rem;
-  background: var(--color-surface-950);
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
   color: var(--color-ink-muted);
-  font-size: 0.95rem;
-  line-height: 1;
   cursor: pointer;
 }
 
-.part-block__plus {
-  font-weight: 700;
+.part-block__handle {
+  cursor: grab;
+  color: var(--color-ink-faint);
+}
+
+.part-block__handle:hover:not(:disabled),
+.part-block__plus:hover:not(:disabled),
+.part-block__icon:hover:not(:disabled) {
+  background: var(--color-surface-900);
   color: var(--color-ink);
 }
 
-.part-block__plus:hover,
-.part-block__icon:hover:not(:disabled) {
-  border-color: var(--color-accent-coral);
-  color: var(--color-accent-coral-dark);
-}
-
 .part-block__icon--danger:hover:not(:disabled) {
-  border-color: var(--color-accent-coral);
-  color: var(--color-accent-coral-dark);
+  background: color-mix(in srgb, #b33a2b 10%, transparent);
+  color: #b33a2b;
 }
 
+.part-block__handle:disabled,
 .part-block__plus:disabled,
 .part-block__icon:disabled {
   opacity: 0.35;
@@ -150,15 +137,14 @@ const { t } = useI18n();
   min-width: 0;
 }
 
-.part-block__toolbox {
-  margin-bottom: 0.55rem;
-}
-
 .part-block__body {
   min-width: 0;
-  border: 1px solid var(--industrial-line);
-  border-radius: 0.35rem;
-  background: var(--color-surface-950);
-  overflow: hidden;
+  border-radius: 0.55rem;
+  transition: background-color 0.12s ease;
+}
+
+.part-block:hover .part-block__body,
+.part-block:focus-within .part-block__body {
+  background: color-mix(in srgb, var(--color-surface-900) 65%, transparent);
 }
 </style>

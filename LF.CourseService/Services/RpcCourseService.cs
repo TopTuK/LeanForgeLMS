@@ -9,6 +9,7 @@ using Mapster;
 using AppEnrollmentStatusFilter = LF.Application.ModelDto.Enrollment.EnrollmentStatusFilter;
 using AppLessonPartType = LF.AppDomain.Models.Course.Enums.LessonPartType;
 using AppMoveDirection = LF.Application.ModelDto.Course.MoveDirection;
+using AppQuestionType = LF.AppDomain.Models.Course.Enums.QuestionType;
 
 namespace LF.CourseService.Services;
 
@@ -192,6 +193,19 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
             PartType = p.PartType.Adapt<AppLessonPartType>(),
             Html = p.Html,
             StorageObjectId = p.StorageObjectId,
+            QuizPassThresholdPercent = p.QuizPassThresholdPercent,
+            QuizQuestions = p.QuizQuestions.Count == 0 ? null : [.. p.QuizQuestions.Select(q => new QuizQuestionInputDto
+            {
+                Text = q.Text,
+                QuestionType = q.QuestionType.Adapt<AppQuestionType>(),
+                SortOrder = q.SortOrder,
+                Options = [.. q.Options.Select(o => new QuizOptionInputDto
+                {
+                    Text = o.Text,
+                    IsCorrect = o.IsCorrect,
+                    SortOrder = o.SortOrder,
+                })],
+            })],
         }).ToList();
 
         var course = await GuardedAsync(() =>
@@ -261,6 +275,25 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return ToEnrollmentReply(enrollment);
     }
 
+    public override async Task<QuizAttemptResultReply> SubmitQuizAttempt(SubmitQuizAttemptRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::SubmitQuizAttempt: called with Id={Id} LessonId={LessonId} PartId={PartId} ActingUserId={ActingUserId}",
+            request.Id, request.LessonId, request.PartId, request.ActingUserId);
+
+        var answers = request.Answers.Select(a => new QuizAnswerInputDto
+        {
+            QuestionId = a.QuestionId,
+            SelectedOptionIds = [.. a.SelectedOptionIds],
+        }).ToList();
+
+        var submission = await GuardedQuizAsync(() =>
+            _enrollmentService.SubmitQuizAttemptAsync(request.Id, request.LessonId, request.PartId, answers, request.ActingUserId, request.ActingIsAdmin));
+
+        var reply = submission.Result.Adapt<QuizAttemptResultReply>();
+        reply.Enrollment = ToEnrollmentReply(submission.Enrollment);
+        return reply;
+    }
+
     public override async Task<CourseCoverReply> GetCourseCover(GetCourseCoverRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::GetCourseCover: called with CourseId={CourseId}", request.CourseId);
@@ -293,6 +326,23 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         }
     }
 
+    private static async Task<QuizSubmissionDto> GuardedQuizAsync(Func<Task<QuizSubmissionDto?>> operation)
+    {
+        try
+        {
+            var submission = await operation();
+            return submission ?? throw new RpcException(new Status(StatusCode.NotFound, "Enrollment, lesson or quiz part not found."));
+        }
+        catch (EnrollmentAuthorizationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
     private static async Task<EnrollmentDetailDto> GuardedEnrollmentAsync(Func<Task<EnrollmentDetailDto?>> operation)
     {
         try
@@ -304,10 +354,31 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
         }
+        catch (QuizCompletionRequiredException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
         catch (InvalidOperationException ex)
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
         }
+    }
+
+    // Same nested-repeated-field caveat as Chapters/Lessons/Parts (see ToReply) one level
+    // deeper — LessonPartReply.QuizQuestions[].Options[] needs the same manual treatment.
+    private static LessonPartReply ToLessonPartReply(LessonPartDto dto)
+    {
+        var reply = dto.Adapt<LessonPartReply>();
+        reply.QuizQuestions.Clear();
+        reply.QuizQuestions.AddRange(dto.QuizQuestions.Select(q =>
+        {
+            var question = q.Adapt<QuizQuestionReply>();
+            question.Options.Clear();
+            question.Options.AddRange(q.Options.Adapt<List<QuizOptionReply>>());
+            return question;
+        }));
+
+        return reply;
     }
 
     // Mapster's top-level Adapt<T>() isn't trusted here to populate nested `repeated` fields
@@ -327,7 +398,7 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
             {
                 var lessonReply = lessonDto.Adapt<EnrollmentLessonReply>();
                 lessonReply.Parts.Clear();
-                lessonReply.Parts.AddRange(lessonDto.Parts.Adapt<List<LessonPartReply>>());
+                lessonReply.Parts.AddRange(lessonDto.Parts.Select(ToLessonPartReply));
                 chapterReply.Lessons.Add(lessonReply);
             }
 
@@ -354,7 +425,7 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
             {
                 var lessonReply = lessonDto.Adapt<LessonReply>();
                 lessonReply.Parts.Clear();
-                lessonReply.Parts.AddRange(lessonDto.Parts.Adapt<List<LessonPartReply>>());
+                lessonReply.Parts.AddRange(lessonDto.Parts.Select(ToLessonPartReply));
                 chapterReply.Lessons.Add(lessonReply);
             }
 

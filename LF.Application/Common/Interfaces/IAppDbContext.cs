@@ -12,6 +12,7 @@ public interface IAppDbContext
     DbSet<Category> Categories { get; }
     DbSet<Enrollment> Enrollments { get; }
     DbSet<StorageObject> StorageObjects { get; }
+    DbSet<QuizAttempt> QuizAttempts { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

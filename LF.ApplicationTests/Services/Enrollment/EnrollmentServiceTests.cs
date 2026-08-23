@@ -24,13 +24,41 @@ public class EnrollmentServiceTests
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
+        var quizAttemptsMock = new List<QuizAttempt>().BuildMockDbSet();
 
         dbContextMock = new Mock<IAppDbContext>();
         dbContextMock.SetupGet(c => c.Courses).Returns(coursesMock.Object);
         dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollmentsMock.Object);
+        dbContextMock.SetupGet(c => c.QuizAttempts).Returns(quizAttemptsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System);
+    }
+
+    // Quiz option Ids are DB-generated (0 until persisted); grading matches by Id, so tests need
+    // distinct Ids assigned explicitly, same reasoning as CreatePublishedCourse's lesson Ids above.
+    private static (DomainCourse Course, int LessonId, int PartId, int CorrectOptionId, int WrongOptionId) CreatePublishedCourseWithQuiz(int passThresholdPercent = 60)
+    {
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        EntityIdSetter.SetId(course, 1);
+
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        EntityIdSetter.SetId(lesson, 1);
+
+        var question = new QuizQuestionInput("Q1", QuestionType.SingleChoice, 1,
+            [new QuizOptionInput("Correct", true, 1), new QuizOptionInput("Wrong", false, 2)]);
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Quiz, null, null, [question], passThresholdPercent)]);
+
+        var quizPart = lesson.Parts[0];
+        EntityIdSetter.SetId(quizPart, 1);
+        EntityIdSetter.SetId(quizPart.QuizQuestions[0], 1);
+        EntityIdSetter.SetId(quizPart.QuizQuestions[0].Options[0], 1);
+        EntityIdSetter.SetId(quizPart.QuizQuestions[0].Options[1], 2);
+
+        course.Publish();
+        return (course, lesson.Id, quizPart.Id, quizPart.QuizQuestions[0].Options[0].Id, quizPart.QuizQuestions[0].Options[1].Id);
     }
 
     // Ids are DB-generated (0 until persisted); tests that mix multiple courses/lessons need
@@ -230,6 +258,73 @@ public class EnrollmentServiceTests
 
         // Assert
         Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task CompleteLessonAsync_LessonHasQuizPart_ThrowsQuizCompletionRequiredException()
+    {
+        // Arrange
+        var (course, lessonId, _, _, _) = CreatePublishedCourseWithQuiz();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<QuizCompletionRequiredException>(
+            () => service.CompleteLessonAsync(enrollment.Id, lessonId, actingUserId: 7, isAdmin: false));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SubmitQuizAttemptAsync_PassingScore_CompletesLessonAndReturnsResult()
+    {
+        // Arrange
+        var (course, lessonId, partId, correctOptionId, _) = CreatePublishedCourseWithQuiz(passThresholdPercent: 60);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out var dbContextMock);
+        var answers = new List<QuizAnswerInputDto> { new() { QuestionId = 1, SelectedOptionIds = [correctOptionId] } };
+
+        // Act
+        var submission = await service.SubmitQuizAttemptAsync(enrollment.Id, lessonId, partId, answers, actingUserId: 7, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(submission);
+        Assert.Equal(100, submission!.Result.ScorePercent);
+        Assert.True(submission.Result.Passed);
+        Assert.True(submission.Enrollment.Chapters[0].Lessons[0].IsCompleted);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SubmitQuizAttemptAsync_FailingScore_DoesNotCompleteLesson()
+    {
+        // Arrange
+        var (course, lessonId, partId, _, wrongOptionId) = CreatePublishedCourseWithQuiz(passThresholdPercent: 60);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+        var answers = new List<QuizAnswerInputDto> { new() { QuestionId = 1, SelectedOptionIds = [wrongOptionId] } };
+
+        // Act
+        var submission = await service.SubmitQuizAttemptAsync(enrollment.Id, lessonId, partId, answers, actingUserId: 7, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(submission);
+        Assert.Equal(0, submission!.Result.ScorePercent);
+        Assert.False(submission.Result.Passed);
+        Assert.False(submission.Enrollment.Chapters[0].Lessons[0].IsCompleted);
+    }
+
+    [Fact]
+    public async Task SubmitQuizAttemptAsync_NonOwnerNonAdmin_ThrowsEnrollmentAuthorizationException()
+    {
+        // Arrange
+        var (course, lessonId, partId, correctOptionId, _) = CreatePublishedCourseWithQuiz();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+        var answers = new List<QuizAnswerInputDto> { new() { QuestionId = 1, SelectedOptionIds = [correctOptionId] } };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<EnrollmentAuthorizationException>(
+            () => service.SubmitQuizAttemptAsync(enrollment.Id, lessonId, partId, answers, actingUserId: 99, isAdmin: false));
     }
 
     [Fact]

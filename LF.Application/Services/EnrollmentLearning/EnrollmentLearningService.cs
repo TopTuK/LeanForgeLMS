@@ -46,6 +46,14 @@ internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningServic
         return await _grpcEnrollmentService.CompleteLessonAsync(id, lessonId, actingUserId, isAdmin);
     }
 
+    public async Task<QuizSubmissionDto?> SubmitQuizAttemptAsync(int id, int lessonId, int partId, IReadOnlyList<QuizAnswerInputDto> answers, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("EnrollmentLearningService::SubmitQuizAttemptAsync: called with Id={Id} LessonId={LessonId} PartId={PartId} ActingUserId={ActingUserId}",
+            id, lessonId, partId, actingUserId);
+
+        return await _grpcEnrollmentService.SubmitQuizAttemptAsync(id, lessonId, partId, answers, actingUserId, isAdmin);
+    }
+
     public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
     {
         _logger.LogInformation("EnrollmentLearningService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
