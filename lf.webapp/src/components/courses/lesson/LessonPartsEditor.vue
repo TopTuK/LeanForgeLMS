@@ -6,7 +6,7 @@ import draggable from 'vuedraggable';
 import { Plus } from 'lucide-vue-next';
 import { useLessonPartStore } from '@/stores/lessonPartStore';
 import LessonPartBlock from './LessonPartBlock.vue';
-import LessonPartToolbox from './LessonPartToolbox.vue';
+import LessonPartTypePanel from './LessonPartTypePanel.vue';
 import LessonTextPart from './LessonTextPart.vue';
 import LessonMediaPart from './LessonMediaPart.vue';
 import LessonQuizPart from './LessonQuizPart.vue';
@@ -37,6 +37,15 @@ const parts = computed({
 
 const isEmpty = computed(() => parts.value.length === 0);
 
+const showPanelBeforeFirst = computed(
+  () => toolboxAnchor.value === 'slash' && slashInsertIndex.value === 0,
+);
+
+function isPanelAfter(index) {
+  if (toolboxAnchor.value === index) return true;
+  return toolboxAnchor.value === 'slash' && slashInsertIndex.value === index + 1;
+}
+
 function openToolbox(anchor) {
   if (props.disabled) return;
   if (toolboxAnchor.value === anchor) {
@@ -65,7 +74,7 @@ function onSlashRequest(part, index) {
   slashInsertIndex.value = index;
   requestAnimationFrame(() => {
     if (partStore.partsFor(props.lessonId).length === 0) {
-      toolboxAnchor.value = 'empty';
+      toolboxAnchor.value = null;
       return;
     }
     toolboxAnchor.value = 'slash';
@@ -73,18 +82,18 @@ function onSlashRequest(part, index) {
 }
 
 function onDocumentPointerDown(event) {
-  if (toolboxAnchor.value == null) return;
+  if (toolboxAnchor.value == null || isEmpty.value) return;
   const target = event.target;
   if (!(target instanceof Element)) {
     closeToolbox();
     return;
   }
-  if (target.closest('.part-toolbox, .part-block__plus, .parts-editor__add')) return;
+  if (target.closest('.part-type-panel, .part-block__plus, .parts-editor__add')) return;
   closeToolbox();
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape') closeToolbox();
+  if (event.key === 'Escape' && !isEmpty.value) closeToolbox();
 }
 
 onMounted(() => {
@@ -108,23 +117,22 @@ onBeforeUnmount(() => {
       <p class="parts-editor__hint">
         {{ t('courses.lessonEditor.parts.slash_hint') }}
       </p>
-      <button
-        type="button"
-        class="parts-editor__add"
-        :disabled="disabled"
-        @click="openToolbox('empty')"
-      >
-        <Plus :size="16" />
-        {{ t('courses.lessonEditor.parts.add') }}
-      </button>
-      <LessonPartToolbox
-        v-if="toolboxAnchor === 'empty'"
+      <LessonPartTypePanel
         :insert-index="0"
+        :disabled="disabled"
         @select="addType"
       />
     </div>
 
     <template v-else>
+      <LessonPartTypePanel
+        v-if="showPanelBeforeFirst"
+        class="parts-editor__inline-panel"
+        :insert-index="0"
+        :disabled="disabled"
+        @select="addType"
+      />
+
       <draggable
         v-model="parts"
         item-key="id"
@@ -133,39 +141,46 @@ onBeforeUnmount(() => {
         class="parts-editor__list"
       >
         <template #item="{ element: part, index }">
-          <LessonPartBlock
-            :index="index"
-            :total="parts.length"
-            :insert-index="index + 1"
-            :toolbox-open="toolboxAnchor === index"
-            :disabled="disabled"
-            @add="openToolbox(index)"
-            @select-type="addType"
-            @remove="partStore.removePart(lessonId, part.id)"
-          >
-            <LessonTextPart
-              v-if="part.type === 'text'"
-              :model-value="part.html"
+          <div class="parts-editor__row">
+            <LessonPartBlock
+              :index="index"
+              :total="parts.length"
+              :toolbox-open="toolboxAnchor === index"
               :disabled="disabled"
-              @update:model-value="partStore.updateText(lessonId, part.id, $event)"
-              @slash="onSlashRequest(part, index)"
-            />
-            <LessonQuizPart
-              v-else-if="part.type === 'quiz'"
-              :model-value="{ quizQuestions: part.quizQuestions, quizPassThreshold: part.quizPassThreshold }"
+              @add="openToolbox(index)"
+              @remove="partStore.removePart(lessonId, part.id)"
+            >
+              <LessonTextPart
+                v-if="part.type === 'text'"
+                :model-value="part.html"
+                :disabled="disabled"
+                @update:model-value="partStore.updateText(lessonId, part.id, $event)"
+                @slash="onSlashRequest(part, index)"
+              />
+              <LessonQuizPart
+                v-else-if="part.type === 'quiz'"
+                :model-value="{ quizQuestions: part.quizQuestions, quizPassThreshold: part.quizPassThreshold }"
+                :disabled="disabled"
+                @update:model-value="partStore.updateQuiz(lessonId, part.id, $event)"
+              />
+              <LessonMediaPart
+                v-else
+                :type="part.type"
+                :file-name="part.fileName"
+                :object-url="part.objectUrl"
+                :uploading="part.uploading"
+                :disabled="disabled"
+                @file="onFile(part, $event)"
+              />
+            </LessonPartBlock>
+            <LessonPartTypePanel
+              v-if="isPanelAfter(index)"
+              class="parts-editor__inline-panel"
+              :insert-index="index + 1"
               :disabled="disabled"
-              @update:model-value="partStore.updateQuiz(lessonId, part.id, $event)"
+              @select="addType"
             />
-            <LessonMediaPart
-              v-else
-              :type="part.type"
-              :file-name="part.fileName"
-              :object-url="part.objectUrl"
-              :uploading="part.uploading"
-              :disabled="disabled"
-              @file="onFile(part, $event)"
-            />
-          </LessonPartBlock>
+          </div>
         </template>
       </draggable>
 
@@ -179,20 +194,12 @@ onBeforeUnmount(() => {
           <Plus :size="16" />
           {{ t('courses.lessonEditor.parts.add') }}
         </button>
-        <LessonPartToolbox
+        <LessonPartTypePanel
           v-if="toolboxAnchor === 'footer'"
           :insert-index="parts.length"
+          :disabled="disabled"
           @select="addType"
         />
-        <div
-          v-if="toolboxAnchor === 'slash'"
-          class="parts-editor__slash"
-        >
-          <LessonPartToolbox
-            :insert-index="slashInsertIndex"
-            @select="addType"
-          />
-        </div>
       </div>
     </template>
   </div>
@@ -211,15 +218,24 @@ onBeforeUnmount(() => {
   gap: 0.15rem;
 }
 
+.parts-editor__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.parts-editor__inline-panel {
+  padding-left: 2.45rem;
+}
+
 .parts-editor__empty {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.55rem;
-  min-height: 9rem;
-  padding: 1.75rem 1.25rem;
+  align-items: stretch;
+  gap: 0.7rem;
+  padding: 1.5rem 1.25rem 1.35rem;
   border: 1px dashed var(--color-border-subtle);
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   background: var(--color-surface-900);
 }
 
@@ -237,18 +253,15 @@ onBeforeUnmount(() => {
 .parts-editor__footer {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.45rem;
+  align-items: stretch;
+  gap: 0.65rem;
   padding: 0.35rem 0 0 2.45rem;
-}
-
-.parts-editor__slash {
-  width: 100%;
 }
 
 .parts-editor__add {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
   gap: 0.35rem;
   padding: 0.4rem 0.55rem;
   border: 0;

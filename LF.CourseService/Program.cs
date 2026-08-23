@@ -2,24 +2,41 @@ using LF.Application;
 using LF.CourseService.Services;
 using LF.Infrastructure;
 using Mapster;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Microsoft.Extensions.Hosting.Extensions.CreateBootstrapLogger();
 
-builder.AddServiceDefaults();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-TypeAdapterConfig.GlobalSettings.Scan(typeof(Program).Assembly);
+    builder.AddServiceDefaults();
 
-// Add services to the container.
-builder.Services.AddGrpc();
-builder.Services.AddCourseApplication();
-builder.Services.AddInfrastructureDatabase(builder.Configuration);
+    TypeAdapterConfig.GlobalSettings.Scan(typeof(Program).Assembly);
 
-var app = builder.Build();
+    // Add services to the container.
+    builder.Services.AddGrpc();
+    builder.Services.AddCourseApplication();
+    builder.Services.AddInfrastructureDatabase(builder.Configuration);
 
-app.MapDefaultEndpoints();
+    var app = builder.Build();
+    app.UseDefaultRequestLogging();
 
-// Configure the HTTP request pipeline.
-app.MapGrpcService<RpcCourseService>();
-app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+    app.MapDefaultEndpoints();
 
-app.Run();
+    // Configure the HTTP request pipeline.
+    // Note: gRPC status codes live in HTTP/2 trailers, not the HTTP status code the request-logging
+    // middleware reads, so a failed RPC still shows up as "200" in the summary line above.
+    app.MapGrpcService<RpcCourseService>();
+    app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "LF.CourseService application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

@@ -1,17 +1,15 @@
 <script setup>
 import { GripVertical, Plus, Trash2 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import LessonPartToolbox from './LessonPartToolbox.vue';
 
 defineProps({
   index: { type: Number, required: true },
   total: { type: Number, required: true },
   toolboxOpen: { type: Boolean, default: false },
-  insertIndex: { type: Number, default: 0 },
   disabled: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['add', 'select-type', 'remove']);
+const emit = defineEmits(['add', 'remove']);
 
 const { t } = useI18n();
 </script>
@@ -55,15 +53,6 @@ const { t } = useI18n();
     </div>
 
     <div class="part-block__main">
-      <div
-        v-if="toolboxOpen"
-        class="part-block__toolbox"
-      >
-        <LessonPartToolbox
-          :insert-index="insertIndex"
-          @select="emit('select-type', $event)"
-        />
-      </div>
       <div class="part-block__body">
         <slot />
       </div>
@@ -145,15 +134,7 @@ const { t } = useI18n();
 }
 
 .part-block__main {
-  position: relative;
   min-width: 0;
-}
-
-.part-block__toolbox {
-  position: absolute;
-  top: -0.15rem;
-  left: 0;
-  z-index: 5;
 }
 
 .part-block__body {

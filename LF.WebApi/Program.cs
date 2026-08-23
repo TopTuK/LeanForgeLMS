@@ -17,9 +17,7 @@ using System.Text;
 
 // Configure logger
 // https://github.com/serilog/serilog-aspnetcore
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateLogger();
+Extensions.CreateBootstrapLogger();
 
 static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
 {
@@ -239,6 +237,7 @@ try
     /* BUILD */
     var app = builder.Build();
     app.MapDefaultEndpoints();
+    app.UseDefaultRequestLogging();
 
     // Configure the HTTP request pipeline
     if (!env.IsDevelopment())
