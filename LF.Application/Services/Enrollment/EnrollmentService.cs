@@ -258,6 +258,11 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .ThenInclude(ch => ch.Lessons)
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.StorageObject)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.QuizQuestions)
+            .ThenInclude(q => q.Options)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()

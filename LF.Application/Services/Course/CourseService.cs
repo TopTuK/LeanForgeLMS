@@ -364,6 +364,11 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .ThenInclude(ch => ch.Lessons)
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.StorageObject)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.QuizQuestions)
+            .ThenInclude(q => q.Options)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -375,6 +380,11 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .ThenInclude(ch => ch.Lessons)
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.StorageObject)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.QuizQuestions)
+            .ThenInclude(q => q.Options)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
