@@ -1,10 +1,10 @@
-<script setup>
-</script>
-
 <template>
-  <section class="events-page container mx-auto px-6 py-12">
-    <h1 class="text-2xl font-bold text-ink">
-      {{ $t('events.hello') }}
+  <section class="container mx-auto px-6 py-16">
+    <h1 class="font-display text-3xl font-semibold tracking-tight text-ink">
+      {{ $t('nav.events') }}
     </h1>
+    <p class="mt-4 max-w-xl rounded-lg border border-dashed border-border-subtle bg-card px-4 py-8 text-ink-muted">
+      {{ $t('events.hello') }}
+    </p>
   </section>
 </template>

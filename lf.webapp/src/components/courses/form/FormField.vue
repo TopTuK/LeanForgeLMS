@@ -23,24 +23,24 @@ function onInput(event) {
 </script>
 
 <template>
-  <div class="forge-field">
-    <div class="forge-field__meta">
+  <div class="form-field">
+    <div class="form-field__meta">
       <label
-        class="forge-field__label"
+        class="form-field__label"
         :for="fieldId"
       >
         {{ label }}
       </label>
       <span
         v-if="index"
-        class="forge-field__index"
+        class="form-field__index"
         aria-hidden="true"
       >{{ index }}</span>
     </div>
     <textarea
       v-if="isTextarea"
       :id="fieldId"
-      class="forge-field__control forge-field__control--area"
+      class="form-field__control form-field__control--area"
       :value="modelValue"
       :rows="rows"
       :placeholder="placeholder"
@@ -51,7 +51,7 @@ function onInput(event) {
     <input
       v-else
       :id="fieldId"
-      class="forge-field__control"
+      class="form-field__control"
       :type="type"
       :value="modelValue"
       :placeholder="placeholder"
@@ -63,65 +63,65 @@ function onInput(event) {
 </template>
 
 <style scoped>
-.forge-field {
+.form-field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.forge-field__meta {
+.form-field__meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.forge-field__label {
+.form-field__label {
   color: var(--color-ink-muted);
   font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
-.forge-field__index {
+.form-field__index {
   color: var(--color-ink-faint);
+  font-family: var(--font-mono);
   font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }
 
-.forge-field__control {
+.form-field__control {
   width: 100%;
   padding: 0.85rem 1rem;
   color: var(--color-ink);
-  background: var(--color-surface-950);
+  background: var(--color-card);
   border: 1px solid var(--color-border-subtle);
-  border-radius: 0.35rem;
+  border-radius: 0.5rem;
   font-family: inherit;
   font-size: 0.95rem;
   line-height: 1.45;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.forge-field__control--area {
+.form-field__control--area {
   resize: vertical;
   min-height: 6rem;
 }
 
-.forge-field__control:disabled {
+.form-field__control:disabled {
   color: var(--color-ink-faint);
   background: var(--color-surface-900);
   cursor: not-allowed;
 }
 
-.forge-field__control:focus {
+.form-field__control:focus {
   outline: none;
   border-color: var(--color-accent-coral);
   box-shadow: 0 0 0 3px var(--industrial-accent-wash);
 }
 
-.forge-field__control::placeholder {
+.form-field__control::placeholder {
   color: var(--color-ink-faint);
 }
 </style>
