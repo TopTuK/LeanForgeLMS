@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
@@ -13,6 +13,15 @@ const courses = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
+const searchQuery = inject('courseSearch', ref(''));
+const visibleCourses = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return courses.value;
+  return courses.value.filter((course) => (
+    course.title.toLowerCase().includes(query)
+    || (course.shortIntroduction ?? '').toLowerCase().includes(query)
+  ));
+});
 
 async function loadCourses() {
   loading.value = true;
@@ -37,9 +46,9 @@ function onManage(courseId) {
 
 <template>
   <div>
-    <div class="bay-section-heading mb-8">
+    <div class="catalog-section-heading mb-8">
       <span
-        class="bay-section-index"
+        class="catalog-section-index"
         aria-hidden="true"
       >04</span>
       <div>
@@ -54,7 +63,7 @@ function onManage(courseId) {
 
     <p
       v-if="errorMessage"
-      class="bay-state-panel bay-state-panel--error mb-4"
+      class="catalog-state-panel catalog-state-panel--error mb-4"
     >
       {{ errorMessage }}
     </p>
@@ -66,11 +75,11 @@ function onManage(courseId) {
       {{ $t('courses.loading') }}
     </p>
     <div
-      v-else-if="courses.length"
+      v-else-if="visibleCourses.length"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
     >
       <CourseCard
-        v-for="(course, idx) in courses"
+        v-for="(course, idx) in visibleCourses"
         :key="course.id"
         status="teaching"
         :index="idx"
@@ -86,7 +95,7 @@ function onManage(courseId) {
     </div>
     <p
       v-else
-      class="bay-state-panel"
+      class="catalog-state-panel"
     >
       {{ $t('courses.teaching.empty') }}
     </p>

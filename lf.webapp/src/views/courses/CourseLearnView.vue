@@ -329,8 +329,7 @@ function goToCourses() {
   min-height: calc(100vh - 4.5rem);
   background-color: var(--color-surface-950);
   background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px);
+    none;
   background-size: 40px 40px;
 }
 

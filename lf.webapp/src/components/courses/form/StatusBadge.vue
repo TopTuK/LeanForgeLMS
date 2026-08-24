@@ -11,41 +11,40 @@ defineProps({
 
 <template>
   <span
-    class="forge-stamp"
-    :class="`forge-stamp--${variant}`"
+    class="status-badge"
+    :class="`status-badge--${variant}`"
   >
     {{ label }}
   </span>
 </template>
 
 <style scoped>
-.forge-stamp {
+.status-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.65rem;
-  border: 1px solid var(--industrial-line-strong);
-  border-radius: 0.2rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   line-height: 1.2;
 }
 
-.forge-stamp--draft {
+.status-badge--draft {
   color: var(--color-ink-muted);
   background: var(--color-surface-900);
 }
 
-.forge-stamp--published {
+.status-badge--published {
   color: var(--color-accent-coral);
   background: var(--color-accent-soft);
-  border-color: var(--color-accent-coral);
+  border-color: color-mix(in srgb, var(--color-accent-coral) 40%, transparent);
 }
 
-.forge-stamp--preview {
+.status-badge--preview {
   color: var(--color-ink);
   background: var(--industrial-accent-wash);
-  border-color: var(--industrial-line-strong);
 }
 </style>

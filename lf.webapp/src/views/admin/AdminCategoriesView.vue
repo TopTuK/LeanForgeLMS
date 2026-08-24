@@ -2,17 +2,16 @@
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { fetchAdminCategories, createCategory, deleteCategory } from '@/services/adminService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 const { t } = useI18n();
 
 const categories = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
-
-const columns = [
-  { key: 'name', label: t('admin.categories.name') },
-  { key: 'actions', label: '', width: 160 },
-];
 
 async function loadCategories() {
   loading.value = true;
@@ -28,7 +27,6 @@ async function loadCategories() {
 
 onMounted(loadCategories);
 
-// Add modal
 const addModalShown = ref(false);
 const newCategoryName = ref('');
 
@@ -41,6 +39,7 @@ async function confirmAdd() {
   errorMessage.value = '';
   try {
     await createCategory(newCategoryName.value);
+    addModalShown.value = false;
     await loadCategories();
   } catch (err) {
     const fieldErrors = err.response?.data?.errors;
@@ -50,7 +49,6 @@ async function confirmAdd() {
   }
 }
 
-// Delete modal
 const deleteModalShown = ref(false);
 const deleteTarget = ref(null);
 
@@ -63,6 +61,7 @@ async function confirmDelete() {
   errorMessage.value = '';
   try {
     await deleteCategory(deleteTarget.value.id);
+    deleteModalShown.value = false;
     await loadCategories();
   } catch (err) {
     errorMessage.value = err.response?.status === 409 && typeof err.response.data === 'string'
@@ -73,104 +72,104 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="admin-categories">
-    <div class="admin-categories__header">
-      <h1 class="admin-categories__title">
+  <div>
+    <div class="mb-4 flex items-center justify-between gap-4">
+      <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">
         {{ $t('admin.categories.title') }}
       </h1>
-      <va-button
-        icon="add"
-        @click="openAddModal"
-      >
+      <Button @click="openAddModal">
         {{ $t('admin.categories.add_action') }}
-      </va-button>
+      </Button>
     </div>
 
-    <va-alert
+    <p
       v-if="errorMessage"
-      color="danger"
-      closeable
-      class="admin-categories__alert"
-      @close="errorMessage = ''"
+      class="mb-4 rounded-md border border-accent-coral bg-accent-soft px-3 py-2 text-sm font-semibold text-accent-coral"
     >
       {{ errorMessage }}
-    </va-alert>
+    </p>
 
-    <va-data-table
-      :items="categories"
-      :columns="columns"
-      :loading="loading"
-      :no-data-html="$t('admin.categories.no_categories')"
-    >
-      <template #cell(name)="{ rowData }">
-        {{ rowData.name }}
-        <va-chip
-          v-if="rowData.isDefault"
-          size="small"
-          class="admin-categories__default-chip"
-        >
-          {{ $t('admin.categories.default_badge') }}
-        </va-chip>
-      </template>
-      <template #cell(actions)="{ rowData }">
-        <va-button
-          preset="secondary"
-          size="small"
-          color="danger"
-          :disabled="rowData.isDefault"
-          :title="rowData.isDefault ? $t('admin.categories.default_protected') : ''"
-          @click="openDeleteModal(rowData)"
-        >
-          {{ $t('admin.categories.delete') }}
-        </va-button>
-      </template>
-    </va-data-table>
+    <div class="overflow-x-auto rounded-lg border border-border-subtle bg-card">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-border-subtle text-ink-muted">
+          <tr>
+            <th class="px-3 py-2 font-semibold">
+              {{ $t('admin.categories.name') }}
+            </th>
+            <th class="px-3 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading">
+            <td
+              class="px-3 py-6 text-ink-muted"
+              colspan="2"
+            >
+              {{ $t('courses.loading') }}
+            </td>
+          </tr>
+          <tr v-else-if="!categories.length">
+            <td
+              class="px-3 py-6 text-ink-muted"
+              colspan="2"
+            >
+              {{ $t('admin.categories.no_categories') }}
+            </td>
+          </tr>
+          <tr
+            v-for="row in categories"
+            v-else
+            :key="row.id"
+            class="border-t border-border-subtle"
+          >
+            <td class="px-3 py-2">
+              <span class="text-ink">{{ row.name }}</span>
+              <Badge
+                v-if="row.isDefault"
+                variant="muted"
+                class="ml-2"
+              >
+                {{ $t('admin.categories.default_badge') }}
+              </Badge>
+            </td>
+            <td class="px-3 py-2 text-right">
+              <Button
+                variant="destructive"
+                size="sm"
+                :disabled="row.isDefault"
+                :title="row.isDefault ? $t('admin.categories.default_protected') : ''"
+                @click="openDeleteModal(row)"
+              >
+                {{ $t('admin.categories.delete') }}
+              </Button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <va-modal
-      v-model="addModalShown"
+    <Dialog
+      v-model:open="addModalShown"
       :title="$t('admin.categories.add_title')"
-      :ok-text="$t('admin.categories.save')"
-      @ok="confirmAdd"
+      :confirm-label="$t('admin.categories.save')"
+      @confirm="confirmAdd"
     >
-      <va-input
-        v-model="newCategoryName"
-        class="admin-categories__field"
-        :label="$t('admin.categories.name')"
-      />
-    </va-modal>
+      <label class="block text-sm font-medium text-ink-muted">
+        {{ $t('admin.categories.name') }}
+        <Input
+          v-model="newCategoryName"
+          class="mt-1"
+        />
+      </label>
+    </Dialog>
 
-    <va-modal
-      v-model="deleteModalShown"
+    <Dialog
+      v-model:open="deleteModalShown"
       :title="$t('admin.categories.delete_title')"
-      :message="$t('admin.categories.delete_confirm', { name: deleteTarget?.name })"
-      :ok-text="$t('admin.categories.delete')"
-      @ok="confirmDelete"
+      :description="$t('admin.categories.delete_confirm', { name: deleteTarget?.name })"
+      :confirm-label="$t('admin.categories.delete')"
+      danger
+      @confirm="confirmDelete"
     />
   </div>
 </template>
-
-<style scoped>
-.admin-categories__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
-
-.admin-categories__title {
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-
-.admin-categories__alert {
-    margin-bottom: 1rem;
-}
-
-.admin-categories__default-chip {
-    margin-left: 0.5rem;
-}
-
-.admin-categories__field {
-    margin-bottom: 1rem;
-}
-</style>

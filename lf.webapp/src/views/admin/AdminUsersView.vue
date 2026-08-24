@@ -3,6 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/authStore';
 import { fetchUsers, updateUserInfo, updateUserRole, deleteUser } from '@/services/adminService';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select } from '@/components/ui/select';
+import { Dialog } from '@/components/ui/dialog';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -18,16 +23,10 @@ const loading = ref(false);
 const errorMessage = ref('');
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / PAGE_SIZE)));
-
-const columns = computed(() => [
-  { key: 'firstName', label: t('admin.users.name') },
-  { key: 'email', label: t('admin.users.email') },
-  { key: 'role', label: t('admin.users.role') },
-  { key: 'createdAt', label: t('admin.users.created_at') },
-  { key: 'actions', label: '', width: 220 },
-]);
-
-const roleOptions = computed(() => ROLES.map((role) => ({ value: role, text: t(`profile.roles.${roleI18nKey(role)}`) })));
+const roleOptions = computed(() => ROLES.map((role) => ({
+  value: role,
+  label: t(`profile.roles.${roleI18nKey(role)}`),
+})));
 
 function roleI18nKey(role) {
   return { Student: 'student', Instructor: 'instructor', CourseCreator: 'course_creator', Admin: 'admin' }[role] ?? 'none';
@@ -65,10 +64,8 @@ watch(search, () => {
 });
 
 watch(page, loadUsers);
-
 onMounted(loadUsers);
 
-// Edit info modal
 const editModalShown = ref(false);
 const editTarget = ref(null);
 const editFirstName = ref('');
@@ -91,34 +88,34 @@ async function confirmEdit() {
       lastName: editLastName.value || null,
       description: editDescription.value || null,
     });
+    editModalShown.value = false;
     await loadUsers();
   } catch {
     errorMessage.value = t('admin.users.save_error');
   }
 }
 
-// Role modal
 const roleModalShown = ref(false);
 const roleTarget = ref(null);
-const selectedRole = ref(null);
+const selectedRole = ref('');
 
 function openRoleModal(row) {
   roleTarget.value = row;
-  selectedRole.value = roleOptions.value.find((o) => o.value === row.role) ?? null;
+  selectedRole.value = row.role;
   roleModalShown.value = true;
 }
 
 async function confirmRoleChange() {
   errorMessage.value = '';
   try {
-    await updateUserRole(roleTarget.value.id, selectedRole.value.value);
+    await updateUserRole(roleTarget.value.id, selectedRole.value);
+    roleModalShown.value = false;
     await loadUsers();
   } catch {
     errorMessage.value = t('admin.users.save_error');
   }
 }
 
-// Delete modal
 const deleteModalShown = ref(false);
 const deleteTarget = ref(null);
 
@@ -131,6 +128,7 @@ async function confirmDelete() {
   errorMessage.value = '';
   try {
     await deleteUser(deleteTarget.value.id);
+    deleteModalShown.value = false;
     if (users.value.length === 1 && page.value > 1) page.value -= 1;
     else await loadUsers();
   } catch {
@@ -141,162 +139,183 @@ async function confirmDelete() {
 
 <template>
   <div class="admin-users">
-    <h1 class="admin-users__title">
+    <h1 class="font-display text-2xl font-semibold tracking-tight text-ink">
       {{ $t('admin.users.title') }}
     </h1>
 
-    <va-alert
+    <p
       v-if="errorMessage"
-      color="danger"
-      closeable
-      class="admin-users__alert"
-      @close="errorMessage = ''"
+      class="mt-4 rounded-md border border-accent-coral bg-accent-soft px-3 py-2 text-sm font-semibold text-accent-coral"
     >
       {{ errorMessage }}
-    </va-alert>
+    </p>
 
-    <va-input
-      v-model="search"
-      class="admin-users__search"
-      :placeholder="$t('admin.users.search_placeholder')"
-      clearable
-    >
-      <template #prependInner>
-        <va-icon name="search" />
-      </template>
-    </va-input>
+    <div class="mt-4 max-w-xs">
+      <Input
+        v-model="search"
+        :placeholder="$t('admin.users.search_placeholder')"
+      />
+    </div>
 
-    <va-data-table
-      :items="users"
-      :columns="columns"
-      :loading="loading"
-      :no-data-html="$t('admin.users.no_users')"
-    >
-      <template #cell(firstName)="{ rowData }">
-        {{ rowData.firstName }} {{ rowData.lastName }}
-      </template>
-      <template #cell(role)="{ rowData }">
-        {{ $t(`profile.roles.${roleI18nKey(rowData.role)}`) }}
-      </template>
-      <template #cell(createdAt)="{ rowData }">
-        {{ formatDate(rowData.createdAt) }}
-      </template>
-      <template #cell(actions)="{ rowData }">
-        <div class="admin-users__actions">
-          <va-button
-            preset="secondary"
-            size="small"
-            @click="openEditModal(rowData)"
+    <div class="mt-4 overflow-x-auto rounded-lg border border-border-subtle bg-card">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b border-border-subtle text-ink-muted">
+          <tr>
+            <th class="px-3 py-2 font-semibold">
+              {{ $t('admin.users.name') }}
+            </th>
+            <th class="px-3 py-2 font-semibold">
+              {{ $t('admin.users.email') }}
+            </th>
+            <th class="px-3 py-2 font-semibold">
+              {{ $t('admin.users.role') }}
+            </th>
+            <th class="px-3 py-2 font-semibold">
+              {{ $t('admin.users.created_at') }}
+            </th>
+            <th class="px-3 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading">
+            <td
+              class="px-3 py-6 text-ink-muted"
+              colspan="5"
+            >
+              {{ $t('courses.loading') }}
+            </td>
+          </tr>
+          <tr v-else-if="!users.length">
+            <td
+              class="px-3 py-6 text-ink-muted"
+              colspan="5"
+            >
+              {{ $t('admin.users.no_users') }}
+            </td>
+          </tr>
+          <tr
+            v-for="row in users"
+            v-else
+            :key="row.id"
+            class="border-t border-border-subtle"
           >
-            {{ $t('admin.users.edit') }}
-          </va-button>
-          <va-button
-            preset="secondary"
-            size="small"
-            :disabled="isSelf(rowData)"
-            :title="isSelf(rowData) ? $t('admin.users.self_action_disabled') : ''"
-            @click="openRoleModal(rowData)"
-          >
-            {{ $t('admin.users.change_role') }}
-          </va-button>
-          <va-button
-            preset="secondary"
-            size="small"
-            color="danger"
-            :disabled="isSelf(rowData)"
-            :title="isSelf(rowData) ? $t('admin.users.self_action_disabled') : ''"
-            @click="openDeleteModal(rowData)"
-          >
-            {{ $t('admin.users.delete') }}
-          </va-button>
-        </div>
-      </template>
-    </va-data-table>
+            <td class="px-3 py-2 text-ink">
+              {{ row.firstName }} {{ row.lastName }}
+            </td>
+            <td class="px-3 py-2 text-ink-muted">
+              {{ row.email }}
+            </td>
+            <td class="px-3 py-2">
+              {{ $t(`profile.roles.${roleI18nKey(row.role)}`) }}
+            </td>
+            <td class="px-3 py-2 text-ink-muted">
+              {{ formatDate(row.createdAt) }}
+            </td>
+            <td class="px-3 py-2">
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  @click="openEditModal(row)"
+                >
+                  {{ $t('admin.users.edit') }}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="isSelf(row)"
+                  :title="isSelf(row) ? $t('admin.users.self_action_disabled') : ''"
+                  @click="openRoleModal(row)"
+                >
+                  {{ $t('admin.users.change_role') }}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  :disabled="isSelf(row)"
+                  :title="isSelf(row) ? $t('admin.users.self_action_disabled') : ''"
+                  @click="openDeleteModal(row)"
+                >
+                  {{ $t('admin.users.delete') }}
+                </Button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <va-pagination
-      v-model="page"
-      class="admin-users__pagination"
-      :pages="totalPages"
-      :visible-pages="5"
-    />
+    <div class="mt-4 flex items-center justify-center gap-3 text-sm text-ink-muted">
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="page <= 1"
+        @click="page -= 1"
+      >
+        ‹
+      </Button>
+      <span>{{ page }} / {{ totalPages }}</span>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="page >= totalPages"
+        @click="page += 1"
+      >
+        ›
+      </Button>
+    </div>
 
-    <va-modal
-      v-model="editModalShown"
+    <Dialog
+      v-model:open="editModalShown"
       :title="$t('admin.users.edit_title')"
-      :ok-text="$t('admin.users.save')"
-      @ok="confirmEdit"
+      :confirm-label="$t('admin.users.save')"
+      :cancel-label="$t('admin.users.cancel')"
+      @confirm="confirmEdit"
     >
-      <va-input
-        v-model="editFirstName"
-        class="admin-users__field"
-        :label="$t('admin.users.first_name')"
-      />
-      <va-input
-        v-model="editLastName"
-        class="admin-users__field"
-        :label="$t('admin.users.last_name')"
-      />
-      <va-textarea
-        v-model="editDescription"
-        class="admin-users__field"
-        :label="$t('admin.users.description')"
-        :max-length="500"
-        :min-rows="3"
-      />
-    </va-modal>
+      <div class="space-y-3">
+        <label class="block text-sm font-medium text-ink-muted">
+          {{ $t('admin.users.first_name') }}
+          <Input
+            v-model="editFirstName"
+            class="mt-1"
+          />
+        </label>
+        <label class="block text-sm font-medium text-ink-muted">
+          {{ $t('admin.users.last_name') }}
+          <Input
+            v-model="editLastName"
+            class="mt-1"
+          />
+        </label>
+        <label class="block text-sm font-medium text-ink-muted">
+          {{ $t('admin.users.description') }}
+          <Textarea
+            v-model="editDescription"
+            class="mt-1"
+          />
+        </label>
+      </div>
+    </Dialog>
 
-    <va-modal
-      v-model="roleModalShown"
+    <Dialog
+      v-model:open="roleModalShown"
       :title="$t('admin.users.change_role_title')"
-      :ok-text="$t('admin.users.save')"
-      @ok="confirmRoleChange"
+      :confirm-label="$t('admin.users.save')"
+      @confirm="confirmRoleChange"
     >
-      <va-select
+      <Select
         v-model="selectedRole"
-        :label="$t('admin.users.role')"
         :options="roleOptions"
-        text-by="text"
-        value-by="value"
       />
-    </va-modal>
+    </Dialog>
 
-    <va-modal
-      v-model="deleteModalShown"
+    <Dialog
+      v-model:open="deleteModalShown"
       :title="$t('admin.users.delete_title')"
-      :message="$t('admin.users.delete_confirm', { name: `${deleteTarget?.firstName} ${deleteTarget?.lastName}` })"
-      :ok-text="$t('admin.users.delete')"
-      @ok="confirmDelete"
+      :description="$t('admin.users.delete_confirm', { name: `${deleteTarget?.firstName} ${deleteTarget?.lastName}` })"
+      :confirm-label="$t('admin.users.delete')"
+      danger
+      @confirm="confirmDelete"
     />
   </div>
 </template>
-
-<style scoped>
-.admin-users__title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-}
-
-.admin-users__alert {
-    margin-bottom: 1rem;
-}
-
-.admin-users__search {
-    max-width: 20rem;
-    margin-bottom: 1rem;
-}
-
-.admin-users__actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.admin-users__pagination {
-    margin-top: 1rem;
-    justify-content: center;
-}
-
-.admin-users__field {
-    margin-bottom: 1rem;
-}
-</style>

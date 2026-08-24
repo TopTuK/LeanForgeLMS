@@ -1,251 +1,196 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { Menu } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
 import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Sheet } from '@/components/ui/sheet';
 import logo from '@/assets/logo.svg';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const mobileOpen = ref(false);
 
-const isMobileMenuOpen = ref(false);
+const displayName = computed(() => authStore.user?.firstName ?? '');
 
-function closeMobileMenu() {
-    isMobileMenuOpen.value = false;
+function closeMobile() {
+  mobileOpen.value = false;
 }
 
 async function onLogout() {
-    closeMobileMenu();
-    await authStore.logout();
-    router.push({ name: 'Home' });
+  closeMobile();
+  await authStore.logout();
+  router.push({ name: 'Home' });
+}
+
+function go(name) {
+  closeMobile();
+  router.push({ name });
 }
 </script>
 
 <template>
   <div class="app-header">
-    <div class="container mx-auto px-6 relative z-10 flex items-center justify-between h-[4.5rem]">
+    <div class="container mx-auto flex h-[4.5rem] items-center justify-between px-6">
       <router-link
         :to="{ name: 'Courses' }"
         class="app-header__brand"
-        @click="closeMobileMenu"
+        @click="closeMobile"
       >
         <img
           :src="logo"
           alt=""
-          class="w-8 h-8"
+          class="size-8"
         >
-        <span class="font-bold text-ink text-lg tracking-tight">
-          {{ $t('common.brand_name') }}
+        <span class="font-display text-[0.95rem] font-semibold leading-tight tracking-tight text-ink sm:text-base">
+          <span class="sm:hidden">{{ $t('common.brand_short') }}</span>
+          <span class="hidden sm:inline">{{ $t('common.brand_name') }}</span>
         </span>
       </router-link>
 
-      <nav class="hidden md:flex items-center gap-8">
+      <nav class="hidden items-center gap-8 md:flex">
         <router-link
           :to="{ name: 'Courses' }"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+          class="text-sm font-medium text-ink-muted transition hover:text-ink"
         >
           {{ $t('nav.courses') }}
         </router-link>
         <router-link
-          :to="{ name: 'Events' }"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
-        >
-          {{ $t('nav.events') }}
-        </router-link>
-        <router-link
-          :to="{ name: 'Certificates' }"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
-        >
-          {{ $t('nav.certificates') }}
-        </router-link>
-        <router-link
           v-if="authStore.isAdmin"
           :to="{ name: 'AdminUsers' }"
-          class="text-sm font-medium text-ink-muted hover:text-ink transition"
+          class="text-sm font-medium text-ink-muted transition hover:text-ink"
         >
           {{ $t('nav.administration') }}
         </router-link>
       </nav>
 
-      <div class="hidden md:flex items-center gap-4">
+      <div class="hidden items-center gap-3 md:flex">
         <ThemeToggleButton />
         <LocaleToggleButton />
-        <router-link
-          :to="{ name: 'Profile' }"
-          class="app-header__profile-link"
-        >
-          <img
-            v-if="authStore.avatarUrl"
-            :src="authStore.avatarUrl"
-            alt=""
-            class="app-header__avatar"
+        <DropdownMenu>
+          <template #trigger>
+            <button
+              type="button"
+              class="app-header__account"
+            >
+              <img
+                v-if="authStore.avatarUrl"
+                :src="authStore.avatarUrl"
+                alt=""
+                class="app-header__avatar"
+              >
+              <span>{{ displayName || $t('nav.profile') }}</span>
+            </button>
+          </template>
+          <DropdownMenuItem @click="router.push({ name: 'Profile' })">
+            {{ $t('nav.profile') }}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            destructive
+            @click="onLogout"
           >
-          {{ authStore.user?.firstName ?? $t('nav.profile') }}
-        </router-link>
-        <button
-          type="button"
-          class="header-signin"
-          @click="onLogout"
-        >
-          {{ $t('nav.logout') }}
-        </button>
+            {{ $t('nav.logout') }}
+          </DropdownMenuItem>
+        </DropdownMenu>
       </div>
 
       <button
         type="button"
-        class="md:hidden text-ink"
+        class="text-ink md:hidden"
         :aria-label="$t('nav.menu_toggle')"
-        @click="isMobileMenuOpen = !isMobileMenuOpen"
+        @click="mobileOpen = true"
       >
-        <svg
-          v-if="!isMobileMenuOpen"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <path
-            d="M4 6H20M4 12H20M4 18H20"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
-        <svg
-          v-else
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <path
-            d="M6 6L18 18M6 18L18 6"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Menu class="size-6" />
       </button>
     </div>
 
-    <nav
-      v-if="isMobileMenuOpen"
-      class="app-header__nav--mobile md:hidden relative z-10 border-t border-border-subtle"
+    <Sheet
+      v-model:open="mobileOpen"
+      side="right"
+      :title="$t('common.brand_short')"
     >
-      <router-link
-        :to="{ name: 'Courses' }"
-        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
-        @click="closeMobileMenu"
-      >
-        {{ $t('nav.courses') }}
-      </router-link>
-      <router-link
-        :to="{ name: 'Events' }"
-        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
-        @click="closeMobileMenu"
-      >
-        {{ $t('nav.events') }}
-      </router-link>
-      <router-link
-        :to="{ name: 'Certificates' }"
-        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
-        @click="closeMobileMenu"
-      >
-        {{ $t('nav.certificates') }}
-      </router-link>
-      <router-link
-        :to="{ name: 'Profile' }"
-        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
-        @click="closeMobileMenu"
-      >
-        {{ authStore.user?.firstName ?? $t('nav.profile') }}
-      </router-link>
-      <router-link
-        v-if="authStore.isAdmin"
-        :to="{ name: 'AdminUsers' }"
-        class="block px-6 py-3 text-sm font-medium text-ink-muted hover:text-ink transition"
-        @click="closeMobileMenu"
-      >
-        {{ $t('nav.administration') }}
-      </router-link>
-      <div class="flex items-center justify-between px-6 py-3 border-t border-border-subtle">
-        <div class="flex items-center gap-4">
+      <nav class="flex flex-col gap-1">
+        <button
+          type="button"
+          class="rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          @click="go('Courses')"
+        >
+          {{ $t('nav.courses') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          @click="go('Profile')"
+        >
+          {{ displayName || $t('nav.profile') }}
+        </button>
+        <button
+          v-if="authStore.isAdmin"
+          type="button"
+          class="rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          @click="go('AdminUsers')"
+        >
+          {{ $t('nav.administration') }}
+        </button>
+      </nav>
+      <div class="mt-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
           <ThemeToggleButton />
           <LocaleToggleButton />
         </div>
-        <button
-          type="button"
-          class="header-signin"
+        <Button
+          variant="outline"
+          size="sm"
           @click="onLogout"
         >
           {{ $t('nav.logout') }}
-        </button>
+        </Button>
       </div>
-    </nav>
+    </Sheet>
   </div>
 </template>
 
 <style scoped>
 .app-header {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background-color: var(--color-surface-950);
-    border-bottom: 1px solid var(--color-border-subtle);
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--color-surface-950) 88%, transparent);
+  border-bottom: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(12px);
 }
 
 .app-header__brand {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
-.app-header__nav--mobile {
-    background: var(--color-surface-950);
-}
-
-.app-header__profile-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-ink-muted);
-    transition: color 0.15s ease;
-}
-
-.app-header__profile-link:hover {
-    color: var(--color-ink);
+.app-header__account {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-card);
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .app-header__avatar {
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 999px;
-    object-fit: cover;
-}
-
-.header-signin {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1.1rem;
-    color: #ffffff;
-    background: var(--color-accent-coral);
-    border: 1px solid var(--color-accent-coral);
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 700;
-    line-height: 1;
-    box-shadow: 0 6px 16px rgba(236, 104, 60, 0.2);
-    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.header-signin:hover {
-    color: #ffffff;
-    background: var(--color-accent-coral-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 9px 22px rgba(236, 104, 60, 0.28);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  object-fit: cover;
 }
 </style>
