@@ -341,6 +341,28 @@ public class EnrollmentServiceTests
     }
 
     [Fact]
+    public async Task GetEnrollmentAsync_FilesPart_ReturnsFilesToLearner()
+    {
+        // Arrange
+        var course = CreatePublishedCourse();
+        var lesson = course.Chapters[0].Lessons[0];
+        var storageObject = StorageObject.Create(StorageObjectType.File, "files/a.pdf", "application/pdf", 100, 1, DateTime.UtcNow);
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Files, null, null, Files: [new LessonPartFileInput("a.pdf", storageObject)])]);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        // Act
+        var result = await service.GetEnrollmentAsync(enrollment.Id, actingUserId: 7, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(result);
+        var files = result!.Chapters[0].Lessons[0].Parts[0].Files;
+        Assert.Single(files);
+        Assert.Equal("a.pdf", files[0].FileName);
+        Assert.Equal("files/a.pdf", files[0].StorageObjectKey);
+    }
+
+    [Fact]
     public async Task ListMyEnrollmentsAsync_FiltersByActiveStatus()
     {
         // Arrange

@@ -48,7 +48,7 @@ public sealed class Lesson
 
         _parts.Clear();
         for (var i = 0; i < parts.Count; i++)
-            _parts.Add(LessonPart.Create(parts[i].PartType, i + 1, parts[i].Html, parts[i].StorageObject, parts[i].QuizQuestions, parts[i].QuizPassThresholdPercent));
+            _parts.Add(LessonPart.Create(parts[i].PartType, i + 1, parts[i].Html, parts[i].StorageObject, parts[i].QuizQuestions, parts[i].QuizPassThresholdPercent, parts[i].Files));
     }
 
     internal void SetSortOrder(int sortOrder) => SortOrder = sortOrder;

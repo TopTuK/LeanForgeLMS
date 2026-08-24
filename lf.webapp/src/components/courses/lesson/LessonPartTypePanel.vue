@@ -1,5 +1,5 @@
 <script setup>
-import { FileText, Image, Video, AudioLines, CircleHelp } from 'lucide-vue-next';
+import { FileText, Image, Video, AudioLines, CircleHelp, Paperclip } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -41,6 +41,12 @@ const types = [
     labelKey: 'courses.lessonEditor.parts.type_quiz',
     descKey: 'courses.lessonEditor.parts.desc_quiz',
     icon: CircleHelp,
+  },
+  {
+    type: 'files',
+    labelKey: 'courses.lessonEditor.parts.type_files',
+    descKey: 'courses.lessonEditor.parts.desc_files',
+    icon: Paperclip,
   },
 ];
 
@@ -128,7 +134,7 @@ function choose(type) {
 
 @media (min-width: 900px) {
   .part-type-panel__grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 

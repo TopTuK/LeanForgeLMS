@@ -7,4 +7,5 @@ public enum LessonPartType
     Video = 2,
     Audio = 3,
     Quiz = 4,
+    Files = 5,
 }

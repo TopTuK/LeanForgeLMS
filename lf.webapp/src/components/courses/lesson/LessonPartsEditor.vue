@@ -10,6 +10,7 @@ import LessonPartTypePanel from './LessonPartTypePanel.vue';
 import LessonTextPart from './LessonTextPart.vue';
 import LessonMediaPart from './LessonMediaPart.vue';
 import LessonQuizPart from './LessonQuizPart.vue';
+import LessonFilesPart from './LessonFilesPart.vue';
 
 const props = defineProps({
   lessonId: { type: Number, required: true },
@@ -66,6 +67,11 @@ function addType({ type, index }) {
 
 async function onFile(part, file) {
   const result = await partStore.setMediaFile(props.lessonId, part.id, file);
+  if (!result.ok) emit('error', t(result.errorKey));
+}
+
+async function onFiles(part, fileList) {
+  const result = await partStore.addFilesToPart(props.lessonId, part.id, fileList);
   if (!result.ok) emit('error', t(result.errorKey));
 }
 
@@ -162,6 +168,14 @@ onBeforeUnmount(() => {
                 :model-value="{ quizQuestions: part.quizQuestions, quizPassThreshold: part.quizPassThreshold }"
                 :disabled="disabled"
                 @update:model-value="partStore.updateQuiz(lessonId, part.id, $event)"
+              />
+              <LessonFilesPart
+                v-else-if="part.type === 'files'"
+                :files="part.files"
+                :uploading="part.uploading"
+                :disabled="disabled"
+                @files="onFiles(part, $event)"
+                @remove="partStore.removeFileFromPart(lessonId, part.id, $event)"
               />
               <LessonMediaPart
                 v-else

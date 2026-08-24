@@ -158,6 +158,11 @@
                 "correct": "Correct",
                 "incorrect": "Incorrect",
                 "retry": "Try again"
+            },
+            "files": {
+                "download": "Download",
+                "downloading": "Downloading…",
+                "download_error": "Could not download this file. Please try again."
             }
         },
         "create": {
@@ -299,11 +304,13 @@
                 "type_video": "Video",
                 "type_audio": "Audio",
                 "type_quiz": "Quiz",
+                "type_files": "Files",
                 "desc_text": "Write and format lesson content",
                 "desc_image": "Upload a picture",
                 "desc_video": "Upload a video clip",
                 "desc_audio": "Upload audio",
                 "desc_quiz": "Add questions and a pass score",
+                "desc_files": "Attach one or more downloadable files",
                 "delete": "Remove block",
                 "move_up": "Move up",
                 "move_down": "Move down",
@@ -331,6 +338,10 @@
                     "remove_option": "Remove option",
                     "drag_question": "Drag to reorder question",
                     "drag_option": "Drag to reorder option"
+                },
+                "files": {
+                    "upload": "Drop files or click to upload",
+                    "remove": "Remove file"
                 }
             }
         },

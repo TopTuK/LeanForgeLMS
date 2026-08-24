@@ -10,6 +10,8 @@ public sealed record QuizOptionResponse(int Id, string Text, bool? IsCorrect, in
 
 public sealed record QuizQuestionResponse(int Id, string Text, string QuestionType, int SortOrder, IReadOnlyList<QuizOptionResponse> Options);
 
+public sealed record LessonPartFileResponse(int Id, string FileName, int StorageObjectId, long SizeBytes, string ContentType, string DownloadUrl);
+
 public sealed record LessonPartResponse(
     int Id,
     string PartType,
@@ -18,7 +20,8 @@ public sealed record LessonPartResponse(
     int? StorageObjectId,
     string? MediaUrl,
     IReadOnlyList<QuizQuestionResponse>? QuizQuestions = null,
-    int? QuizPassThresholdPercent = null);
+    int? QuizPassThresholdPercent = null,
+    IReadOnlyList<LessonPartFileResponse>? Files = null);
 
 public sealed record LessonResponse(int Id, string Title, string Content, bool IncludeInPreview, int SortOrder, IReadOnlyList<LessonPartResponse> Parts);
 
@@ -155,12 +158,15 @@ public sealed record QuizOptionRequest(string Text, bool IsCorrect, int SortOrde
 
 public sealed record QuizQuestionRequest(string Text, string QuestionType, int SortOrder, IReadOnlyList<QuizOptionRequest> Options);
 
+public sealed record LessonPartFileRequest(string FileName, int StorageObjectId);
+
 public sealed record LessonPartRequest(
     string PartType,
     string? Html,
     int? StorageObjectId,
     IReadOnlyList<QuizQuestionRequest>? QuizQuestions = null,
-    int? QuizPassThresholdPercent = null);
+    int? QuizPassThresholdPercent = null,
+    IReadOnlyList<LessonPartFileRequest>? Files = null);
 
 public sealed record ReplaceLessonPartsRequest(IReadOnlyList<LessonPartRequest> Parts);
 
@@ -171,15 +177,19 @@ public sealed class ReplaceLessonPartsRequestValidator : AbstractValidator<Repla
         RuleForEach(x => x.Parts).ChildRules(part =>
         {
             part.RuleFor(p => p.PartType).Must(t => Enum.TryParse<LessonPartType>(t, ignoreCase: true, out _))
-                .WithMessage("Part type must be one of Text, Image, Video, Audio, Quiz.");
+                .WithMessage("Part type must be one of Text, Image, Video, Audio, Quiz, Files.");
 
             part.RuleFor(p => p.Html).NotEmpty()
                 .When(p => IsPartType(p.PartType, LessonPartType.Text))
                 .WithMessage("Text parts require non-empty content.");
 
             part.RuleFor(p => p.StorageObjectId).GreaterThan(0)
-                .When(p => !IsPartType(p.PartType, LessonPartType.Text) && !IsPartType(p.PartType, LessonPartType.Quiz))
+                .When(p => !IsPartType(p.PartType, LessonPartType.Text) && !IsPartType(p.PartType, LessonPartType.Quiz) && !IsPartType(p.PartType, LessonPartType.Files))
                 .WithMessage("Media parts require a storage object id.");
+
+            part.RuleFor(p => p.Files).Must(f => f is { Count: > 0 })
+                .When(p => IsPartType(p.PartType, LessonPartType.Files))
+                .WithMessage("Files parts require at least one file.");
 
             part.RuleFor(p => p.QuizQuestions).NotEmpty()
                 .When(p => IsPartType(p.PartType, LessonPartType.Quiz))
@@ -234,4 +244,11 @@ public static class LessonMediaUpload
             ["audio/ogg"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
             ["audio/webm"] = (StorageObjectType.Audio, 50 * 1024 * 1024),
         };
+}
+
+public sealed record UploadedLessonFileResponse(int StorageObjectId, string FileName, long SizeBytes, string ContentType);
+
+public static class LessonFileUpload
+{
+    public const long MaxSizeBytes = 25 * 1024 * 1024;
 }

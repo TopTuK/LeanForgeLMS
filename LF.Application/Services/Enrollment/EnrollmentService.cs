@@ -263,6 +263,11 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.QuizQuestions)
             .ThenInclude(q => q.Options)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.Files)
+            .ThenInclude(f => f.StorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
     private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()
@@ -318,6 +323,18 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                                                 IsCorrect = o.IsCorrect,
                                                 SortOrder = o.SortOrder,
                                             })],
+                                    })],
+                                Files = [.. p.Files
+                                    .OrderBy(f => f.SortOrder)
+                                    .Select(f => new LessonPartFileDto
+                                    {
+                                        Id = f.Id,
+                                        FileName = f.FileName,
+                                        SortOrder = f.SortOrder,
+                                        StorageObjectId = f.StorageObjectId,
+                                        StorageObjectKey = f.StorageObject.ObjectKey,
+                                        StorageObjectContentType = f.StorageObject.ContentType,
+                                        StorageObjectSizeBytes = f.StorageObject.SizeBytes,
                                     })],
                             })],
                     })],

@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { uploadLessonMedia, replaceLessonParts, fetchLessonMediaObjectUrl } from '@/services/lessonPartService';
+import { uploadLessonMedia, uploadLessonFiles, replaceLessonParts, fetchLessonMediaObjectUrl } from '@/services/lessonPartService';
 
-export const PART_TYPES = ['text', 'image', 'video', 'audio', 'quiz'];
+export const PART_TYPES = ['text', 'image', 'video', 'audio', 'quiz', 'files'];
 
 export const DEFAULT_QUIZ_PASS_THRESHOLD = 60;
 
@@ -49,6 +49,7 @@ function createPart(type, extras = {}) {
     uploadError: false,
     quizQuestions: [],
     quizPassThreshold: DEFAULT_QUIZ_PASS_THRESHOLD,
+    files: [],
     ...extras,
   };
 }
@@ -61,6 +62,15 @@ function serializePart(part) {
       sortOrder: part.sortOrder,
       quizQuestions: part.quizQuestions ?? [],
       quizPassThreshold: part.quizPassThreshold ?? DEFAULT_QUIZ_PASS_THRESHOLD,
+    };
+  }
+
+  if (part.type === 'files') {
+    return {
+      id: part.id,
+      type: part.type,
+      sortOrder: part.sortOrder,
+      files: (part.files ?? []).map((f) => ({ fileName: f.fileName, storageObjectId: f.storageObjectId })),
     };
   }
 
@@ -90,6 +100,15 @@ function toApiPart(part) {
         })),
       })),
       quizPassThresholdPercent: part.quizPassThreshold ?? DEFAULT_QUIZ_PASS_THRESHOLD,
+    };
+  }
+
+  if (part.type === 'files') {
+    return {
+      partType: 'files',
+      html: null,
+      storageObjectId: null,
+      files: (part.files ?? []).map((f) => ({ fileName: f.fileName, storageObjectId: f.storageObjectId })),
     };
   }
 
@@ -197,6 +216,14 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
           })),
         })) : [],
         quizPassThreshold: p.quizPassThresholdPercent ?? DEFAULT_QUIZ_PASS_THRESHOLD,
+        files: Array.isArray(p.files) ? p.files.map((f) => ({
+          id: f.id,
+          fileName: f.fileName,
+          storageObjectId: f.storageObjectId,
+          sizeBytes: f.sizeBytes,
+          contentType: f.contentType,
+          downloadUrl: f.downloadUrl,
+        })) : [],
       }));
     } else {
       const html = typeof apiContent === 'string' ? apiContent.trim() : '';
@@ -321,6 +348,63 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     }
   }
 
+  async function addFilesToPart(lessonId, partId, fileList) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return { ok: true };
+
+    const part = partsFor(lessonId).find((item) => item.id === partId);
+    if (!part || part.type !== 'files') return { ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' };
+
+    setParts(
+      lessonId,
+      partsFor(lessonId).map((item) => (item.id === partId ? { ...item, uploading: true, uploadError: false } : item)),
+    );
+
+    try {
+      const uploaded = await uploadLessonFiles(files);
+      setParts(
+        lessonId,
+        partsFor(lessonId).map((item) => (
+          item.id === partId
+            ? {
+              ...item,
+              uploading: false,
+              files: [
+                ...(item.files ?? []),
+                ...uploaded.map((u) => ({
+                  id: crypto.randomUUID(),
+                  fileName: u.fileName,
+                  storageObjectId: u.storageObjectId,
+                  sizeBytes: u.sizeBytes,
+                  contentType: u.contentType,
+                  downloadUrl: null,
+                })),
+              ],
+            }
+            : item
+        )),
+      );
+      return { ok: true };
+    } catch {
+      setParts(
+        lessonId,
+        partsFor(lessonId).map((item) => (item.id === partId ? { ...item, uploading: false, uploadError: true } : item)),
+      );
+      return { ok: false, errorKey: 'courses.lessonEditor.parts.upload_error' };
+    }
+  }
+
+  function removeFileFromPart(lessonId, partId, fileId) {
+    setParts(
+      lessonId,
+      partsFor(lessonId).map((item) => (
+        item.id === partId
+          ? { ...item, files: (item.files ?? []).filter((f) => f.id !== fileId) }
+          : item
+      )),
+    );
+  }
+
   async function commit(courseId, chapterId, lessonId) {
     const payload = partsFor(lessonId).map(toApiPart);
     await replaceLessonParts(courseId, chapterId, lessonId, payload);
@@ -360,6 +444,8 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     updateText,
     updateQuiz,
     setMediaFile,
+    addFilesToPart,
+    removeFileFromPart,
     commit,
     discard,
   };

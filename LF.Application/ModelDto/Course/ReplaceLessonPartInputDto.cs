@@ -9,4 +9,5 @@ public sealed class ReplaceLessonPartInputDto
     public int? StorageObjectId { get; init; }
     public IReadOnlyList<QuizQuestionInputDto>? QuizQuestions { get; init; }
     public int? QuizPassThresholdPercent { get; init; }
+    public IReadOnlyList<LessonPartFileInputDto>? Files { get; init; }
 }

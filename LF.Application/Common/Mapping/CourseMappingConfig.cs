@@ -15,10 +15,16 @@ internal sealed class CourseMappingConfig : IRegister
         config.NewConfig<QuizQuestion, QuizQuestionDto>()
             .Map(dest => dest.Options, src => src.Options.OrderBy(o => o.SortOrder));
 
+        config.NewConfig<LessonPartFile, LessonPartFileDto>()
+            .Map(dest => dest.StorageObjectKey, src => src.StorageObject.ObjectKey)
+            .Map(dest => dest.StorageObjectContentType, src => src.StorageObject.ContentType)
+            .Map(dest => dest.StorageObjectSizeBytes, src => src.StorageObject.SizeBytes);
+
         config.NewConfig<LessonPart, LessonPartDto>()
             .Map(dest => dest.StorageObjectKey, src => src.StorageObject != null ? src.StorageObject.ObjectKey : null)
             .Map(dest => dest.StorageObjectContentType, src => src.StorageObject != null ? src.StorageObject.ContentType : null)
-            .Map(dest => dest.QuizQuestions, src => src.QuizQuestions.OrderBy(q => q.SortOrder));
+            .Map(dest => dest.QuizQuestions, src => src.QuizQuestions.OrderBy(q => q.SortOrder))
+            .Map(dest => dest.Files, src => src.Files.OrderBy(f => f.SortOrder));
 
         config.NewConfig<Lesson, LessonDto>()
             .Map(dest => dest.Parts, src => src.Parts.OrderBy(p => p.SortOrder));
