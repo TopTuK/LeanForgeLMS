@@ -1,6 +1,6 @@
 <script setup>
 import { nextTick } from 'vue';
-import ForgeRichEditor from '@/components/courses/forge/ForgeRichEditor.vue';
+import RichEditor from '@/components/courses/form/RichEditor.vue';
 
 defineProps({
   modelValue: { type: String, default: '' },
@@ -28,7 +28,7 @@ function onUpdate(html) {
 </script>
 
 <template>
-  <ForgeRichEditor
+  <RichEditor
     :model-value="modelValue"
     compact
     :allow-image="false"

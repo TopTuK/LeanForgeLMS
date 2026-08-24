@@ -29,5 +29,12 @@ internal sealed class LessonPartConfiguration : IEntityTypeConfiguration<LessonP
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Navigation(p => p.QuizQuestions).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(p => p.Files)
+            .WithOne()
+            .HasForeignKey(f => f.LessonPartId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(p => p.Files).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -3,7 +3,7 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { fetchCategories, fetchCourses, createCourse, uploadCourseCoverImage } from '@/services/courseService';
-import ForgeField from '@/components/courses/forge/ForgeField.vue';
+import FormField from '@/components/courses/form/FormField.vue';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -124,49 +124,42 @@ async function submit() {
 </script>
 
 <template>
-  <div class="course-forge">
+  <div class="course-studio">
     <div
-      class="course-forge__square course-forge__square--one"
+      class="course-studio__square course-studio__square--one"
       aria-hidden="true"
     />
     <div
-      class="course-forge__square course-forge__square--two"
+      class="course-studio__square course-studio__square--two"
       aria-hidden="true"
     />
     <div
-      class="course-forge__curve"
+      class="course-studio__curve"
       aria-hidden="true"
     />
 
     <div class="container mx-auto px-6 py-12 md:py-16 relative z-10">
-      <header class="course-forge__heading">
+      <header class="course-studio__heading">
         <div>
-          <p class="course-forge__eyebrow">
+          <p class="course-studio__eyebrow">
             {{ $t('courses.create.eyebrow') }}
           </p>
           <h1>{{ $t('courses.create.title') }}</h1>
-          <p class="course-forge__subtitle">
+          <p class="course-studio__subtitle">
             {{ $t('courses.create.subtitle') }}
           </p>
-        </div>
-        <div
-          class="course-forge__meta"
-          aria-hidden="true"
-        >
-          <span>SPEC / 01</span>
-          <span>DRAFT BAY</span>
         </div>
       </header>
 
       <div
         v-if="errorMessage"
-        class="course-forge__alert"
+        class="course-studio__alert"
         role="alert"
       >
         <span>{{ errorMessage }}</span>
         <button
           type="button"
-          class="course-forge__alert-close"
+          class="course-studio__alert-close"
           :aria-label="$t('courses.create.dismiss_error')"
           @click="errorMessage = ''"
         >
@@ -174,25 +167,18 @@ async function submit() {
         </button>
       </div>
 
-      <div class="course-forge__layout">
+      <div class="course-studio__layout">
         <form
-          class="course-forge__panel"
+          class="course-studio__panel"
           @submit.prevent="submit"
         >
-          <div
-            class="course-forge__panel-mark"
-            aria-hidden="true"
-          >
-            LF—CREATE
-          </div>
-
-          <ForgeField
+          <FormField
             v-model="title"
             index="01"
             :label="$t('courses.create.field_title')"
             required
           />
-          <ForgeField
+          <FormField
             v-model="shortIntroduction"
             index="02"
             type="textarea"
@@ -200,7 +186,7 @@ async function submit() {
             :label="$t('courses.create.field_short_introduction')"
             required
           />
-          <ForgeField
+          <FormField
             v-model="description"
             index="03"
             type="textarea"
@@ -209,20 +195,20 @@ async function submit() {
             required
           />
 
-          <fieldset class="course-forge__category">
-            <legend class="course-forge__category-legend">
+          <fieldset class="course-studio__category">
+            <legend class="course-studio__category-legend">
               <span>{{ $t('courses.create.field_category') }}</span>
               <span aria-hidden="true">04</span>
             </legend>
             <p
               v-if="!categories.length"
-              class="course-forge__hint"
+              class="course-studio__hint"
             >
               {{ $t('courses.create.category_placeholder') }}
             </p>
             <div
               v-else
-              class="course-forge__chips"
+              class="course-studio__chips"
               role="listbox"
               :aria-label="$t('courses.create.field_category')"
             >
@@ -230,7 +216,7 @@ async function submit() {
                 v-for="item in categories"
                 :key="item.id"
                 type="button"
-                class="course-forge__chip"
+                class="course-studio__chip"
                 role="option"
                 :aria-selected="category === item.id"
                 :class="{ 'is-active': category === item.id }"
@@ -241,20 +227,20 @@ async function submit() {
             </div>
           </fieldset>
 
-          <fieldset class="course-forge__category">
-            <legend class="course-forge__category-legend">
+          <fieldset class="course-studio__category">
+            <legend class="course-studio__category-legend">
               <span>{{ $t('courses.create.field_cover') }}</span>
               <span aria-hidden="true">05</span>
             </legend>
 
             <div
-              class="course-forge__chips"
+              class="course-studio__chips"
               role="listbox"
               :aria-label="$t('courses.create.field_cover')"
             >
               <button
                 type="button"
-                class="course-forge__chip"
+                class="course-studio__chip"
                 role="option"
                 :aria-selected="coverMode === 'Color'"
                 :class="{ 'is-active': coverMode === 'Color' }"
@@ -264,7 +250,7 @@ async function submit() {
               </button>
               <button
                 type="button"
-                class="course-forge__chip"
+                class="course-studio__chip"
                 role="option"
                 :aria-selected="coverMode === 'Image'"
                 :class="{ 'is-active': coverMode === 'Image' }"
@@ -276,7 +262,7 @@ async function submit() {
 
             <div
               v-if="coverMode === 'Color'"
-              class="course-forge__swatches"
+              class="course-studio__swatches"
               role="listbox"
               :aria-label="$t('courses.create.cover_mode_color')"
             >
@@ -284,7 +270,7 @@ async function submit() {
                 v-for="color in COVER_COLORS"
                 :key="color"
                 type="button"
-                class="course-forge__swatch"
+                class="course-studio__swatch"
                 role="option"
                 :aria-selected="coverColor === color"
                 :class="{ 'is-active': coverColor === color }"
@@ -296,13 +282,13 @@ async function submit() {
 
             <div
               v-else
-              class="course-forge__cover-image"
+              class="course-studio__cover-image"
             >
-              <label class="course-forge__cover-upload">
+              <label class="course-studio__cover-upload">
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  class="course-forge__cover-input"
+                  class="course-studio__cover-input"
                   @change="onCoverImageSelected"
                 >
                 <span>{{ coverImageUploading ? $t('courses.create.cover_image_uploading') : $t('courses.create.cover_image_choose') }}</span>
@@ -311,21 +297,21 @@ async function submit() {
                 v-if="coverImagePreviewUrl"
                 :src="coverImagePreviewUrl"
                 :alt="$t('courses.create.cover_image_preview_alt')"
-                class="course-forge__cover-preview"
+                class="course-studio__cover-preview"
               >
               <p
                 v-if="coverImageError"
-                class="course-forge__hint course-forge__hint--error"
+                class="course-studio__hint course-studio__hint--error"
               >
                 {{ coverImageError }}
               </p>
             </div>
           </fieldset>
 
-          <div class="course-forge__actions">
+          <div class="course-studio__actions">
             <button
               type="submit"
-              class="course-forge__submit btn-accent"
+              class="course-studio__submit btn-accent"
               :disabled="submitting"
             >
               <span v-if="submitting">{{ $t('courses.create.submitting') }}</span>
@@ -337,38 +323,38 @@ async function submit() {
             </button>
             <router-link
               :to="{ name: 'CoursesAvailable' }"
-              class="course-forge__back"
+              class="course-studio__back"
             >
               {{ $t('courses.create.back') }}
             </router-link>
           </div>
         </form>
 
-        <aside class="course-forge__rail">
-          <div class="course-forge__rail-panel">
+        <aside class="course-studio__rail">
+          <div class="course-studio__rail-panel">
             <h2>{{ $t('courses.create.your_drafts_title') }}</h2>
 
             <p
               v-if="draftsError"
-              class="course-forge__hint course-forge__hint--error"
+              class="course-studio__hint course-studio__hint--error"
             >
               {{ draftsError }}
             </p>
             <p
               v-else-if="draftsLoading"
-              class="course-forge__hint"
+              class="course-studio__hint"
             >
               {{ $t('courses.create.drafts_loading') }}
             </p>
             <p
               v-else-if="drafts.length === 0"
-              class="course-forge__hint"
+              class="course-studio__hint"
             >
               {{ $t('courses.create.your_drafts_empty') }}
             </p>
             <ul
               v-else
-              class="course-forge__drafts"
+              class="course-studio__drafts"
             >
               <li
                 v-for="(draft, index) in drafts"
@@ -376,20 +362,20 @@ async function submit() {
               >
                 <router-link
                   :to="{ name: 'CourseEdit', params: { id: draft.id } }"
-                  class="course-forge__draft"
+                  class="course-studio__draft"
                 >
                   <span
-                    class="course-forge__draft-index"
+                    class="course-studio__draft-index"
                     aria-hidden="true"
                   >{{ String(index + 1).padStart(2, '0') }}</span>
-                  <span class="course-forge__draft-title">{{ draft.title }}</span>
-                  <span class="course-forge__draft-action">{{ $t('courses.create.edit_action') }} →</span>
+                  <span class="course-studio__draft-title">{{ draft.title }}</span>
+                  <span class="course-studio__draft-action">{{ $t('courses.create.edit_action') }} →</span>
                 </router-link>
               </li>
             </ul>
           </div>
 
-          <div class="course-forge__soon">
+          <div class="course-studio__soon">
             <h2>{{ $t('courses.create.coming_soon_section_title') }}</h2>
             <p>{{ $t('courses.create.coming_soon') }}</p>
           </div>
@@ -400,7 +386,7 @@ async function submit() {
 </template>
 
 <style scoped>
-.course-forge {
+.course-studio {
   position: relative;
   min-height: calc(100vh - 4.5rem);
   overflow: hidden;
@@ -418,20 +404,20 @@ async function submit() {
   background-size: 40px 40px, 40px 40px, auto;
 }
 
-.course-forge__square,
-.course-forge__curve {
+.course-studio__square,
+.course-studio__curve {
   position: absolute;
   pointer-events: none;
   z-index: 0;
 }
 
-.course-forge__square {
+.course-studio__square {
   width: 7rem;
   height: 7rem;
   border: 1px solid var(--industrial-line);
 }
 
-.course-forge__square::after {
+.course-studio__square::after {
   content: "";
   position: absolute;
   inset: 0.75rem;
@@ -439,14 +425,14 @@ async function submit() {
   border: 1px solid var(--industrial-line);
 }
 
-.course-forge__square--one {
+.course-studio__square--one {
   top: 4rem;
   right: 8%;
   transform: rotate(18deg);
-  animation: forge-drift 10s ease-in-out infinite alternate;
+  animation: studio-drift 10s ease-in-out infinite alternate;
 }
 
-.course-forge__square--two {
+.course-studio__square--two {
   bottom: 12%;
   left: 4%;
   width: 4.5rem;
@@ -454,7 +440,7 @@ async function submit() {
   opacity: 0.7;
 }
 
-.course-forge__curve {
+.course-studio__curve {
   width: 18rem;
   height: 18rem;
   border: 1px solid var(--industrial-line);
@@ -464,7 +450,7 @@ async function submit() {
   box-shadow: 0 0 0 48px var(--industrial-grid);
 }
 
-.course-forge__heading {
+.course-studio__heading {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -472,10 +458,10 @@ async function submit() {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--industrial-line);
-  animation: forge-rise 0.4s ease both;
+  animation: studio-rise 0.4s ease both;
 }
 
-.course-forge__eyebrow {
+.course-studio__eyebrow {
   margin: 0 0 0.75rem;
   color: var(--color-accent-coral);
   font-size: 0.75rem;
@@ -484,7 +470,7 @@ async function submit() {
   text-transform: uppercase;
 }
 
-.course-forge__heading h1 {
+.course-studio__heading h1 {
   margin: 0;
   color: var(--color-ink);
   font-size: clamp(2rem, 5vw, 3.5rem);
@@ -493,7 +479,7 @@ async function submit() {
   line-height: 1.05;
 }
 
-.course-forge__subtitle {
+.course-studio__subtitle {
   max-width: 36rem;
   margin: 0.9rem 0 0;
   color: var(--color-ink-muted);
@@ -501,7 +487,7 @@ async function submit() {
   line-height: 1.65;
 }
 
-.course-forge__meta {
+.course-studio__meta {
   display: none;
   flex-direction: column;
   align-items: flex-end;
@@ -514,7 +500,7 @@ async function submit() {
   white-space: nowrap;
 }
 
-.course-forge__alert {
+.course-studio__alert {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -529,7 +515,7 @@ async function submit() {
   font-weight: 600;
 }
 
-.course-forge__alert-close {
+.course-studio__alert-close {
   border: 0;
   background: transparent;
   color: inherit;
@@ -538,15 +524,15 @@ async function submit() {
   cursor: pointer;
 }
 
-.course-forge__layout {
+.course-studio__layout {
   display: grid;
   gap: 1.25rem;
   grid-template-columns: minmax(0, 1fr);
 }
 
-.course-forge__panel,
-.course-forge__rail-panel,
-.course-forge__soon {
+.course-studio__panel,
+.course-studio__rail-panel,
+.course-studio__soon {
   position: relative;
   background: var(--industrial-panel);
   border: 1px solid var(--color-border-subtle);
@@ -555,15 +541,15 @@ async function submit() {
   box-shadow: 0 18px 50px rgba(20, 20, 20, 0.06);
 }
 
-.course-forge__panel {
+.course-studio__panel {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
   padding: 1.75rem 1.5rem 1.5rem;
-  animation: forge-rise 0.45s ease 0.06s both;
+  animation: studio-rise 0.45s ease 0.06s both;
 }
 
-.course-forge__panel-mark {
+.course-studio__panel-mark {
   position: absolute;
   top: 1.1rem;
   right: 1.25rem;
@@ -573,13 +559,13 @@ async function submit() {
   letter-spacing: 0.14em;
 }
 
-.course-forge__category {
+.course-studio__category {
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.course-forge__category-legend {
+.course-studio__category-legend {
   display: flex;
   width: 100%;
   align-items: center;
@@ -592,18 +578,18 @@ async function submit() {
   text-transform: uppercase;
 }
 
-.course-forge__category-legend span:last-child {
+.course-studio__category-legend span:last-child {
   color: var(--color-ink-faint);
   letter-spacing: 0.14em;
 }
 
-.course-forge__chips {
+.course-studio__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
 }
 
-.course-forge__chip {
+.course-studio__chip {
   padding: 0.55rem 0.95rem;
   color: var(--color-ink-muted);
   background: transparent;
@@ -616,29 +602,29 @@ async function submit() {
   transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
 }
 
-.course-forge__chip:hover {
+.course-studio__chip:hover {
   color: var(--color-ink);
   border-color: var(--color-ink-faint);
 }
 
-.course-forge__chip.is-active {
+.course-studio__chip.is-active {
   color: #fff;
   background: var(--color-ink);
   border-color: var(--color-ink);
 }
 
-.course-forge__chip:active {
+.course-studio__chip:active {
   transform: scale(0.97);
 }
 
-.course-forge__swatches {
+.course-studio__swatches {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 0.75rem;
 }
 
-.course-forge__swatch {
+.course-studio__swatch {
   width: 2.25rem;
   height: 2.25rem;
   padding: 0;
@@ -649,22 +635,22 @@ async function submit() {
   transition: transform 0.12s ease, box-shadow 0.15s ease;
 }
 
-.course-forge__swatch:hover {
+.course-studio__swatch:hover {
   transform: scale(1.08);
 }
 
-.course-forge__swatch.is-active {
+.course-studio__swatch.is-active {
   box-shadow: 0 0 0 2px var(--color-surface-950), 0 0 0 4px var(--color-ink);
 }
 
-.course-forge__cover-image {
+.course-studio__cover-image {
   margin-top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.course-forge__cover-upload {
+.course-studio__cover-upload {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
@@ -679,12 +665,12 @@ async function submit() {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.course-forge__cover-upload:hover {
+.course-studio__cover-upload:hover {
   color: var(--color-ink);
   border-color: var(--color-ink-faint);
 }
 
-.course-forge__cover-input {
+.course-studio__cover-input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -693,7 +679,7 @@ async function submit() {
   white-space: nowrap;
 }
 
-.course-forge__cover-preview {
+.course-studio__cover-preview {
   width: 100%;
   max-width: 18rem;
   aspect-ratio: 16 / 9;
@@ -702,7 +688,7 @@ async function submit() {
   border: 1px solid var(--color-border-subtle);
 }
 
-.course-forge__actions {
+.course-studio__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -712,7 +698,7 @@ async function submit() {
   border-top: 1px solid var(--industrial-line);
 }
 
-.course-forge__submit {
+.course-studio__submit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -728,20 +714,20 @@ async function submit() {
   transition: background-color 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
 }
 
-.course-forge__submit:hover:not(:disabled) {
+.course-studio__submit:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
-.course-forge__submit:active:not(:disabled) {
+.course-studio__submit:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-.course-forge__submit:disabled {
+.course-studio__submit:disabled {
   opacity: 0.7;
   cursor: wait;
 }
 
-.course-forge__back {
+.course-studio__back {
   color: var(--color-ink-muted);
   font-size: 0.9rem;
   font-weight: 600;
@@ -749,23 +735,23 @@ async function submit() {
   transition: color 0.15s ease;
 }
 
-.course-forge__back:hover {
+.course-studio__back:hover {
   color: var(--color-accent-coral);
 }
 
-.course-forge__rail {
+.course-studio__rail {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  animation: forge-rise 0.45s ease 0.12s both;
+  animation: studio-rise 0.45s ease 0.12s both;
 }
 
-.course-forge__rail-panel {
+.course-studio__rail-panel {
   padding: 1.5rem;
 }
 
-.course-forge__rail-panel h2,
-.course-forge__soon h2 {
+.course-studio__rail-panel h2,
+.course-studio__soon h2 {
   margin: 0 0 1rem;
   color: var(--color-ink);
   font-size: 0.95rem;
@@ -773,18 +759,18 @@ async function submit() {
   letter-spacing: -0.01em;
 }
 
-.course-forge__hint {
+.course-studio__hint {
   margin: 0;
   color: var(--color-ink-muted);
   font-size: 0.88rem;
   line-height: 1.5;
 }
 
-.course-forge__hint--error {
+.course-studio__hint--error {
   color: var(--color-accent-coral);
 }
 
-.course-forge__drafts {
+.course-studio__drafts {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -793,7 +779,7 @@ async function submit() {
   gap: 0.5rem;
 }
 
-.course-forge__draft {
+.course-studio__draft {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -806,19 +792,19 @@ async function submit() {
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.course-forge__draft:hover {
+.course-studio__draft:hover {
   border-color: var(--industrial-line-strong);
   background: var(--industrial-accent-wash);
 }
 
-.course-forge__draft-index {
+.course-studio__draft-index {
   color: var(--color-ink-faint);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
-.course-forge__draft-title {
+.course-studio__draft-title {
   color: var(--color-ink);
   font-size: 0.9rem;
   font-weight: 600;
@@ -827,41 +813,41 @@ async function submit() {
   white-space: nowrap;
 }
 
-.course-forge__draft-action {
+.course-studio__draft-action {
   color: var(--color-accent-coral);
   font-size: 0.78rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.course-forge__soon {
+.course-studio__soon {
   padding: 1.15rem 1.35rem;
   border-style: dashed;
   color: var(--color-ink-muted);
 }
 
-.course-forge__soon h2 {
+.course-studio__soon h2 {
   margin-bottom: 0.4rem;
 }
 
-.course-forge__soon p {
+.course-studio__soon p {
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.55;
 }
 
 @media (min-width: 960px) {
-  .course-forge__meta {
+  .course-studio__meta {
     display: flex;
   }
 
-  .course-forge__layout {
+  .course-studio__layout {
     grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.85fr);
     align-items: start;
   }
 }
 
-@keyframes forge-rise {
+@keyframes studio-rise {
   from {
     opacity: 0;
     transform: translateY(0.75rem);
@@ -872,7 +858,7 @@ async function submit() {
   }
 }
 
-@keyframes forge-drift {
+@keyframes studio-drift {
   from {
     transform: rotate(18deg) translateY(0);
   }

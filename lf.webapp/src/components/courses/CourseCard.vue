@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import ForgeStatusStamp from '@/components/courses/forge/ForgeStatusStamp.vue';
+import StatusBadge from '@/components/courses/form/StatusBadge.vue';
 
 const props = defineProps({
     title: { type: String, required: true },
@@ -26,10 +26,6 @@ const props = defineProps({
 
 defineEmits(['enroll', 'continue', 'manage']);
 
-const cardMark = (() => {
-    if (props.index === null) return '';
-    return String(props.index + 1).padStart(2, '0');
-})();
 
 const showCoverImage = computed(() => props.coverType === 'Image' && Boolean(props.coverImageUrl));
 const hasCover = computed(() => props.coverType === 'Color' || showCoverImage.value);
@@ -63,11 +59,6 @@ const coverStyle = computed(() => (
         aria-hidden="true"
       />
 
-      <span
-        v-if="cardMark"
-        class="course-card__mark"
-        aria-hidden="true"
-      >{{ cardMark }}</span>
 
       <div
         class="course-card__cover-content"
@@ -79,7 +70,7 @@ const coverStyle = computed(() => (
             class="course-card__pill course-card__pill--muted"
           >{{ duration }}</span>
           <span class="course-card__pill course-card__pill--accent">{{ category }}</span>
-          <ForgeStatusStamp
+          <StatusBadge
             v-if="status === 'teaching' && isPublished !== null"
             :variant="isPublished ? 'published' : 'draft'"
             :label="isPublished ? $t('courses.editor.published') : $t('courses.editor.draft')"
@@ -277,21 +268,6 @@ const coverStyle = computed(() => (
   position: absolute;
   inset: 0;
   background: linear-gradient(to top, rgba(10, 10, 10, 0.78) 0%, rgba(10, 10, 10, 0.4) 45%, rgba(10, 10, 10, 0) 85%);
-}
-
-.course-card__mark {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.85rem;
-  z-index: 2;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  background: rgba(20, 20, 20, 0.45);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
 }
 
 .course-card__cover-content {

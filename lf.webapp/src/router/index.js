@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from "@/stores/authStore";
 import { storeToRefs } from "pinia";
+import { i18n } from '@/i18n';
 
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
@@ -236,6 +237,12 @@ router.beforeEach(async (to, from) => {
                 query: { redirectTo: encodeURIComponent(to.fullPath) }
             }
         }
+    }
+});
+
+router.afterEach((to) => {
+    if (to.meta.title) {
+        document.title = i18n.global.t(to.meta.title);
     }
 });
 

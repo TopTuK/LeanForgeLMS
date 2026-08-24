@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
@@ -13,6 +13,15 @@ const enrollments = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
+const searchQuery = inject('courseSearch', ref(''));
+const visibleEnrollments = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return enrollments.value;
+  return enrollments.value.filter((item) => (
+    (item.courseTitle ?? '').toLowerCase().includes(query)
+    || (item.courseShortIntroduction ?? '').toLowerCase().includes(query)
+  ));
+});
 
 async function loadEnrollments() {
   loading.value = true;
@@ -36,9 +45,9 @@ function onContinue(enrollmentId) {
 
 <template>
   <div>
-    <div class="bay-section-heading mb-8">
+    <div class="catalog-section-heading mb-8">
       <span
-        class="bay-section-index"
+        class="catalog-section-index"
         aria-hidden="true"
       >02</span>
       <div>
@@ -53,7 +62,7 @@ function onContinue(enrollmentId) {
 
     <p
       v-if="errorMessage"
-      class="bay-state-panel bay-state-panel--error mb-4"
+      class="catalog-state-panel catalog-state-panel--error mb-4"
     >
       {{ errorMessage }}
     </p>
@@ -65,11 +74,11 @@ function onContinue(enrollmentId) {
       {{ $t('courses.loading') }}
     </p>
     <div
-      v-else-if="enrollments.length"
+      v-else-if="visibleEnrollments.length"
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
     >
       <CourseCard
-        v-for="(item, idx) in enrollments"
+        v-for="(item, idx) in visibleEnrollments"
         :key="item.id"
         status="active"
         :index="idx"
@@ -85,7 +94,7 @@ function onContinue(enrollmentId) {
     </div>
     <p
       v-else
-      class="bay-state-panel"
+      class="catalog-state-panel"
     >
       {{ $t('courses.active.empty') }}
     </p>

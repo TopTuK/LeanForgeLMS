@@ -121,6 +121,31 @@ public sealed class CourseEndpoints : IEndpointGroup
             return TypedResults.Ok(new UploadCoverImageResponse(storageObject.Id));
         }).DisableAntiforgery();
 
+        group.MapPost("/lesson-files", async Task<Results<Ok<IReadOnlyList<UploadedLessonFileResponse>>, UnauthorizedHttpResult, ValidationProblem>>
+            (IFormFileCollection files, ClaimsPrincipal user, IStorageService storageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            if (files.Count == 0 || files.Any(f => f.Length == 0 || f.Length > LessonFileUpload.MaxSizeBytes))
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["files"] = [$"Each file must be non-empty and at most {LessonFileUpload.MaxSizeBytes / (1024 * 1024)}MB."],
+                });
+            }
+
+            var uploaded = new List<UploadedLessonFileResponse>(files.Count);
+            foreach (var file in files)
+            {
+                await using var stream = file.OpenReadStream();
+                var storageObject = await storageService.UploadMediaAsync(StorageObjectType.File, stream, file.ContentType, file.Length, userId.Value, ct);
+                uploaded.Add(new UploadedLessonFileResponse(storageObject.Id, file.FileName, file.Length, file.ContentType));
+            }
+
+            return TypedResults.Ok<IReadOnlyList<UploadedLessonFileResponse>>(uploaded);
+        }).DisableAntiforgery();
+
         group.MapGet("/{id:int}/cover/image", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
             (int id, ClaimsPrincipal user, ICourseAuthoringService courseService, [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
         {
@@ -305,6 +330,11 @@ public sealed class CourseEndpoints : IEndpointGroup
                         SortOrder = o.SortOrder,
                     })],
                 }).ToList(),
+                Files = p.Files?.Select(f => new LessonPartFileInputDto
+                {
+                    FileName = f.FileName,
+                    StorageObjectId = f.StorageObjectId,
+                }).ToList(),
             }).ToList();
 
             try
@@ -349,6 +379,33 @@ public sealed class CourseEndpoints : IEndpointGroup
 
             var download = await fileStorageService.DownloadAsync(part.StorageObjectKey, ct);
             return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
+        });
+
+        group.MapGet("/{id:int}/chapters/{chapterId:int}/lessons/{lessonId:int}/parts/{partId:int}/files/{fileId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
+            (int id, int chapterId, int lessonId, int partId, int fileId, ClaimsPrincipal user, ICourseAuthoringService courseService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            CourseDetailDto? course;
+            try
+            {
+                course = await courseService.GetCourseAsync(id, userId.Value, isAdmin);
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+
+            var file = course?.Chapters.FirstOrDefault(ch => ch.Id == chapterId)?.Lessons.FirstOrDefault(l => l.Id == lessonId)
+                ?.Parts.FirstOrDefault(p => p.Id == partId)?.Files.FirstOrDefault(f => f.Id == fileId);
+            if (file is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(file.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.File(download.Content, download.ContentType, fileDownloadName: file.FileName);
         });
 
         group.MapPost("/{id:int}/chapters/{chapterId:int}/lessons/{lessonId:int}/move", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult>>
@@ -452,9 +509,20 @@ public sealed class CourseEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType is LessonPartType.Text or LessonPartType.Quiz ? null : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media",
+        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+            ? null
+            : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media",
         part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToQuizQuestionResponse)] : null,
-        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null);
+        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
+        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToLessonPartFileResponse(courseId, chapterId, lessonId, part.Id, f))] : null);
+
+    private static LessonPartFileResponse ToLessonPartFileResponse(int courseId, int chapterId, int lessonId, int partId, LessonPartFileDto file) => new(
+        file.Id,
+        file.FileName,
+        file.StorageObjectId,
+        file.StorageObjectSizeBytes,
+        file.StorageObjectContentType,
+        $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{partId}/files/{file.Id}/media");
 
     private static QuizQuestionResponse ToQuizQuestionResponse(QuizQuestionDto question) => new(
         question.Id,

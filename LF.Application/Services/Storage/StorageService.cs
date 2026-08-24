@@ -35,12 +35,18 @@ internal sealed class StorageService(
         ["audio/webm"] = ".webm",
     };
 
+    private static readonly IReadOnlyDictionary<string, string> NoExtensionsByContentType = new Dictionary<string, string>();
+
     private static readonly IReadOnlyDictionary<StorageObjectType, IReadOnlyDictionary<string, string>> ExtensionsByObjectType =
         new Dictionary<StorageObjectType, IReadOnlyDictionary<string, string>>
         {
             [StorageObjectType.Image] = ImageExtensionsByContentType,
             [StorageObjectType.Video] = VideoExtensionsByContentType,
             [StorageObjectType.Audio] = AudioExtensionsByContentType,
+            // Files parts accept arbitrary content types, so there's no fixed extension map — the
+            // original filename is preserved separately on LessonPartFile and used for downloads,
+            // so the storage key itself doesn't need a meaningful extension.
+            [StorageObjectType.File] = NoExtensionsByContentType,
         };
 
     private static readonly IReadOnlyDictionary<StorageObjectType, string> KeyPrefixByObjectType = new Dictionary<StorageObjectType, string>
@@ -48,6 +54,7 @@ internal sealed class StorageService(
         [StorageObjectType.Image] = "images",
         [StorageObjectType.Video] = "videos",
         [StorageObjectType.Audio] = "audio",
+        [StorageObjectType.File] = "files",
     };
 
     public Task<StorageObjectDto> UploadImageAsync(Stream content, string contentType, long sizeBytes, int createdByUserId, CancellationToken ct = default) =>

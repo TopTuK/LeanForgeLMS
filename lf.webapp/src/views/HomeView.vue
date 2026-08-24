@@ -1,151 +1,131 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CourseCard from '@/components/home/CourseCard.vue';
-import AudienceCard from '@/components/home/AudienceCard.vue';
 import AuthorCard from '@/components/home/AuthorCard.vue';
 import FaqItem from '@/components/home/FaqItem.vue';
+import GeometricBackdrop from '@/components/layout/GeometricBackdrop.vue';
 
 const { tm, t } = useI18n();
 
 const COURSES = [
-    { key: 'llm_agentic', icon: 'llm' },
-    { key: 'kanban', icon: 'kanban' },
+  { key: 'llm_agentic', icon: 'llm', extraFilters: ['management'] },
+  { key: 'kanban', icon: 'kanban', extraFilters: ['management'] },
 ];
 
-const AUDIENCE_KEYS = ['developer', 'manager', 'analyst', 'other'];
+const FILTERS = ['all', 'ai', 'flow', 'management'];
 const FAQ_KEYS = ['1', '2', '3', '4', '5'];
 
+const activeFilter = ref('all');
+
+const facts = computed(() => {
+  const items = tm('home.facts.items');
+  return Array.isArray(items) ? items : [];
+});
+
 const authorHighlights = computed(() => {
-    const items = tm('home.author.highlights');
-    return Array.isArray(items) ? items : [];
+  const items = tm('home.author.highlights');
+  return Array.isArray(items) ? items : [];
+});
+
+const visibleCourses = computed(() => {
+  if (activeFilter.value === 'all') return COURSES;
+  return COURSES.filter((course) => {
+    const primary = t(`home.courses.items.${course.key}.filter`);
+    return primary === activeFilter.value || course.extraFilters.includes(activeFilter.value);
+  });
 });
 </script>
 
 <template>
-  <div class="industrial-page">
+  <div class="landing">
     <section
       id="hero"
-      class="industrial-hero min-h-[calc(100vh-4.5rem)] flex items-center overflow-hidden"
+      class="landing-hero"
     >
-      <div
-        class="industrial-curve industrial-curve--hero"
-        aria-hidden="true"
-      />
-      <div
-        class="industrial-square industrial-square--one"
-        aria-hidden="true"
-      />
-      <div
-        class="industrial-square industrial-square--two"
-        aria-hidden="true"
-      />
-
-      <div class="container mx-auto px-6 py-16 md:py-24 relative z-10">
-        <div class="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)] gap-12 lg:gap-20 items-center">
-          <div class="max-w-3xl">
-            <p class="text-sm md:text-base font-semibold tracking-wide text-accent-coral mb-4">
-              {{ $t('home.hero.brand_line') }}
-            </p>
-            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-ink leading-[1.05] tracking-tight">
-              {{ $t('home.hero.headline') }}
-            </h1>
-            <p class="mt-6 text-lg md:text-xl text-ink-muted max-w-xl leading-relaxed">
-              {{ $t('home.hero.subheadline') }}
-            </p>
-            <div class="mt-10 flex flex-col sm:flex-row sm:items-center gap-5">
-              <a
-                href="#courses"
-                class="btn-accent inline-flex items-center justify-center rounded-pill px-7 py-3.5 text-sm font-semibold w-fit"
-              >
-                {{ $t('home.hero.cta_primary') }}
-              </a>
-              <p class="text-sm text-ink-muted">
-                {{ $t('home.hero.trust_line') }}
-              </p>
-            </div>
-          </div>
-
-          <div
-            class="industrial-blueprint hidden lg:block"
-            aria-hidden="true"
-          >
-            <div class="industrial-blueprint__index">
-              LF—01
-            </div>
-            <div class="industrial-blueprint__square industrial-blueprint__square--large" />
-            <div class="industrial-blueprint__square industrial-blueprint__square--small" />
-            <svg
-              viewBox="0 0 440 440"
-              fill="none"
+      <GeometricBackdrop />
+      <div class="container relative z-10 mx-auto grid items-center gap-12 px-6 py-16 md:py-24 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:gap-16">
+        <div class="max-w-3xl">
+          <p class="mb-4 text-sm font-semibold tracking-[0.14em] text-accent-coral uppercase">
+            {{ $t('home.hero.brand_line') }}
+          </p>
+          <h1 class="font-display text-4xl font-semibold tracking-tight text-ink md:text-6xl lg:text-7xl">
+            {{ $t('home.hero.headline') }}
+          </h1>
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted md:text-xl">
+            {{ $t('home.hero.subheadline') }}
+          </p>
+          <div class="mt-10 flex flex-col gap-5 sm:flex-row sm:items-center">
+            <a
+              href="#courses"
+              class="btn-accent inline-flex w-fit items-center justify-center rounded-pill px-7 py-3.5 text-sm font-semibold"
             >
-              <path d="M-20 335C82 335 80 176 190 176C300 176 304 44 460 44" />
-              <path d="M-30 382C118 382 107 225 222 225C337 225 337 92 475 92" />
-              <circle
-                cx="190"
-                cy="176"
-                r="6"
-              />
-              <circle
-                cx="337"
-                cy="92"
-                r="6"
-              />
-            </svg>
-            <span class="industrial-blueprint__mark industrial-blueprint__mark--top">A.01</span>
-            <span class="industrial-blueprint__mark industrial-blueprint__mark--bottom">SYSTEM / CRAFT</span>
+              {{ $t('home.hero.cta_primary') }}
+            </a>
+            <p class="text-sm text-ink-muted">
+              {{ $t('home.hero.trust_line') }}
+            </p>
           </div>
+        </div>
+
+        <div
+          class="landing-panel hidden lg:block"
+          aria-hidden="true"
+        >
+          <span class="landing-panel__square" />
+          <span class="landing-panel__circle" />
+          <span class="landing-panel__arc" />
         </div>
       </div>
     </section>
 
-    <section
-      id="audience"
-      class="industrial-band border-y border-border-subtle py-20 md:py-24"
-    >
-      <div class="container mx-auto px-6">
-        <div class="max-w-2xl mb-10">
-          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
-            {{ $t('home.audience.title') }}
-          </h2>
-          <p class="mt-3 text-ink-muted leading-relaxed">
-            {{ $t('home.audience.subtitle') }}
+    <section class="border-y border-border-subtle bg-surface-900">
+      <div class="container mx-auto grid gap-8 px-6 py-10 sm:grid-cols-3">
+        <div
+          v-for="(fact, index) in facts"
+          :key="index"
+        >
+          <p class="font-display text-2xl font-semibold tracking-tight text-ink">
+            {{ fact.value }}
           </p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <AudienceCard
-            v-for="key in AUDIENCE_KEYS"
-            :key="key"
-            :icon="key"
-            :title="$t(`home.audience.items.${key}.title`)"
-            :description="$t(`home.audience.items.${key}.description`)"
-          />
+          <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+            {{ fact.label }}
+          </p>
         </div>
       </div>
     </section>
 
     <section
       id="courses"
-      class="industrial-section py-20 md:py-24"
+      class="relative overflow-hidden py-20 md:py-24"
     >
-      <div
-        class="industrial-curve industrial-curve--section"
-        aria-hidden="true"
-      />
-      <div class="container mx-auto px-6">
-        <div class="max-w-2xl mb-10">
-          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+      <GeometricBackdrop dense />
+      <div class="container relative z-10 mx-auto px-6">
+        <div class="mb-8 max-w-2xl">
+          <h2 class="font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
             {{ $t('home.courses.title') }}
           </h2>
-          <p class="mt-3 text-ink-muted leading-relaxed">
+          <p class="mt-3 leading-relaxed text-ink-muted">
             {{ $t('home.courses.subtitle') }}
           </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl">
+        <div class="mb-8 flex flex-wrap gap-2">
+          <button
+            v-for="filter in FILTERS"
+            :key="filter"
+            type="button"
+            class="filter-chip rounded-pill px-4 py-1.5 text-sm font-medium"
+            :class="{ 'is-active': activeFilter === filter }"
+            @click="activeFilter = filter"
+          >
+            {{ $t(`home.courses.filters.${filter}`) }}
+          </button>
+        </div>
+
+        <div class="grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-2">
           <CourseCard
-            v-for="course in COURSES"
+            v-for="course in visibleCourses"
             :key="course.key"
             :icon="course.icon"
             :title="$t(`home.courses.items.${course.key}.title`)"
@@ -161,22 +141,17 @@ const authorHighlights = computed(() => {
 
     <section
       id="author"
-      class="industrial-band industrial-section py-20 md:py-24 border-y border-border-subtle"
+      class="border-y border-border-subtle bg-surface-900 py-20 md:py-24"
     >
-      <div
-        class="industrial-square industrial-square--author"
-        aria-hidden="true"
-      />
       <div class="container mx-auto px-6">
-        <div class="max-w-2xl mb-10">
-          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+        <div class="mb-10 max-w-2xl">
+          <h2 class="font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
             {{ $t('home.author.title') }}
           </h2>
-          <p class="mt-3 text-ink-muted leading-relaxed">
+          <p class="mt-3 leading-relaxed text-ink-muted">
             {{ $t('home.author.subtitle') }}
           </p>
         </div>
-
         <AuthorCard
           :name="$t('home.author.name')"
           :role="$t('home.author.role')"
@@ -190,52 +165,43 @@ const authorHighlights = computed(() => {
 
     <section
       id="faq"
-      class="industrial-section py-20 md:py-24"
+      class="py-20 md:py-24"
     >
-      <div
-        class="industrial-curve industrial-curve--faq"
-        aria-hidden="true"
-      />
-      <div class="container mx-auto px-6 max-w-3xl">
-        <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-8">
+      <div class="container mx-auto max-w-3xl px-6">
+        <h2 class="mb-8 font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
           {{ $t('home.faq.title') }}
         </h2>
-        <div>
-          <FaqItem
-            v-for="key in FAQ_KEYS"
-            :key="key"
-            :question="$t(`home.faq.items.${key}.question`)"
-            :answer="$t(`home.faq.items.${key}.answer`)"
-          />
-        </div>
+        <FaqItem
+          v-for="key in FAQ_KEYS"
+          :key="key"
+          :question="$t(`home.faq.items.${key}.question`)"
+          :answer="$t(`home.faq.items.${key}.answer`)"
+        />
       </div>
     </section>
 
     <section
       id="contacts"
-      class="industrial-band industrial-section py-20 md:py-24 overflow-hidden border-t border-border-subtle"
+      class="relative overflow-hidden border-t border-border-subtle bg-surface-900 py-20 md:py-24"
     >
-      <div
-        class="industrial-square industrial-square--contact"
-        aria-hidden="true"
-      />
-      <div class="container mx-auto px-6">
+      <GeometricBackdrop dense />
+      <div class="container relative z-10 mx-auto px-6">
         <div class="max-w-2xl">
-          <h2 class="text-3xl md:text-4xl font-extrabold text-ink tracking-tight">
+          <h2 class="font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
             {{ $t('home.contacts.title') }}
           </h2>
-          <p class="mt-3 text-ink-muted leading-relaxed">
+          <p class="mt-3 leading-relaxed text-ink-muted">
             {{ $t('home.contacts.subtitle') }}
           </p>
           <a
             :href="`mailto:${$t('home.contacts.support')}`"
-            class="inline-block mt-6 text-accent-coral font-semibold border-b border-accent-coral/40 hover:border-accent-coral transition"
+            class="mt-6 inline-block border-b border-accent-coral/40 font-semibold text-accent-coral hover:border-accent-coral"
           >
             {{ $t('home.contacts.support') }}
           </a>
 
-          <div class="flat-card rounded-card p-6 md:p-8 mt-10 max-w-md">
-            <h3 class="text-xl font-bold text-ink">
+          <div class="flat-card mt-10 max-w-md rounded-card p-6 md:p-8">
+            <h3 class="text-xl font-semibold text-ink">
               {{ $t('home.contacts.notify_title') }}
             </h3>
             <p class="mt-2 text-sm text-ink-muted">
@@ -243,7 +209,7 @@ const authorHighlights = computed(() => {
             </p>
             <a
               :href="`mailto:${$t('home.contacts.support')}?subject=${$t('home.contacts.notify_subject')}`"
-              class="btn-accent inline-flex items-center justify-center rounded-pill px-6 py-3 text-sm font-semibold w-fit mt-6"
+              class="btn-accent mt-6 inline-flex w-fit items-center justify-center rounded-pill px-6 py-3 text-sm font-semibold"
             >
               {{ $t('home.contacts.notify_cta') }}
             </a>
@@ -255,23 +221,13 @@ const authorHighlights = computed(() => {
 </template>
 
 <style scoped>
-.industrial-page {
+.landing-hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background-color: var(--color-surface-950);
-  background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-.industrial-hero,
-.industrial-section {
-  position: relative;
-}
-
-.industrial-hero {
+  min-height: calc(100vh - 4.5rem);
+  display: flex;
+  align-items: center;
   background:
     linear-gradient(
       115deg,
@@ -281,227 +237,45 @@ const authorHighlights = computed(() => {
     );
 }
 
-.industrial-band {
+.landing-panel {
   position: relative;
-  background-color: var(--industrial-band);
-  background-image:
-    linear-gradient(135deg, var(--industrial-grid) 25%, transparent 25%),
-    linear-gradient(315deg, var(--industrial-grid) 25%, transparent 25%);
-  background-size: 28px 28px;
+  aspect-ratio: 1;
+  max-width: 26rem;
+  margin-left: auto;
+  border: 1px solid var(--industrial-line);
+  background: var(--industrial-panel);
 }
 
-.industrial-section > .container,
-.industrial-band > .container {
-  position: relative;
-  z-index: 2;
-}
-
-.industrial-square {
+.landing-panel__square {
   position: absolute;
-  border: 1px solid rgba(236, 104, 60, 0.3);
-  pointer-events: none;
-  transform: rotate(12deg);
-}
-
-.industrial-square::after {
-  content: "";
-  position: absolute;
-  width: 42%;
-  height: 42%;
-  right: -18%;
-  bottom: -18%;
+  width: 8rem;
+  height: 8rem;
+  top: 18%;
+  right: 18%;
+  border: 1px solid color-mix(in srgb, var(--color-accent-coral) 55%, transparent);
   background: var(--industrial-accent-wash);
-  border: 1px solid var(--industrial-line);
+  transform: rotate(16deg);
 }
 
-.industrial-square--one {
-  width: 9rem;
-  height: 9rem;
-  top: 8%;
-  right: 5%;
-}
-
-.industrial-square--two {
-  width: 3.5rem;
-  height: 3.5rem;
-  left: 3%;
-  bottom: 10%;
-  border-color: var(--industrial-line);
-  transform: rotate(-8deg);
-}
-
-.industrial-square--author {
-  width: 7rem;
-  height: 7rem;
-  right: 4%;
-  top: 2.5rem;
-  transform: rotate(-14deg);
-}
-
-.industrial-square--contact {
-  width: 12rem;
-  height: 12rem;
-  left: -6rem;
-  bottom: -4rem;
-  transform: rotate(24deg);
-}
-
-.industrial-curve {
+.landing-panel__circle {
   position: absolute;
-  pointer-events: none;
-  border: 1px solid var(--industrial-line);
+  width: 6rem;
+  height: 6rem;
+  left: 16%;
+  bottom: 18%;
+  border: 1px solid var(--industrial-line-strong);
   border-radius: 50%;
 }
 
-.industrial-curve--hero {
-  width: 44rem;
-  height: 44rem;
-  right: -20rem;
-  bottom: -28rem;
-  box-shadow:
-    0 0 0 42px rgba(236, 104, 60, 0.035),
-    0 0 0 84px var(--industrial-grid);
-}
-
-.industrial-curve--section {
-  width: 30rem;
-  height: 30rem;
-  left: -25rem;
-  top: 4rem;
-  border-color: rgba(236, 104, 60, 0.22);
-  box-shadow: 0 0 0 28px rgba(236, 104, 60, 0.025);
-}
-
-.industrial-curve--faq {
-  width: 24rem;
-  height: 24rem;
-  right: -18rem;
-  top: 2rem;
-  border-color: rgba(236, 104, 60, 0.2);
-  box-shadow: 0 0 0 24px var(--industrial-grid);
-}
-
-.industrial-blueprint {
-  position: relative;
-  aspect-ratio: 1;
-  max-width: 27.5rem;
-  margin-left: auto;
-  border: 1px solid var(--industrial-line);
-  background-color: var(--industrial-panel);
-  background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.industrial-blueprint::before,
-.industrial-blueprint::after {
-  content: "";
+.landing-panel__arc {
   position: absolute;
-  background: var(--color-accent-coral);
-}
-
-.industrial-blueprint::before {
-  width: 4rem;
-  height: 0.35rem;
-  top: -0.2rem;
-  left: 2rem;
-}
-
-.industrial-blueprint::after {
-  width: 0.35rem;
-  height: 4rem;
-  right: -0.2rem;
-  bottom: 2rem;
-}
-
-.industrial-blueprint svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.industrial-blueprint path {
-  stroke: var(--color-ink-muted);
-  stroke-width: 1.5;
-}
-
-.industrial-blueprint circle {
-  fill: var(--color-accent-coral);
-}
-
-.industrial-blueprint__index,
-.industrial-blueprint__mark {
-  position: absolute;
-  z-index: 2;
-  color: var(--color-ink-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.industrial-blueprint__index {
-  top: 1.25rem;
-  left: 1.25rem;
-  color: var(--color-accent-coral);
-}
-
-.industrial-blueprint__mark--top {
-  top: 1.25rem;
-  right: 1.25rem;
-}
-
-.industrial-blueprint__mark--bottom {
-  right: 1.25rem;
-  bottom: 1.25rem;
-}
-
-.industrial-blueprint__square {
-  position: absolute;
-  border: 1px solid var(--industrial-line-strong);
-}
-
-.industrial-blueprint__square--large {
-  width: 8rem;
-  height: 8rem;
-  right: 3.5rem;
-  top: 5rem;
-  background: var(--industrial-accent-wash);
-}
-
-.industrial-blueprint__square--small {
-  width: 3rem;
-  height: 3rem;
-  left: 4rem;
-  bottom: 4rem;
-  background: var(--color-accent-coral);
-  border-color: var(--color-accent-coral);
-}
-
-@media (max-width: 1023px) {
-  .industrial-square--one {
-    right: -4rem;
-    opacity: 0.55;
-  }
-
-  .industrial-curve--hero {
-    right: -35rem;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .industrial-blueprint__square--large {
-    animation: blueprint-drift 10s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes blueprint-drift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-10px, 12px, 0);
-  }
+  width: 12rem;
+  height: 12rem;
+  left: 30%;
+  top: 28%;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-top-color: var(--color-accent-coral);
+  border-right-color: var(--color-accent-coral);
 }
 </style>

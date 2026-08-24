@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { fetchEnrollment, completeLesson, fetchEnrollmentLessonMediaObjectUrl } from '@/services/enrollmentService';
+import { fetchEnrollment, completeLesson, fetchEnrollmentLessonMediaObjectUrl, fetchEnrollmentLessonPartFileObjectUrl } from '@/services/enrollmentService';
 import LearnerQuizPart from '@/components/courses/lesson/LearnerQuizPart.vue';
 
 const { t } = useI18n();
@@ -47,6 +47,7 @@ const selectedLessonParts = computed(() => {
     mediaUrl: part.mediaUrl ?? null,
     quizQuestions: part.quizQuestions ?? [],
     quizPassThreshold: part.quizPassThresholdPercent ?? null,
+    files: part.files ?? [],
   }));
 });
 
@@ -125,6 +126,33 @@ async function markComplete() {
 
 function onQuizSubmitted(updatedEnrollment) {
   enrollment.value = updatedEnrollment;
+}
+
+const downloadingFileId = ref(null);
+const downloadErrorFileId = ref(null);
+
+// Files parts are downloads, not inline media — fetch on click rather than preloading like
+// image/video/audio, then trigger a browser save via a synthetic anchor click.
+async function downloadFile(part, file) {
+  if (!selectedLesson.value || downloadingFileId.value === file.id) return;
+
+  downloadingFileId.value = file.id;
+  downloadErrorFileId.value = null;
+  let objectUrl;
+  try {
+    objectUrl = await fetchEnrollmentLessonPartFileObjectUrl(enrollmentId.value, selectedLesson.value.id, part.id, file.id);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = file.fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } catch {
+    downloadErrorFileId.value = file.id;
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    downloadingFileId.value = null;
+  }
 }
 
 function goToCourses() {
@@ -259,6 +287,32 @@ function goToCourses() {
                   :lesson-id="selectedLesson.id"
                   @submitted="onQuizSubmitted"
                 />
+                <ul
+                  v-else-if="part.type === 'files'"
+                  class="course-learn__files"
+                >
+                  <li
+                    v-for="file in part.files"
+                    :key="file.id"
+                    class="course-learn__files-item"
+                  >
+                    <span class="course-learn__files-name">{{ file.fileName }}</span>
+                    <button
+                      type="button"
+                      class="course-learn__files-download"
+                      :disabled="downloadingFileId === file.id"
+                      @click="downloadFile(part, file)"
+                    >
+                      {{ downloadingFileId === file.id ? t('courses.learn.files.downloading') : t('courses.learn.files.download') }}
+                    </button>
+                    <span
+                      v-if="downloadErrorFileId === file.id"
+                      class="course-learn__files-error"
+                    >
+                      {{ t('courses.learn.files.download_error') }}
+                    </span>
+                  </li>
+                </ul>
                 <div
                   v-else
                   class="course-learn__media"
@@ -329,8 +383,7 @@ function goToCourses() {
   min-height: calc(100vh - 4.5rem);
   background-color: var(--color-surface-950);
   background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px);
+    none;
   background-size: 40px 40px;
 }
 
@@ -548,6 +601,65 @@ function goToCourses() {
 
 .course-learn__media-player--audio {
   height: 2.6rem;
+}
+
+.course-learn__files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course-learn__files-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.55rem;
+  background: var(--color-surface-950);
+}
+
+.course-learn__files-name {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-learn__files-download {
+  flex: none;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--color-accent-coral);
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-accent-coral-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.course-learn__files-download:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent-coral) 10%, transparent);
+}
+
+.course-learn__files-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.course-learn__files-error {
+  flex: none;
+  color: var(--color-accent-coral-dark);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .course-learn__prose {

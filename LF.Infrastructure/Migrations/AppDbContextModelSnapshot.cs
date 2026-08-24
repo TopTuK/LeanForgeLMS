@@ -223,6 +223,37 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFLessonParts", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.LessonPartFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<int>("LessonPartId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StorageObjectId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonPartId");
+
+                    b.HasIndex("StorageObjectId");
+
+                    b.ToTable("LFLessonPartFiles", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>
                 {
                     b.Property<int>("Id")
@@ -469,6 +500,23 @@ namespace LF.Infrastructure.Migrations
                     b.Navigation("StorageObject");
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.LessonPartFile", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.LessonPart", null)
+                        .WithMany("Files")
+                        .HasForeignKey("LessonPartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LF.AppDomain.Entities.Storage.StorageObject", "StorageObject")
+                        .WithMany()
+                        .HasForeignKey("StorageObjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StorageObject");
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>
                 {
                     b.HasOne("LF.AppDomain.Entities.Course.QuizAttempt", null)
@@ -522,6 +570,8 @@ namespace LF.Infrastructure.Migrations
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.LessonPart", b =>
                 {
+                    b.Navigation("Files");
+
                     b.Navigation("QuizQuestions");
                 });
 

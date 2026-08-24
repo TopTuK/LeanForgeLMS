@@ -6,6 +6,12 @@ export const uploadLessonMedia = (file) => {
   return api.post('/courses/lesson-media', formData).then((r) => r.data);
 };
 
+export const uploadLessonFiles = (files) => {
+  const formData = new FormData();
+  for (const file of files) formData.append('files', file);
+  return api.post('/courses/lesson-files', formData).then((r) => r.data);
+};
+
 export const replaceLessonParts = (courseId, chapterId, lessonId, parts) =>
   api.put(`/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}/parts`, { parts }).then((r) => r.data);
 

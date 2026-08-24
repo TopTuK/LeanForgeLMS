@@ -23,6 +23,13 @@ export default defineConfig([
   ...pluginVue.configs['flat/recommended'],
 
   {
+    files: ['src/components/ui/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
+
+  {
     files: ['vite.config.*', 'eslint.config.*'],
     languageOptions: {
       globals: {

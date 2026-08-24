@@ -8,6 +8,7 @@ public sealed class LessonPart
     public const int DefaultQuizPassThresholdPercent = 60;
 
     private readonly List<QuizQuestion> _quizQuestions = [];
+    private readonly List<LessonPartFile> _files = [];
 
     private LessonPart()
     {
@@ -22,6 +23,7 @@ public sealed class LessonPart
     public int LessonId { get; private set; }
     public IReadOnlyList<QuizQuestion> QuizQuestions => _quizQuestions.AsReadOnly();
     public int? QuizPassThresholdPercent { get; private set; }
+    public IReadOnlyList<LessonPartFile> Files => _files.AsReadOnly();
 
     internal static LessonPart Create(
         LessonPartType partType,
@@ -29,7 +31,8 @@ public sealed class LessonPart
         string? html,
         StorageObject? storageObject,
         IReadOnlyList<QuizQuestionInput>? quizQuestions = null,
-        int? quizPassThresholdPercent = null)
+        int? quizPassThresholdPercent = null,
+        IReadOnlyList<LessonPartFileInput>? files = null)
     {
         if (partType == LessonPartType.Text)
         {
@@ -45,6 +48,12 @@ public sealed class LessonPart
             if (quizPassThresholdPercent is < 1 or > 100)
                 throw new ArgumentOutOfRangeException(nameof(quizPassThresholdPercent), "Quiz pass threshold must be between 1 and 100.");
         }
+        else if (partType == LessonPartType.Files)
+        {
+            ArgumentNullException.ThrowIfNull(files);
+            if (files.Count == 0)
+                throw new ArgumentException("Files lesson parts require at least one file.", nameof(files));
+        }
         else
         {
             ArgumentNullException.ThrowIfNull(storageObject);
@@ -56,7 +65,7 @@ public sealed class LessonPart
             SortOrder = sortOrder,
             Html = partType == LessonPartType.Text ? html!.Trim() : null,
             StorageObjectId = storageObject?.Id,
-            StorageObject = partType == LessonPartType.Quiz ? null : storageObject,
+            StorageObject = partType is LessonPartType.Quiz or LessonPartType.Files ? null : storageObject,
             QuizPassThresholdPercent = partType == LessonPartType.Quiz ? quizPassThresholdPercent ?? DefaultQuizPassThresholdPercent : null,
         };
 
@@ -64,6 +73,11 @@ public sealed class LessonPart
         {
             for (var i = 0; i < quizQuestions!.Count; i++)
                 part._quizQuestions.Add(QuizQuestion.Create(quizQuestions[i].Text, quizQuestions[i].QuestionType, i + 1, quizQuestions[i].Options));
+        }
+        else if (partType == LessonPartType.Files)
+        {
+            for (var i = 0; i < files!.Count; i++)
+                part._files.Add(LessonPartFile.Create(files[i].FileName, i + 1, files[i].StorageObject));
         }
 
         return part;

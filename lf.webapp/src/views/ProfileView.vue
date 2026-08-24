@@ -139,13 +139,6 @@ async function onSave() {
           <h1>{{ $t('profile.title') }}</h1>
           <p>{{ $t('profile.subtitle') }}</p>
         </div>
-        <div
-          class="profile-heading__meta"
-          aria-hidden="true"
-        >
-          <span>LF—PROFILE</span>
-          <span>A.02</span>
-        </div>
       </header>
 
       <div class="profile-grid">

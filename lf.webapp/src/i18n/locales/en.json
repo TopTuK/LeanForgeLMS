@@ -1,19 +1,20 @@
 {
     "common": {
-        "brand_name": "Lean Forge LMS",
+        "brand_name": "High Managers School",
         "author_name": "Sergey Sidorov",
-        "created_date": "2026"
+        "created_date": "2026",
+        "brand_short": "High Managers"
     },
-    "home_view_title": "Lean Forge LMS — Practical Skills for IT Teams",
+    "home_view_title": "High Managers School — practice for managers",
     "nav": {
         "courses": "Courses",
         "events": "Events",
         "certificates": "Certificates",
         "faq": "FAQ",
         "contacts": "Contacts",
-        "login": "Enter school",
+        "login": "Student login",
         "profile": "Profile",
-        "administration": "Administration",
+        "administration": "Admin",
         "logout": "Log out",
         "menu_toggle": "Toggle menu",
         "theme_light": "Switch to light theme",
@@ -24,22 +25,22 @@
         "offer": "Terms of service",
         "cookies": "Cookie policy"
     },
-    "login_view_title": "Enter school — Lean Forge LMS",
-    "courses_view_title": "Courses — Lean Forge LMS",
-    "events_view_title": "Events — Lean Forge LMS",
-    "certificates_view_title": "Certificates — Lean Forge LMS",
-    "profile_view_title": "Profile — Lean Forge LMS",
-    "admin_users_view_title": "Administration — Users — Lean Forge LMS",
-    "admin_courses_view_title": "Administration — Courses — Lean Forge LMS",
-    "admin_categories_view_title": "Administration — Categories — Lean Forge LMS",
-    "courses_available_view_title": "Available courses — Lean Forge LMS",
-    "courses_active_view_title": "Active courses — Lean Forge LMS",
-    "courses_finished_view_title": "Finished courses — Lean Forge LMS",
-    "courses_teaching_view_title": "Teaching — Lean Forge LMS",
-    "courses_create_view_title": "Create course — Lean Forge LMS",
-    "courses_edit_view_title": "Edit course — Lean Forge LMS",
-    "courses_lesson_edit_view_title": "Edit lesson — Lean Forge LMS",
-    "courses_learn_view_title": "Learning — Lean Forge LMS",
+    "login_view_title": "Student login — High Managers School",
+    "courses_view_title": "Courses — High Managers School",
+    "events_view_title": "Events — High Managers School",
+    "certificates_view_title": "Certificates — High Managers School",
+    "profile_view_title": "Profile — High Managers School",
+    "admin_users_view_title": "Administration — Users — High Managers School",
+    "admin_courses_view_title": "Administration — Courses — High Managers School",
+    "admin_categories_view_title": "Administration — Categories — High Managers School",
+    "courses_available_view_title": "Available courses — High Managers School",
+    "courses_active_view_title": "Active courses — High Managers School",
+    "courses_finished_view_title": "Finished courses — High Managers School",
+    "courses_teaching_view_title": "Teaching — High Managers School",
+    "courses_create_view_title": "New course — High Managers School",
+    "courses_edit_view_title": "Edit course — High Managers School",
+    "courses_lesson_edit_view_title": "Edit lesson — High Managers School",
+    "courses_learn_view_title": "Learning — High Managers School",
     "admin": {
         "sidebar": {
             "users": "Users",
@@ -65,6 +66,7 @@
             "delete_title": "Delete user",
             "delete_confirm": "Are you sure you want to permanently delete {name}? This cannot be undone.",
             "save": "Save",
+            "cancel": "Cancel",
             "no_users": "No users found.",
             "load_error": "Could not load users. Please try again.",
             "save_error": "Could not save changes. Please try again.",
@@ -84,15 +86,16 @@
             "delete_title": "Delete category",
             "delete_confirm": "Are you sure you want to permanently delete \"{name}\"? This cannot be undone.",
             "save": "Save",
+            "cancel": "Cancel",
             "no_categories": "No categories found.",
             "load_error": "Could not load categories. Please try again.",
             "save_error": "Could not save changes. Please try again."
         }
     },
     "courses": {
-        "eyebrow": "Learning bay",
+        "eyebrow": "Catalog",
         "title": "Courses",
-        "create_action": "Create course",
+        "create_action": "New course",
         "continue_draft": "You have an unfinished draft: \"{title}\"",
         "loading": "Loading…",
         "tabs": {
@@ -155,12 +158,17 @@
                 "correct": "Correct",
                 "incorrect": "Incorrect",
                 "retry": "Try again"
+            },
+            "files": {
+                "download": "Download",
+                "downloading": "Downloading…",
+                "download_error": "Could not download this file. Please try again."
             }
         },
         "create": {
-            "eyebrow": "Course forge",
-            "title": "Forge a new course",
-            "subtitle": "Lock the core spec — title, pitch, description, category — then assemble chapters in the bay.",
+            "eyebrow": "New course",
+            "title": "Create a course",
+            "subtitle": "Set the title, short pitch, category and cover — then assemble chapters in the editor.",
             "field_title": "Title",
             "field_short_introduction": "Short introduction",
             "field_description": "Description",
@@ -181,13 +189,13 @@
             "cover_image_uploading": "Uploading…",
             "cover_image_upload_error": "Could not upload the cover image. Please try again.",
             "cover_image_preview_alt": "Course cover preview",
-            "submit": "Forge course",
-            "submitting": "Forging…",
+            "submit": "Create course",
+            "submitting": "Creating…",
             "validation_error": "Please fill in all required fields.",
             "load_error": "Could not load data. Please try again.",
             "dismiss_error": "Dismiss",
             "your_drafts_title": "Open drafts",
-            "your_drafts_empty": "No drafts in the bay yet.",
+            "your_drafts_empty": "No drafts yet.",
             "drafts_loading": "Loading drafts…",
             "edit_action": "Continue",
             "coming_soon_section_title": "More options coming soon",
@@ -296,11 +304,13 @@
                 "type_video": "Video",
                 "type_audio": "Audio",
                 "type_quiz": "Quiz",
+                "type_files": "Files",
                 "desc_text": "Write and format lesson content",
                 "desc_image": "Upload a picture",
                 "desc_video": "Upload a video clip",
                 "desc_audio": "Upload audio",
                 "desc_quiz": "Add questions and a pass score",
+                "desc_files": "Attach one or more downloadable files",
                 "delete": "Remove block",
                 "move_up": "Move up",
                 "move_down": "Move down",
@@ -328,20 +338,25 @@
                     "remove_option": "Remove option",
                     "drag_question": "Drag to reorder question",
                     "drag_option": "Drag to reorder option"
+                },
+                "files": {
+                    "upload": "Drop files or click to upload",
+                    "remove": "Remove file"
                 }
             }
-        }
+        },
+        "search_placeholder": "Search by title"
     },
     "events": {
-        "hello": "Hello world"
+        "hello": "This section is coming later."
     },
     "certificates": {
-        "hello": "Hello world"
+        "hello": "This section is coming later."
     },
     "profile": {
-        "eyebrow": "Account bay",
+        "eyebrow": "Account",
         "title": "Your profile",
-        "subtitle": "Identity and contact details for the learning platform. Keep them current so certificates and reviews stay attributed correctly.",
+        "subtitle": "Name and contact details for the platform. Keep them current so certificates stay attributed correctly.",
         "identity_label": "Identity",
         "details_label": "Details",
         "email_label": "Email",
@@ -367,26 +382,42 @@
         }
     },
     "login": {
-        "eyebrow": "Student access",
-        "title": "Enter the school",
+        "eyebrow": "Student login",
+        "title": "Sign in",
         "subtitle": "Choose the account you use for learning. You will continue through the selected identity provider.",
         "pmi": {
             "title": "Continue with PMI Club",
-            "description": "Use your PMI Club account to enter the learning platform."
+            "description": "Use your PMI Club account to sign in."
         },
         "google": {
             "title": "Continue with Google",
-            "description": "Use your Google account to enter the learning platform."
+            "description": "Use your Google account to sign in."
         },
         "note": "Authentication is provided securely by the selected service."
     },
     "home": {
         "hero": {
-            "brand_line": "Lean Forge LMS",
-            "headline": "Practical skills for IT teams, from agents to flow",
-            "subheadline": "A learning platform for developers, project and product managers, and system analysts — starting with two hands-on courses: Agentic Development with LLMs, and Kanban in practice.",
+            "brand_line": "High Managers School",
+            "headline": "Become a stronger manager",
+            "subheadline": "Practice from a practitioner: LLM agents and Kanban for people who already ship work — one instructor, no assembly line.",
             "cta_primary": "See the courses",
-            "trust_line": "Practice-first · real tools · one instructor, no assembly line"
+            "trust_line": "Practice-first · real tools · one instructor"
+        },
+        "facts": {
+            "items": [
+                {
+                    "value": "Practice",
+                    "label": "from the person who ships, not slide decks"
+                },
+                {
+                    "value": "2",
+                    "label": "starting courses"
+                },
+                {
+                    "value": "1",
+                    "label": "instructor, no assembly line"
+                }
+            ]
         },
         "audience": {
             "title": "Who it's for",
@@ -411,26 +442,34 @@
             }
         },
         "courses": {
-            "title": "Launch courses",
-            "subtitle": "The first two courses on the platform — practical, hands-on, and built for real IT work.",
+            "title": "Courses",
+            "subtitle": "The first programs — practical, low on ceremony, built around real work rather than certificates.",
             "cta": "Learn more",
+            "filters": {
+                "all": "All",
+                "ai": "AI",
+                "flow": "Flow",
+                "management": "Management"
+            },
             "items": {
                 "llm_agentic": {
                     "title": "Introduction to LLM: Agentic Development",
                     "description": "How large language models work, and how to build and use AI agents in real development workflows — from prompts to autonomous tool use.",
                     "duration": "New course",
-                    "category": "AI & Agents"
+                    "category": "AI & Agents",
+                    "filter": "ai"
                 },
                 "kanban": {
                     "title": "Introduction to Kanban",
                     "description": "Visualize work, limit work in progress, and manage flow — a practical Kanban course for teams shipping continuously.",
                     "duration": "New course",
-                    "category": "Delivery"
+                    "category": "Delivery",
+                    "filter": "flow"
                 }
             }
         },
         "author": {
-            "title": "Built by a practitioner",
+            "title": "Instructor",
             "subtitle": "Not a slide-deck theorist — someone who ships.",
             "name": "Sergey Sidorov",
             "role": "Founder · project lead and product manager",
@@ -446,105 +485,38 @@
             "url": "https://s-sidorov.ru"
         },
         "faq": {
-            "title": "Questions and answers",
+            "title": "Questions",
             "items": {
                 "1": {
-                    "question": "Who is Lean Forge LMS for?",
-                    "answer": "IT professionals who want practical skills, not certificates for their own sake — developers, project and product managers, system analysts, and other IT specialists."
+                    "question": "Who is this school for?",
+                    "answer": "Project and product managers, systems analysts, and neighbouring IT roles who want practical skills — not certificates for their own sake."
                 },
                 "2": {
                     "question": "Do I need to already know how to code?",
-                    "answer": "It depends on the course. Neither launch course has a hard coding prerequisite — check each course's description before enrolling."
+                    "answer": "It depends on the course. Neither starting course has a hard coding prerequisite — check the description before enrolling."
                 },
                 "3": {
                     "question": "How are courses delivered?",
-                    "answer": "Courses are self-paced inside the platform: chapters and lessons with text, images, video, and audio, with your progress tracked as you go."
+                    "answer": "Self-paced on the platform: chapters and lessons with text, images, video, and audio, with progress tracked as you go."
                 },
                 "4": {
                     "question": "Can I suggest a course topic?",
-                    "answer": "Yes. Email support{'@'}leanforge.dev — we keep every request, and courses can be shaped by what people actually ask for."
+                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and courses can be shaped by what people actually ask for."
                 },
                 "5": {
-                    "question": "Who built this platform?",
-                    "answer": "One person, so far — see the section above. More instructors may join as the course catalog grows."
+                    "question": "Who runs this school?",
+                    "answer": "One person so far — Sergey Sidorov. See the instructor section and s-sidorov.ru."
                 }
             }
         },
         "contacts": {
             "title": "Contacts",
             "subtitle": "Questions? Write us — we reply within a day.",
-            "support": "support{'@'}leanforge.dev",
+            "support": "hello{'@'}s-sidorov.ru",
             "notify_title": "Get notified about new courses",
-            "notify_subtitle": "We'll email you when a new course launches — no spam, no schedule.",
+            "notify_subtitle": "We'll email you when a new course launches — no spam.",
             "notify_subject": "Notify me about new courses",
             "notify_cta": "Email us"
         }
-    },
-    "vuestic": {
-        "search": "Search",
-        "noOptions": "Items not found",
-        "ok": "OK",
-        "cancel": "Cancel",
-        "uploadFile": "Upload file",
-        "undo": "Undo",
-        "dropzone": "Drop files here to upload",
-        "fileDeleted": "File deleted",
-        "closeAlert": "close alert",
-        "backToTop": "back to top",
-        "toggleDropdown": "toggle dropdown",
-        "carousel": "carousel",
-        "goPreviousSlide": "go previous slide",
-        "goNextSlide": "go next slide",
-        "goSlide": "go slide {index}",
-        "slideOf": "slide {index} of {length}",
-        "close": "close",
-        "openColorPicker": "open color picker",
-        "colorSelection": "color selection",
-        "colorName": "color {color}",
-        "decreaseCounter": "decrease counter",
-        "increaseCounter": "increase counter",
-        "selectAllRows": "select all rows",
-        "sortColumnBy": "sort column by {name}",
-        "selectRowByIndex": "select row {index}",
-        "resetDate": "reset date",
-        "nextPeriod": "next period",
-        "switchView": "switch view",
-        "previousPeriod": "previous period",
-        "removeFile": "remove file",
-        "reset": "reset",
-        "pagination": "pagination",
-        "goToTheFirstPage": "go to the first page",
-        "goToPreviousPage": "go to the previous page",
-        "goToSpecificPage": "go to the {page} page",
-        "goToSpecificPageInput": "enter the page number to go",
-        "goNextPage": "go next page",
-        "goLastPage": "go last page",
-        "currentRating": "current rating {value} of {max}",
-        "voteRating": "vote rating {value} of {max}",
-        "optionsFilter": "options filter",
-        "splitPanels": "split panels",
-        "movePaginationLeft": "move pagination left",
-        "movePaginationRight": "move pagination right",
-        "resetTime": "reset time",
-        "closeToast": "close toast",
-        "selectedOption": "Selected option",
-        "noSelectedOption": "Option is not selected",
-        "breadcrumbs": "breadcrumbs",
-        "counterValue": "counter value",
-        "selectedDate": "selected date",
-        "selectedTime": "selected time",
-        "progressState": "progress state",
-        "color": "color",
-        "next": "Next",
-        "back": "Previous",
-        "finish": "Finish",
-        "step": "step",
-        "progress": "progress",
-        "loading": "Loading",
-        "sliderValue": "Current slider value is {value}",
-        "switch": "Switch",
-        "inputField": "Input field",
-        "fileTypeIncorrect": "File type is incorrect",
-        "select": "Select an option"
     }
 }
