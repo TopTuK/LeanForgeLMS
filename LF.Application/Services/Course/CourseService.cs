@@ -296,8 +296,8 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             return null;
 
         var storageObjectIds = parts
-            .Where(p => p.StorageObjectId is not null)
-            .Select(p => p.StorageObjectId!.Value)
+            .SelectMany(p => (p.StorageObjectId is { } id ? [id] : Enumerable.Empty<int>())
+                .Concat((p.Files ?? []).Select(f => f.StorageObjectId)))
             .Distinct()
             .ToList();
 
@@ -323,7 +323,19 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
                     [.. q.Options.Select(o => new QuizOptionInput(o.Text, o.IsCorrect, o.SortOrder))]))
                 .ToList();
 
-            inputs.Add(new LessonPartInput(part.PartType, part.Html, storageObject, quizQuestions, part.QuizPassThresholdPercent));
+            List<LessonPartFileInput>? files = null;
+            if (part.Files is { Count: > 0 })
+            {
+                files = part.Files.Select(f =>
+                {
+                    if (!storageObjectsById.TryGetValue(f.StorageObjectId, out var fileStorageObject))
+                        throw new ArgumentException($"Storage object {f.StorageObjectId} not found.", nameof(parts));
+
+                    return new LessonPartFileInput(f.FileName, fileStorageObject);
+                }).ToList();
+            }
+
+            inputs.Add(new LessonPartInput(part.PartType, part.Html, storageObject, quizQuestions, part.QuizPassThresholdPercent, files));
         }
 
         lesson.ReplaceParts(inputs);
@@ -369,6 +381,11 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.QuizQuestions)
             .ThenInclude(q => q.Options)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.Files)
+            .ThenInclude(f => f.StorageObject)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -385,6 +402,11 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             .ThenInclude(l => l.Parts)
             .ThenInclude(p => p.QuizQuestions)
             .ThenInclude(q => q.Options)
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .ThenInclude(l => l.Parts)
+            .ThenInclude(p => p.Files)
+            .ThenInclude(f => f.StorageObject)
             .Include(c => c.Category)
             .Include(c => c.CoverImageStorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);

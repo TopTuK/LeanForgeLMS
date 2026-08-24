@@ -206,6 +206,11 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
                     SortOrder = o.SortOrder,
                 })],
             })],
+            Files = p.Files.Count == 0 ? null : [.. p.Files.Select(f => new LessonPartFileInputDto
+            {
+                FileName = f.FileName,
+                StorageObjectId = f.StorageObjectId,
+            })],
         }).ToList();
 
         var course = await GuardedAsync(() =>
@@ -377,6 +382,9 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
             question.Options.AddRange(q.Options.Adapt<List<QuizOptionReply>>());
             return question;
         }));
+
+        reply.Files.Clear();
+        reply.Files.AddRange(dto.Files.Select(f => f.Adapt<LessonPartFileReply>()));
 
         return reply;
     }

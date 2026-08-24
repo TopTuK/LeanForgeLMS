@@ -8,4 +8,5 @@ public sealed record LessonPartInput(
     string? Html,
     StorageObject? StorageObject,
     IReadOnlyList<QuizQuestionInput>? QuizQuestions = null,
-    int? QuizPassThresholdPercent = null);
+    int? QuizPassThresholdPercent = null,
+    IReadOnlyList<LessonPartFileInput>? Files = null);

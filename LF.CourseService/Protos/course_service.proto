@@ -83,6 +83,7 @@ enum LessonPartType {
   LESSON_PART_TYPE_VIDEO = 2;
   LESSON_PART_TYPE_AUDIO = 3;
   LESSON_PART_TYPE_QUIZ = 4;
+  LESSON_PART_TYPE_FILES = 5;
 }
 
 enum QuestionType {
@@ -178,6 +179,7 @@ message LessonPartReply {
   google.protobuf.StringValue storage_object_content_type = 7;
   repeated QuizQuestionReply quiz_questions = 8;
   google.protobuf.Int32Value quiz_pass_threshold_percent = 9;
+  repeated LessonPartFileReply files = 10;
 }
 
 message LessonPartInput {
@@ -186,6 +188,22 @@ message LessonPartInput {
   google.protobuf.Int32Value storage_object_id = 3;
   repeated QuizQuestionInput quiz_questions = 4;
   google.protobuf.Int32Value quiz_pass_threshold_percent = 5;
+  repeated LessonPartFileInput files = 6;
+}
+
+message LessonPartFileReply {
+  int32 id = 1;
+  string file_name = 2;
+  int32 sort_order = 3;
+  int32 storage_object_id = 4;
+  string storage_object_key = 5;
+  string storage_object_content_type = 6;
+  int64 storage_object_size_bytes = 7;
+}
+
+message LessonPartFileInput {
+  string file_name = 1;
+  int32 storage_object_id = 2;
 }
 
 message QuizOptionInput {

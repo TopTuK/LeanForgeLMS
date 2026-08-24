@@ -166,6 +166,33 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
         });
 
+        group.MapGet("/{id:int}/lessons/{lessonId:int}/parts/{partId:int}/files/{fileId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
+            (int id, int lessonId, int partId, int fileId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            EnrollmentDetailDto? enrollment;
+            try
+            {
+                enrollment = await enrollmentService.GetEnrollmentAsync(id, userId.Value, isAdmin);
+            }
+            catch (EnrollmentAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+
+            var file = enrollment?.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId)
+                ?.Parts.FirstOrDefault(p => p.Id == partId)?.Files.FirstOrDefault(f => f.Id == fileId);
+            if (file is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(file.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.File(download.Content, download.ContentType, fileDownloadName: file.FileName);
+        });
+
         group.MapGet("/courses/{courseId:int}/cover/image", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
             (int courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
         {
@@ -244,9 +271,20 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType is LessonPartType.Text or LessonPartType.Quiz ? null : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media",
+        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+            ? null
+            : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media",
         part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToLearnerQuizQuestionResponse)] : null,
-        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null);
+        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
+        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToLessonPartFileResponse(enrollmentId, lessonId, part.Id, f))] : null);
+
+    private static LessonPartFileResponse ToLessonPartFileResponse(int enrollmentId, int lessonId, int partId, LessonPartFileDto file) => new(
+        file.Id,
+        file.FileName,
+        file.StorageObjectId,
+        file.StorageObjectSizeBytes,
+        file.StorageObjectContentType,
+        $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{partId}/files/{file.Id}/media");
 
     private static QuizQuestionResponse ToLearnerQuizQuestionResponse(QuizQuestionDto question) => new(
         question.Id,

@@ -6,6 +6,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.Services.Course;
+using LF.ApplicationTests.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.Moq;
@@ -468,6 +469,71 @@ public class CourseServiceTests
         var lesson = chapter.AddLesson("Lesson 1");
         var service = CreateService([course], [category], out var dbContextMock);
         var parts = new List<ReplaceLessonPartInputDto> { new() { PartType = LessonPartType.Image, StorageObjectId = 999 } };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 1, isAdmin: false));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_FilesPart_ResolvesFileStorageObjects()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var storageObjectA = StorageObject.Create(StorageObjectType.File, "files/a.pdf", "application/pdf", 100, 1, DateTime.UtcNow);
+        var storageObjectB = StorageObject.Create(StorageObjectType.File, "files/b.zip", "application/zip", 200, 1, DateTime.UtcNow);
+        EntityIdSetter.SetId(storageObjectA, 1);
+        EntityIdSetter.SetId(storageObjectB, 2);
+        var service = CreateService([course], [category], [storageObjectA, storageObjectB], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto>
+        {
+            new()
+            {
+                PartType = LessonPartType.Files,
+                Files =
+                [
+                    new LessonPartFileInputDto { FileName = "a.pdf", StorageObjectId = storageObjectA.Id },
+                    new LessonPartFileInputDto { FileName = "b.zip", StorageObjectId = storageObjectB.Id },
+                ],
+            },
+        };
+
+        // Act
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(result);
+        var resultPart = result!.Chapters.Single().Lessons.Single().Parts.Single();
+        Assert.Equal(LessonPartType.Files, resultPart.PartType);
+        Assert.Equal(2, resultPart.Files.Count);
+        Assert.Equal("a.pdf", resultPart.Files[0].FileName);
+        Assert.Equal("files/a.pdf", resultPart.Files[0].StorageObjectKey);
+        Assert.Equal("b.zip", resultPart.Files[1].FileName);
+        Assert.Equal("files/b.zip", resultPart.Files[1].StorageObjectKey);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_FilesPartUnresolvableStorageObjectId_ThrowsArgumentException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+        var parts = new List<ReplaceLessonPartInputDto>
+        {
+            new()
+            {
+                PartType = LessonPartType.Files,
+                Files = [new LessonPartFileInputDto { FileName = "a.pdf", StorageObjectId = 999 }],
+            },
+        };
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(

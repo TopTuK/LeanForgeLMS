@@ -233,6 +233,10 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
             }));
         }
 
+        input.Files.Clear();
+        if (dto.Files is not null)
+            input.Files.AddRange(dto.Files.Select(f => f.Adapt<LessonPartFileInput>()));
+
         return input;
     }
 

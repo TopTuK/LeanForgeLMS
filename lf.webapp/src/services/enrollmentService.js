@@ -24,3 +24,9 @@ export const fetchCourseCoverImageObjectUrl = (courseId) =>
 export const fetchEnrollmentLessonMediaObjectUrl = (enrollmentId, lessonId, partId) =>
   api.get(`/enrollments/${enrollmentId}/lessons/${lessonId}/parts/${partId}/media`, { responseType: 'blob' })
     .then((r) => URL.createObjectURL(r.data));
+
+// Same auth constraint as the media blob-fetch above — a Files part's attachment can't be linked
+// with a plain <a href>, so this resolves the download to a blob object URL on demand instead.
+export const fetchEnrollmentLessonPartFileObjectUrl = (enrollmentId, lessonId, partId, fileId) =>
+  api.get(`/enrollments/${enrollmentId}/lessons/${lessonId}/parts/${partId}/files/${fileId}/media`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));

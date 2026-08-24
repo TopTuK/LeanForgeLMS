@@ -85,4 +85,51 @@ public class CourseMappingConfigTests
         Assert.Equal(LessonPartType.Text, parts[1].PartType);
         Assert.Equal("<p>Intro</p>", parts[1].Html);
     }
+
+    [Fact]
+    public void Adapt_CourseToCourseDetailDto_MapsFilesPartFilesOrderedBySortOrderWithStorageObjectInfo()
+    {
+        // Arrange
+        var config = CreateConfig();
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var storageObjectA = StorageObject.Create(StorageObjectType.File, "files/a.pdf", "application/pdf", 100, 1, DateTime.UtcNow);
+        var storageObjectB = StorageObject.Create(StorageObjectType.File, "files/b.zip", "application/zip", 200, 1, DateTime.UtcNow);
+        lesson.ReplaceParts([
+            new LessonPartInput(LessonPartType.Files, null, null, Files:
+            [
+                new LessonPartFileInput("a.pdf", storageObjectA),
+                new LessonPartFileInput("b.zip", storageObjectB),
+            ]),
+        ]);
+
+        // Act
+        var result = course.Adapt<CourseDetailDto>(config);
+
+        // Assert
+        var files = result.Chapters[0].Lessons[0].Parts[0].Files;
+        Assert.Equal(2, files.Count);
+        Assert.Equal("a.pdf", files[0].FileName);
+        Assert.Equal("files/a.pdf", files[0].StorageObjectKey);
+        Assert.Equal("application/pdf", files[0].StorageObjectContentType);
+        Assert.Equal(100, files[0].StorageObjectSizeBytes);
+        Assert.Equal("b.zip", files[1].FileName);
+        Assert.Equal("files/b.zip", files[1].StorageObjectKey);
+    }
+
+    [Fact]
+    public void ReplaceParts_FilesPartWithNoFiles_ThrowsArgumentException()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(
+            () => lesson.ReplaceParts([new LessonPartInput(LessonPartType.Files, null, null, Files: [])]));
+    }
 }
