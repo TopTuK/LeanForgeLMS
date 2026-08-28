@@ -9,7 +9,7 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/test-results/**']),
 
   {
     languageOptions: {
@@ -30,10 +30,27 @@ export default defineConfig([
   },
 
   {
-    files: ['vite.config.*', 'eslint.config.*'],
+    files: ['vite.config.*', 'eslint.config.*', 'vitest.setup.js'],
     languageOptions: {
       globals: {
         ...globals.node,
+      },
+    },
+  },
+
+  {
+    files: ['src/**/*.spec.js', 'src/test/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
       },
     },
   },

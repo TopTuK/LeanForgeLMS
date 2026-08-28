@@ -1,5 +1,8 @@
 # Lean Forge LMS
 
+[![Backend Tests](https://github.com/TopTuK/LeanForgeLMS/actions/workflows/tests.yml/badge.svg)](https://github.com/TopTuK/LeanForgeLMS/actions/workflows/tests.yml)
+[![Webapp Tests](https://github.com/TopTuK/LeanForgeLMS/actions/workflows/webapp-tests.yml/badge.svg)](https://github.com/TopTuK/LeanForgeLMS/actions/workflows/webapp-tests.yml)
+
 Lean Forge LMS is a Learning Management System for an online school for developers. It's a solo-developer project built on **.NET 10** with a **Vue 3** SPA frontend, orchestrated locally with **.NET Aspire** and deployed to production as plain **Docker Compose** services.
 
 The domain has moderate business rules (enrollment, progress tracking, course lifecycle) — not CRUD-only, but not a rich DDD domain either. The implemented slice covers authentication, user identity, profile/avatar management, and the full course domain: category-tagged courses with chapters/lessons made of ordered text/image/video/audio parts, cover art (predefined color or an uploaded image), publishing, a student catalog, ownership-restricted enrollment (a course's own creator can't enroll in it), and per-lesson progress tracking.
@@ -192,7 +195,7 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 | Validation | FluentValidation (referenced in `LF.WebApi` today) |
 | Logging | Serilog (`Serilog.AspNetCore`), centralized in `LeanForgeLMS.ServiceDefaults` and applied to all three backend hosts — colorized console output, two-stage bootstrap (captures startup errors before DI is up), one summary line per request/RPC |
 | Observability | OpenTelemetry (traces + metrics) via `LeanForgeLMS.ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
-| Testing | xUnit v3 + Moq + MockQueryable.Moq (unit tests only today — Testcontainers/WebApplicationFactory integration testing is planned, not yet built) |
+| Testing | Backend: xUnit v3 + Moq + MockQueryable.Moq (unit tests only today — Testcontainers/WebApplicationFactory integration testing is planned, not yet built). Frontend: Vitest + `@testing-library/vue` component tests (`lf.webapp`) |
 | Frontend | Vue 3 (Composition API) + Vite, Pinia, vue-router, vue-i18n (en/ru), Vuestic UI, Tailwind CSS v4, axios |
 | Containerization | Multi-stage Dockerfiles (Node build → .NET SDK build → ASP.NET runtime), Docker Compose for production |
 
@@ -239,8 +242,10 @@ cd lf.webapp && npm run dev                                     # http://localho
 ```bash
 dotnet build LeanForgeLMS.slnx
 dotnet test
-cd lf.webapp && npm run lint
+cd lf.webapp && npm run lint && npm test
 ```
+
+Frontend tests use Vitest (`npm test`, or `npm run test:watch` / `npm run test:coverage`); component specs live beside their components as `*.spec.js`. CI runs the backend suites (`tests.yml`) and the webapp lint/test/build (`webapp-tests.yml`) on every PR to `main`.
 
 ### Database migrations
 

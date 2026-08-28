@@ -406,6 +406,16 @@ src/
 
 ## Project-Specific Overrides
 
+### Testing (actual setup)
+
+- Runner: **Vitest** (`vite.config.js` `test` block, `jsdom`, `globals: true`, `vitest.setup.js`).
+- Component tests use **`@testing-library/vue`** + `@testing-library/user-event`; `@testing-library/jest-dom` matchers.
+- Specs are **co-located** as `*.spec.js` next to the file under test. `src/test/renderComponent.js` wraps `render` with the real `@/i18n` instance (locale forced to `en`) and an optional `@pinia/testing` Pinia.
+- Pinia stores: `setActivePinia(createPinia())` + `vi.mock` the service modules. `authStore` calls `useRouter()` at setup — `vi.mock('vue-router')` when testing it directly.
+- `vitest.setup.js` polyfills `URL.createObjectURL`/`revokeObjectURL` and `matchMedia` (jsdom lacks them; `theme/index.js` and several stores/services use them at import/runtime).
+- Scripts: `npm test` (run once), `npm run test:watch`, `npm run test:coverage`, `npm run lint:ci` (eslint, no `--fix`).
+- CI: `.github/workflows/webapp-tests.yml` runs lint + test + build on PRs to `main` touching `lf.webapp/**`.
+
 <!--
 Customize this section for your specific project. Examples:
 
