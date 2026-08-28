@@ -33,6 +33,47 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             return TypedResults.Ok(new PagedCourseCatalogResponse([.. result.Items.Select(ToCatalogItemResponse)], result.TotalCount, effectivePage, effectivePageSize));
         });
 
+        group.MapGet("/catalog/{courseId:int}", async Task<Results<Ok<CoursePreviewResponse>, UnauthorizedHttpResult, NotFound>>
+            (int courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var preview = await enrollmentService.GetCoursePreviewAsync(courseId, userId.Value);
+            return preview is null ? TypedResults.NotFound() : TypedResults.Ok(ToCoursePreviewResponse(preview));
+        });
+
+        group.MapGet("/catalog/{courseId:int}/lessons/{lessonId:int}/parts/{partId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
+            (int courseId, int lessonId, int partId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var preview = await enrollmentService.GetCoursePreviewAsync(courseId, userId.Value);
+            var part = preview?.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId)?.Parts.FirstOrDefault(p => p.Id == partId);
+            if (part?.StorageObjectKey is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(part.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.Stream(download.Content, download.ContentType);
+        });
+
+        group.MapGet("/catalog/{courseId:int}/lessons/{lessonId:int}/parts/{partId:int}/files/{fileId:int}/media", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
+            (int courseId, int lessonId, int partId, int fileId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService,
+             [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var preview = await enrollmentService.GetCoursePreviewAsync(courseId, userId.Value);
+            var file = preview?.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId)
+                ?.Parts.FirstOrDefault(p => p.Id == partId)?.Files.FirstOrDefault(f => f.Id == fileId);
+            if (file is null) return TypedResults.NotFound();
+
+            var download = await fileStorageService.DownloadAsync(file.StorageObjectKey, ct);
+            return download is null ? TypedResults.NotFound() : TypedResults.File(download.Content, download.ContentType, fileDownloadName: file.FileName);
+        });
+
         group.MapPost("/", async Task<Results<Created<EnrollmentDetailResponse>, UnauthorizedHttpResult, ValidationProblem, Conflict<string>, ForbidHttpResult>>
             (EnrollRequest request, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, CancellationToken ct) =>
         {
@@ -285,6 +326,59 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         file.StorageObjectSizeBytes,
         file.StorageObjectContentType,
         $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{partId}/files/{file.Id}/media");
+
+    private static CoursePreviewResponse ToCoursePreviewResponse(CoursePreviewDto dto) => new(
+        dto.Id,
+        dto.Title,
+        dto.ShortIntroduction,
+        dto.Description,
+        dto.CategoryId,
+        dto.CategoryName,
+        dto.LessonCount,
+        dto.CoverType.ToString(),
+        dto.CoverColor?.ToString(),
+        dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.Id}/cover/image" : null,
+        dto.IsEnrolled,
+        dto.EnrollmentId,
+        [.. dto.Chapters.Select(ch => ToCoursePreviewChapterResponse(dto.Id, ch))]);
+
+    private static CoursePreviewChapterResponse ToCoursePreviewChapterResponse(int courseId, CoursePreviewChapterDto chapter) => new(
+        chapter.Id,
+        chapter.Title,
+        chapter.SortOrder,
+        [.. chapter.Lessons.Select(l => ToCoursePreviewLessonResponse(courseId, l))]);
+
+    private static CoursePreviewLessonResponse ToCoursePreviewLessonResponse(int courseId, CoursePreviewLessonDto lesson) => new(
+        lesson.Id,
+        lesson.Title,
+        lesson.SortOrder,
+        lesson.IncludeInPreview,
+        lesson.Content,
+        [.. lesson.Parts.Select(p => ToPreviewLessonPartResponse(courseId, lesson.Id, p))]);
+
+    // Preview lessons are the only content a not-yet-enrolled student can reach, so quiz parts
+    // are stripped to a bare marker here (empty QuizQuestions) rather than reusing the
+    // enrolled-learner masking in ToLessonPartResponse, which still sends question/option text.
+    private static LessonPartResponse ToPreviewLessonPartResponse(int courseId, int lessonId, LessonPartDto part) => new(
+        part.Id,
+        part.PartType.ToString(),
+        part.SortOrder,
+        part.Html,
+        part.StorageObjectId,
+        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+            ? null
+            : $"/api/enrollments/catalog/{courseId}/lessons/{lessonId}/parts/{part.Id}/media",
+        part.PartType == LessonPartType.Quiz ? [] : null,
+        part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
+        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToCoursePreviewLessonPartFileResponse(courseId, lessonId, part.Id, f))] : null);
+
+    private static LessonPartFileResponse ToCoursePreviewLessonPartFileResponse(int courseId, int lessonId, int partId, LessonPartFileDto file) => new(
+        file.Id,
+        file.FileName,
+        file.StorageObjectId,
+        file.StorageObjectSizeBytes,
+        file.StorageObjectContentType,
+        $"/api/enrollments/catalog/{courseId}/lessons/{lessonId}/parts/{partId}/files/{file.Id}/media");
 
     private static QuizQuestionResponse ToLearnerQuizQuestionResponse(QuizQuestionDto question) => new(
         question.Id,

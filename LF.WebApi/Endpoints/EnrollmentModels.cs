@@ -76,3 +76,28 @@ public sealed record QuizQuestionResultResponse(int QuestionId, bool IsCorrect, 
 public sealed record QuizAttemptResultResponse(int ScorePercent, bool Passed, IReadOnlyList<QuizQuestionResultResponse> Questions);
 
 public sealed record QuizSubmissionResponse(QuizAttemptResultResponse Result, EnrollmentDetailResponse Enrollment);
+
+public sealed record CoursePreviewLessonResponse(
+    int Id,
+    string Title,
+    int SortOrder,
+    bool IncludeInPreview,
+    string? Content,
+    IReadOnlyList<LessonPartResponse> Parts);
+
+public sealed record CoursePreviewChapterResponse(int Id, string Title, int SortOrder, IReadOnlyList<CoursePreviewLessonResponse> Lessons);
+
+public sealed record CoursePreviewResponse(
+    int Id,
+    string Title,
+    string ShortIntroduction,
+    string Description,
+    int CategoryId,
+    string CategoryName,
+    int LessonCount,
+    string CoverType,
+    string? CoverColor,
+    string? CoverImageUrl,
+    bool IsEnrolled,
+    int? EnrollmentId,
+    IReadOnlyList<CoursePreviewChapterResponse> Chapters);

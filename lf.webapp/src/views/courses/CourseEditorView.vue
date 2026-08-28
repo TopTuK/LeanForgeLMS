@@ -19,6 +19,7 @@ import StudioShell from '@/components/courses/studio/StudioShell.vue';
 import StudioButton from '@/components/courses/studio/StudioButton.vue';
 import StudioIconButton from '@/components/courses/studio/StudioIconButton.vue';
 import StudioConfirmDialog from '@/components/courses/studio/StudioConfirmDialog.vue';
+import StudioPromptDialog from '@/components/courses/studio/StudioPromptDialog.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -34,14 +35,8 @@ const publishing = ref(false);
 const reordering = ref(false);
 const coverImageUrl = ref('');
 
-const addingChapter = ref(false);
-const newChapterTitle = ref('');
-const chapterInputRef = ref(null);
+const addChapterModalShown = ref(false);
 const submittingChapter = ref(false);
-
-const addingLessonChapterId = ref(null);
-const newLessonTitle = ref('');
-const lessonInputRef = ref(null);
 const submittingLesson = ref(false);
 
 const editingChapterId = ref(null);
@@ -163,29 +158,17 @@ async function onLessonsReorder(chapter, newLessons) {
   }
 }
 
-async function startAddChapter() {
-  addingChapter.value = true;
-  newChapterTitle.value = '';
-  await nextTick();
-  chapterInputRef.value?.focus();
+function startAddChapter() {
+  addChapterModalShown.value = true;
 }
 
-function cancelAddChapter() {
-  addingChapter.value = false;
-  newChapterTitle.value = '';
-}
-
-async function confirmAddChapter() {
+async function confirmAddChapter(title) {
   if (submittingChapter.value) return;
-  const title = newChapterTitle.value.trim();
-  if (!title) {
-    cancelAddChapter();
-    return;
-  }
+  const trimmed = title?.trim();
+  if (!trimmed) return;
   submittingChapter.value = true;
   try {
-    const ok = await runMutation(() => addChapter(courseId, title));
-    if (ok) cancelAddChapter();
+    await runMutation(() => addChapter(courseId, trimmed));
   } finally {
     submittingChapter.value = false;
   }
@@ -214,18 +197,6 @@ async function confirmRenameChapter(chapter) {
   if (ok) cancelRenameChapter();
 }
 
-async function startAddLesson(chapter) {
-  addingLessonChapterId.value = chapter.id;
-  newLessonTitle.value = '';
-  await nextTick();
-  lessonInputRef.value?.focus();
-}
-
-function cancelAddLesson() {
-  addingLessonChapterId.value = null;
-  newLessonTitle.value = '';
-}
-
 function openLessonEditor(chapter, lesson) {
   router.push({
     name: 'LessonEdit',
@@ -237,25 +208,19 @@ function openLessonEditor(chapter, lesson) {
   });
 }
 
-async function confirmAddLesson(chapter) {
+async function startAddLesson(chapter) {
   if (submittingLesson.value) return;
-  const title = newLessonTitle.value.trim();
-  if (!title) {
-    cancelAddLesson();
-    return;
-  }
 
   const existingIds = new Set((chapter.lessons ?? []).map((l) => l.id));
   errorMessage.value = '';
   submittingLesson.value = true;
   try {
     const updated = await addLesson(courseId, chapter.id, {
-      title,
+      title: t('courses.editor.untitled_lesson'),
       content: '',
       includeInPreview: false,
     });
     course.value = updated;
-    cancelAddLesson();
 
     const updatedChapter = updated.chapters.find((c) => c.id === chapter.id);
     const created = updatedChapter?.lessons.find((l) => !existingIds.has(l.id))
@@ -371,7 +336,7 @@ const lessonCount = computed(() => (
           </div>
 
           <div
-            v-if="course.chapters.length === 0 && !addingChapter"
+            v-if="course.chapters.length === 0"
             class="studio-empty"
           >
             <p>{{ $t('courses.editor.no_chapters') }}</p>
@@ -390,7 +355,7 @@ const lessonCount = computed(() => (
             :model-value="course.chapters"
             item-key="id"
             handle=".studio-drag"
-            :disabled="reordering || addingChapter || editingChapterId != null"
+            :disabled="reordering || editingChapterId != null"
             class="studio-outline__list"
             @update:model-value="onChaptersReorder"
           >
@@ -428,6 +393,7 @@ const lessonCount = computed(() => (
                   <StudioButton
                     variant="quiet"
                     size="sm"
+                    :disabled="submittingLesson"
                     @click="startAddLesson(chapter)"
                   >
                     <Plus :size="14" />
@@ -478,23 +444,8 @@ const lessonCount = computed(() => (
                   </template>
                 </draggable>
 
-                <div
-                  v-if="addingLessonChapterId === chapter.id"
-                  class="studio-inline-row"
-                >
-                  <input
-                    ref="lessonInputRef"
-                    v-model="newLessonTitle"
-                    class="studio-inline-input"
-                    :placeholder="$t('courses.editor.lesson_title_label')"
-                    @keydown.enter.prevent="confirmAddLesson(chapter)"
-                    @keydown.escape.prevent="cancelAddLesson"
-                    @blur="confirmAddLesson(chapter)"
-                  >
-                </div>
-
                 <p
-                  v-else-if="chapter.lessons.length === 0"
+                  v-if="chapter.lessons.length === 0"
                   class="studio-hint studio-hint--inset"
                 >
                   {{ $t('courses.editor.no_lessons') }}
@@ -502,21 +453,6 @@ const lessonCount = computed(() => (
               </section>
             </template>
           </draggable>
-
-          <div
-            v-if="addingChapter"
-            class="studio-inline-row studio-inline-row--chapter"
-          >
-            <input
-              ref="chapterInputRef"
-              v-model="newChapterTitle"
-              class="studio-inline-input"
-              :placeholder="$t('courses.editor.chapter_title_placeholder')"
-              @keydown.enter.prevent="confirmAddChapter"
-              @keydown.escape.prevent="cancelAddChapter"
-              @blur="confirmAddChapter"
-            >
-          </div>
         </aside>
 
         <section class="studio-details">
@@ -542,6 +478,16 @@ const lessonCount = computed(() => (
         </section>
       </div>
     </template>
+
+    <StudioPromptDialog
+      v-model="addChapterModalShown"
+      :title="$t('courses.editor.add_chapter')"
+      :label="$t('courses.editor.chapter_title_placeholder')"
+      :placeholder="$t('courses.editor.chapter_title_placeholder')"
+      :confirm-label="$t('courses.editor.add_chapter')"
+      :cancel-label="$t('courses.editor.cancel')"
+      @confirm="confirmAddChapter"
+    />
 
     <StudioConfirmDialog
       v-model="removeLessonModalShown"
@@ -733,10 +679,10 @@ const lessonCount = computed(() => (
 }
 
 .studio-chapter {
-  padding: 0.85rem;
+  padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border-subtle);
-  border-radius: 0.75rem;
-  background: var(--color-surface-950);
+  border-radius: 0.65rem;
+  background: transparent;
 }
 
 .studio-chapter__head {
@@ -828,18 +774,10 @@ const lessonCount = computed(() => (
   color: var(--color-accent-coral-dark);
 }
 
-.studio-inline-row {
-  margin: 0.35rem 0 0.15rem 1.85rem;
-}
-
-.studio-inline-row--chapter {
-  margin-left: 0;
-}
-
 .studio-inline-input {
   width: 100%;
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--color-accent-coral);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 0.5rem;
   background: var(--color-surface-950);
   color: var(--color-ink);

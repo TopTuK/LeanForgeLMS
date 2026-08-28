@@ -34,6 +34,7 @@
     "admin_courses_view_title": "Administration — Courses — High Managers School",
     "admin_categories_view_title": "Administration — Categories — High Managers School",
     "courses_available_view_title": "Available courses — High Managers School",
+    "courses_detail_view_title": "Course details — High Managers School",
     "courses_active_view_title": "Active courses — High Managers School",
     "courses_finished_view_title": "Finished courses — High Managers School",
     "courses_teaching_view_title": "Teaching — High Managers School",
@@ -107,10 +108,29 @@
         "available": {
             "title": "Available for enrollment",
             "subtitle": "Open courses you can join right now.",
-            "enroll": "Enroll",
+            "view_details": "View details",
             "empty": "No courses are open for enrollment right now.",
-            "load_error": "Could not load the course catalog. Please try again.",
-            "enroll_error": "Could not enroll in this course. Please try again."
+            "load_error": "Could not load the course catalog. Please try again."
+        },
+        "detail": {
+            "not_found": "Course not found.",
+            "back": "Back to catalog",
+            "load_error": "Could not load this course. Please try again.",
+            "description_empty": "No description has been added for this course yet.",
+            "content_title": "Course content",
+            "lessons_count": "{count} lessons",
+            "preview_badge": "Preview",
+            "quiz_badge": "This lesson includes a quiz.",
+            "locked_hint": "Enroll to unlock",
+            "enroll": "Enroll",
+            "enrolling": "Enrolling…",
+            "enroll_error": "Could not enroll in this course. Please try again.",
+            "continue": "Continue",
+            "files": {
+                "download": "Download",
+                "downloading": "Downloading…",
+                "download_error": "Could not download this file. Please try again."
+            }
         },
         "active": {
             "title": "Active courses",
@@ -147,6 +167,11 @@
             "mark_complete": "Mark lesson complete",
             "completing": "Saving…",
             "completed": "Lesson completed",
+            "hide_structure": "Hide structure",
+            "show_structure": "Show structure",
+            "structure_title": "Course structure",
+            "previous": "Previous",
+            "next": "Next",
             "quiz": {
                 "complete_via_quiz_hint": "Pass the quiz below to complete this lesson.",
                 "submit": "Submit answers",
@@ -216,6 +241,7 @@
             "drag_lesson": "Drag to reorder lesson",
             "no_chapters": "No chapters yet. Add one to start building the course.",
             "add_lesson": "Add lesson",
+            "untitled_lesson": "Untitled lesson",
             "no_lessons": "No lessons in this chapter yet.",
             "lesson_title_label": "Lesson title",
             "lesson_content_label": "Content",
@@ -240,7 +266,7 @@
             "back_to_courses": "Back to courses",
             "outline_summary": "{chapters} chapters · {lessons} lessons",
             "details_title": "Course details",
-            "details_tip": "Click a lesson to edit its content inline. Use + to add chapters and lessons without leaving this page."
+            "details_tip": "Add a chapter to start. Add a lesson to open the editor and write content."
         },
         "lessonEditor": {
             "eyebrow": "Lesson",
@@ -280,13 +306,21 @@
                 "italic": "Italic",
                 "underline": "Underline",
                 "strike": "Strike",
+                "h1": "H1",
                 "h2": "H2",
                 "h3": "H3",
+                "align_left": "Align left",
+                "align_center": "Align center",
+                "align_right": "Align right",
                 "bullet_list": "Bullets",
                 "ordered_list": "Numbers",
                 "blockquote": "Quote",
                 "code": "Code",
+                "highlight": "Highlight",
+                "color": "Text color",
                 "link": "Link",
+                "link_apply": "Apply",
+                "link_remove": "Remove",
                 "image": "Image",
                 "undo": "Undo",
                 "redo": "Redo",

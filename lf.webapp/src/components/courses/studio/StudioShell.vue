@@ -18,9 +18,7 @@ defineProps({
 <style scoped>
 .studio-shell {
   min-height: calc(100vh - 4.5rem);
-  background:
-    radial-gradient(ellipse 80% 50% at 100% 0%, color-mix(in srgb, var(--color-accent-coral) 6%, transparent), transparent 55%),
-    var(--color-surface-950);
+  background: var(--color-surface-950);
 }
 
 .studio-shell__inner {

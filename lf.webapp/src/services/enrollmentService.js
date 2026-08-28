@@ -3,6 +3,9 @@ import api from '@/services/api';
 export const fetchCatalog = ({ page = 1, pageSize = 20 } = {}) =>
   api.get('/enrollments/catalog', { params: { page, pageSize } }).then((r) => r.data);
 
+export const fetchCoursePreview = (courseId) =>
+  api.get(`/enrollments/catalog/${courseId}`).then((r) => r.data);
+
 export const enroll = (courseId) => api.post('/enrollments', { courseId }).then((r) => r.data);
 
 export const fetchMyEnrollments = ({ status = 'active' } = {}) =>
@@ -29,4 +32,14 @@ export const fetchEnrollmentLessonMediaObjectUrl = (enrollmentId, lessonId, part
 // with a plain <a href>, so this resolves the download to a blob object URL on demand instead.
 export const fetchEnrollmentLessonPartFileObjectUrl = (enrollmentId, lessonId, partId, fileId) =>
   api.get(`/enrollments/${enrollmentId}/lessons/${lessonId}/parts/${partId}/files/${fileId}/media`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));
+
+// Preview-lesson equivalents of the two helpers above, used on the course details page before
+// enrollment exists — same blob-fetch constraint (auth header can't reach a plain <img>/<a> src).
+export const fetchCoursePreviewLessonMediaObjectUrl = (courseId, lessonId, partId) =>
+  api.get(`/enrollments/catalog/${courseId}/lessons/${lessonId}/parts/${partId}/media`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));
+
+export const fetchCoursePreviewLessonPartFileObjectUrl = (courseId, lessonId, partId, fileId) =>
+  api.get(`/enrollments/catalog/${courseId}/lessons/${lessonId}/parts/${partId}/files/${fileId}/media`, { responseType: 'blob' })
     .then((r) => URL.createObjectURL(r.data));

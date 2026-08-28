@@ -8,36 +8,49 @@ import FooterLayout from './FooterLayout.vue';
       <slot name="header" />
     </header>
 
-    <main class="base-workspace">
-      <slot />
-    </main>
+    <div class="base-scroll">
+      <main class="base-workspace">
+        <slot />
+      </main>
 
-    <footer class="base-footer">
-      <FooterLayout />
-    </footer>
+      <footer class="base-footer">
+        <FooterLayout />
+      </footer>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .base-layout {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .base-header {
-    position: fixed;
-    top: 0;
-    inset-inline: 0;
-    z-index: 50;
-    height: 4.5rem;
+  flex-shrink: 0;
+  z-index: 50;
+  height: var(--header-height, 4.5rem);
+}
+
+.base-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .base-workspace {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding-top: 4.5rem;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.base-footer {
+  flex-shrink: 0;
 }
 </style>

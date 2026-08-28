@@ -4,6 +4,9 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { fetchCategories, fetchCourses, createCourse, uploadCourseCoverImage } from '@/services/courseService';
 import FormField from '@/components/courses/form/FormField.vue';
+import RichEditor from '@/components/courses/form/RichEditor.vue';
+import StudioShell from '@/components/courses/studio/StudioShell.vue';
+import StudioButton from '@/components/courses/studio/StudioButton.vue';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -18,7 +21,6 @@ const categories = ref([]);
 
 const coverMode = ref('Color');
 const coverColor = ref(COVER_COLORS[0]);
-const coverImageFile = ref(null);
 const coverImagePreviewUrl = ref('');
 const coverImageStorageObjectId = ref(null);
 const coverImageUploading = ref(false);
@@ -30,6 +32,10 @@ const errorMessage = ref('');
 const drafts = ref([]);
 const draftsLoading = ref(false);
 const draftsError = ref('');
+
+function descriptionHasText(html) {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
+}
 
 async function loadCategories() {
   try {
@@ -69,7 +75,6 @@ async function onCoverImageSelected(event) {
   coverImageStorageObjectId.value = null;
   if (coverImagePreviewUrl.value) URL.revokeObjectURL(coverImagePreviewUrl.value);
 
-  coverImageFile.value = file;
   coverImagePreviewUrl.value = URL.createObjectURL(file);
   coverImageUploading.value = true;
 
@@ -87,7 +92,7 @@ const canSubmit = computed(() =>
   Boolean(
     title.value.trim()
     && shortIntroduction.value.trim()
-    && description.value.trim()
+    && descriptionHasText(description.value)
     && category.value
     && (coverMode.value === 'Color' ? coverColor.value : coverImageStorageObjectId.value),
   ),
@@ -124,746 +129,484 @@ async function submit() {
 </script>
 
 <template>
-  <div class="course-studio">
-    <div
-      class="course-studio__square course-studio__square--one"
-      aria-hidden="true"
-    />
-    <div
-      class="course-studio__square course-studio__square--two"
-      aria-hidden="true"
-    />
-    <div
-      class="course-studio__curve"
-      aria-hidden="true"
-    />
-
-    <div class="container mx-auto px-6 py-12 md:py-16 relative z-10">
-      <header class="course-studio__heading">
-        <div>
-          <p class="course-studio__eyebrow">
-            {{ $t('courses.create.eyebrow') }}
-          </p>
-          <h1>{{ $t('courses.create.title') }}</h1>
-          <p class="course-studio__subtitle">
-            {{ $t('courses.create.subtitle') }}
-          </p>
-        </div>
-      </header>
-
-      <div
-        v-if="errorMessage"
-        class="course-studio__alert"
-        role="alert"
+  <StudioShell>
+    <header class="create-header">
+      <router-link
+        :to="{ name: 'CoursesAvailable' }"
+        class="create-header__back"
       >
-        <span>{{ errorMessage }}</span>
-        <button
-          type="button"
-          class="course-studio__alert-close"
-          :aria-label="$t('courses.create.dismiss_error')"
-          @click="errorMessage = ''"
-        >
-          ×
-        </button>
-      </div>
+        {{ $t('courses.create.back') }}
+      </router-link>
+      <h1>{{ $t('courses.create.title') }}</h1>
+      <p class="create-header__subtitle">
+        {{ $t('courses.create.subtitle') }}
+      </p>
+    </header>
 
-      <div class="course-studio__layout">
-        <form
-          class="course-studio__panel"
-          @submit.prevent="submit"
-        >
-          <FormField
-            v-model="title"
-            index="01"
-            :label="$t('courses.create.field_title')"
-            required
-          />
-          <FormField
-            v-model="shortIntroduction"
-            index="02"
-            type="textarea"
-            :rows="3"
-            :label="$t('courses.create.field_short_introduction')"
-            required
-          />
-          <FormField
-            v-model="description"
-            index="03"
-            type="textarea"
-            :rows="5"
-            :label="$t('courses.create.field_description')"
-            required
-          />
-
-          <fieldset class="course-studio__category">
-            <legend class="course-studio__category-legend">
-              <span>{{ $t('courses.create.field_category') }}</span>
-              <span aria-hidden="true">04</span>
-            </legend>
-            <p
-              v-if="!categories.length"
-              class="course-studio__hint"
-            >
-              {{ $t('courses.create.category_placeholder') }}
-            </p>
-            <div
-              v-else
-              class="course-studio__chips"
-              role="listbox"
-              :aria-label="$t('courses.create.field_category')"
-            >
-              <button
-                v-for="item in categories"
-                :key="item.id"
-                type="button"
-                class="course-studio__chip"
-                role="option"
-                :aria-selected="category === item.id"
-                :class="{ 'is-active': category === item.id }"
-                @click="category = item.id"
-              >
-                {{ item.name }}
-              </button>
-            </div>
-          </fieldset>
-
-          <fieldset class="course-studio__category">
-            <legend class="course-studio__category-legend">
-              <span>{{ $t('courses.create.field_cover') }}</span>
-              <span aria-hidden="true">05</span>
-            </legend>
-
-            <div
-              class="course-studio__chips"
-              role="listbox"
-              :aria-label="$t('courses.create.field_cover')"
-            >
-              <button
-                type="button"
-                class="course-studio__chip"
-                role="option"
-                :aria-selected="coverMode === 'Color'"
-                :class="{ 'is-active': coverMode === 'Color' }"
-                @click="coverMode = 'Color'"
-              >
-                {{ $t('courses.create.cover_mode_color') }}
-              </button>
-              <button
-                type="button"
-                class="course-studio__chip"
-                role="option"
-                :aria-selected="coverMode === 'Image'"
-                :class="{ 'is-active': coverMode === 'Image' }"
-                @click="coverMode = 'Image'"
-              >
-                {{ $t('courses.create.cover_mode_image') }}
-              </button>
-            </div>
-
-            <div
-              v-if="coverMode === 'Color'"
-              class="course-studio__swatches"
-              role="listbox"
-              :aria-label="$t('courses.create.cover_mode_color')"
-            >
-              <button
-                v-for="color in COVER_COLORS"
-                :key="color"
-                type="button"
-                class="course-studio__swatch"
-                role="option"
-                :aria-selected="coverColor === color"
-                :class="{ 'is-active': coverColor === color }"
-                :style="{ backgroundColor: `var(--color-cover-${color.toLowerCase()})` }"
-                :title="$t(`courses.create.cover_colors.${color.toLowerCase()}`)"
-                @click="coverColor = color"
-              />
-            </div>
-
-            <div
-              v-else
-              class="course-studio__cover-image"
-            >
-              <label class="course-studio__cover-upload">
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  class="course-studio__cover-input"
-                  @change="onCoverImageSelected"
-                >
-                <span>{{ coverImageUploading ? $t('courses.create.cover_image_uploading') : $t('courses.create.cover_image_choose') }}</span>
-              </label>
-              <img
-                v-if="coverImagePreviewUrl"
-                :src="coverImagePreviewUrl"
-                :alt="$t('courses.create.cover_image_preview_alt')"
-                class="course-studio__cover-preview"
-              >
-              <p
-                v-if="coverImageError"
-                class="course-studio__hint course-studio__hint--error"
-              >
-                {{ coverImageError }}
-              </p>
-            </div>
-          </fieldset>
-
-          <div class="course-studio__actions">
-            <button
-              type="submit"
-              class="course-studio__submit btn-accent"
-              :disabled="submitting"
-            >
-              <span v-if="submitting">{{ $t('courses.create.submitting') }}</span>
-              <span v-else>{{ $t('courses.create.submit') }}</span>
-              <span
-                v-if="!submitting"
-                aria-hidden="true"
-              >→</span>
-            </button>
-            <router-link
-              :to="{ name: 'CoursesAvailable' }"
-              class="course-studio__back"
-            >
-              {{ $t('courses.create.back') }}
-            </router-link>
-          </div>
-        </form>
-
-        <aside class="course-studio__rail">
-          <div class="course-studio__rail-panel">
-            <h2>{{ $t('courses.create.your_drafts_title') }}</h2>
-
-            <p
-              v-if="draftsError"
-              class="course-studio__hint course-studio__hint--error"
-            >
-              {{ draftsError }}
-            </p>
-            <p
-              v-else-if="draftsLoading"
-              class="course-studio__hint"
-            >
-              {{ $t('courses.create.drafts_loading') }}
-            </p>
-            <p
-              v-else-if="drafts.length === 0"
-              class="course-studio__hint"
-            >
-              {{ $t('courses.create.your_drafts_empty') }}
-            </p>
-            <ul
-              v-else
-              class="course-studio__drafts"
-            >
-              <li
-                v-for="(draft, index) in drafts"
-                :key="draft.id"
-              >
-                <router-link
-                  :to="{ name: 'CourseEdit', params: { id: draft.id } }"
-                  class="course-studio__draft"
-                >
-                  <span
-                    class="course-studio__draft-index"
-                    aria-hidden="true"
-                  >{{ String(index + 1).padStart(2, '0') }}</span>
-                  <span class="course-studio__draft-title">{{ draft.title }}</span>
-                  <span class="course-studio__draft-action">{{ $t('courses.create.edit_action') }} →</span>
-                </router-link>
-              </li>
-            </ul>
-          </div>
-
-          <div class="course-studio__soon">
-            <h2>{{ $t('courses.create.coming_soon_section_title') }}</h2>
-            <p>{{ $t('courses.create.coming_soon') }}</p>
-          </div>
-        </aside>
-      </div>
+    <div
+      v-if="errorMessage"
+      class="create-alert"
+      role="alert"
+    >
+      <span>{{ errorMessage }}</span>
+      <button
+        type="button"
+        class="create-alert__close"
+        :aria-label="$t('courses.create.dismiss_error')"
+        @click="errorMessage = ''"
+      >
+        ×
+      </button>
     </div>
-  </div>
+
+    <div class="create-layout">
+      <form
+        class="create-form"
+        @submit.prevent="submit"
+      >
+        <FormField
+          v-model="title"
+          :label="$t('courses.create.field_title')"
+          required
+        />
+        <FormField
+          v-model="shortIntroduction"
+          type="textarea"
+          :rows="3"
+          :label="$t('courses.create.field_short_introduction')"
+          required
+        />
+
+        <div class="create-field">
+          <span class="create-field__label">{{ $t('courses.create.field_description') }}</span>
+          <RichEditor
+            v-model="description"
+            :placeholder="$t('courses.create.field_description')"
+            :allow-image="false"
+          />
+        </div>
+
+        <fieldset class="create-fieldset">
+          <legend>{{ $t('courses.create.field_category') }}</legend>
+          <p
+            v-if="!categories.length"
+            class="create-hint"
+          >
+            {{ $t('courses.create.category_placeholder') }}
+          </p>
+          <div
+            v-else
+            class="create-chips"
+            role="listbox"
+            :aria-label="$t('courses.create.field_category')"
+          >
+            <button
+              v-for="item in categories"
+              :key="item.id"
+              type="button"
+              class="create-chip"
+              role="option"
+              :aria-selected="category === item.id"
+              :class="{ 'is-active': category === item.id }"
+              @click="category = item.id"
+            >
+              {{ item.name }}
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset class="create-fieldset">
+          <legend>{{ $t('courses.create.field_cover') }}</legend>
+          <div
+            class="create-chips"
+            role="listbox"
+            :aria-label="$t('courses.create.field_cover')"
+          >
+            <button
+              type="button"
+              class="create-chip"
+              role="option"
+              :aria-selected="coverMode === 'Color'"
+              :class="{ 'is-active': coverMode === 'Color' }"
+              @click="coverMode = 'Color'"
+            >
+              {{ $t('courses.create.cover_mode_color') }}
+            </button>
+            <button
+              type="button"
+              class="create-chip"
+              role="option"
+              :aria-selected="coverMode === 'Image'"
+              :class="{ 'is-active': coverMode === 'Image' }"
+              @click="coverMode = 'Image'"
+            >
+              {{ $t('courses.create.cover_mode_image') }}
+            </button>
+          </div>
+
+          <div
+            v-if="coverMode === 'Color'"
+            class="create-swatches"
+            role="listbox"
+            :aria-label="$t('courses.create.cover_mode_color')"
+          >
+            <button
+              v-for="color in COVER_COLORS"
+              :key="color"
+              type="button"
+              class="create-swatch"
+              role="option"
+              :aria-selected="coverColor === color"
+              :class="{ 'is-active': coverColor === color }"
+              :style="{ backgroundColor: `var(--color-cover-${color.toLowerCase()})` }"
+              :title="$t(`courses.create.cover_colors.${color.toLowerCase()}`)"
+              @click="coverColor = color"
+            />
+          </div>
+
+          <div
+            v-else
+            class="create-cover-image"
+          >
+            <label class="create-cover-upload">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="create-cover-input"
+                @change="onCoverImageSelected"
+              >
+              <span>{{ coverImageUploading ? $t('courses.create.cover_image_uploading') : $t('courses.create.cover_image_choose') }}</span>
+            </label>
+            <img
+              v-if="coverImagePreviewUrl"
+              :src="coverImagePreviewUrl"
+              :alt="$t('courses.create.cover_image_preview_alt')"
+              class="create-cover-preview"
+            >
+            <p
+              v-if="coverImageError"
+              class="create-hint create-hint--error"
+            >
+              {{ coverImageError }}
+            </p>
+          </div>
+        </fieldset>
+
+        <div class="create-actions">
+          <StudioButton
+            type="submit"
+            variant="primary"
+            :disabled="submitting"
+          >
+            {{ submitting ? $t('courses.create.submitting') : $t('courses.create.submit') }}
+          </StudioButton>
+        </div>
+      </form>
+
+      <aside class="create-rail">
+        <h2>{{ $t('courses.create.your_drafts_title') }}</h2>
+        <p
+          v-if="draftsError"
+          class="create-hint create-hint--error"
+        >
+          {{ draftsError }}
+        </p>
+        <p
+          v-else-if="draftsLoading"
+          class="create-hint"
+        >
+          {{ $t('courses.create.drafts_loading') }}
+        </p>
+        <p
+          v-else-if="drafts.length === 0"
+          class="create-hint"
+        >
+          {{ $t('courses.create.your_drafts_empty') }}
+        </p>
+        <ul
+          v-else
+          class="create-drafts"
+        >
+          <li
+            v-for="draft in drafts"
+            :key="draft.id"
+          >
+            <router-link
+              :to="{ name: 'CourseEdit', params: { id: draft.id } }"
+              class="create-draft"
+            >
+              <span class="create-draft__title">{{ draft.title }}</span>
+              <span class="create-draft__action">{{ $t('courses.create.edit_action') }}</span>
+            </router-link>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </StudioShell>
 </template>
 
 <style scoped>
-.course-studio {
-  position: relative;
-  min-height: calc(100vh - 4.5rem);
-  overflow: hidden;
-  isolation: isolate;
-  background-color: var(--color-surface-950);
-  background-image:
-    linear-gradient(var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--industrial-grid) 1px, transparent 1px),
-    linear-gradient(
-      115deg,
-      var(--industrial-hero-start) 0%,
-      var(--industrial-hero-middle) 58%,
-      var(--industrial-hero-end) 100%
-    );
-  background-size: 40px 40px, 40px 40px, auto;
+.create-header {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.course-studio__square,
-.course-studio__curve {
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
+.create-header__back {
+  display: inline-block;
+  margin-bottom: 0.65rem;
+  color: var(--color-ink-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.course-studio__square {
-  width: 7rem;
-  height: 7rem;
-  border: 1px solid var(--industrial-line);
+.create-header__back:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
-.course-studio__square::after {
-  content: "";
-  position: absolute;
-  inset: 0.75rem;
-  background: var(--industrial-accent-wash);
-  border: 1px solid var(--industrial-line);
-}
-
-.course-studio__square--one {
-  top: 4rem;
-  right: 8%;
-  transform: rotate(18deg);
-  animation: studio-drift 10s ease-in-out infinite alternate;
-}
-
-.course-studio__square--two {
-  bottom: 12%;
-  left: 4%;
-  width: 4.5rem;
-  height: 4.5rem;
-  opacity: 0.7;
-}
-
-.course-studio__curve {
-  width: 18rem;
-  height: 18rem;
-  border: 1px solid var(--industrial-line);
-  border-radius: 50%;
-  bottom: -6rem;
-  right: -4rem;
-  box-shadow: 0 0 0 48px var(--industrial-grid);
-}
-
-.course-studio__heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--industrial-line);
-  animation: studio-rise 0.4s ease both;
-}
-
-.course-studio__eyebrow {
-  margin: 0 0 0.75rem;
-  color: var(--color-accent-coral);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.course-studio__heading h1 {
+.create-header h1 {
   margin: 0;
   color: var(--color-ink);
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
   font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
-.course-studio__subtitle {
+.create-header__subtitle {
   max-width: 36rem;
-  margin: 0.9rem 0 0;
+  margin: 0.65rem 0 0;
   color: var(--color-ink-muted);
-  font-size: 1rem;
-  line-height: 1.65;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
-.course-studio__meta {
-  display: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  color: var(--color-ink-faint);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.course-studio__alert {
+.create-alert {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding: 0.85rem 1rem;
-  color: var(--color-accent-coral);
-  background: var(--color-accent-soft);
+  margin-bottom: 1.15rem;
+  padding: 0.8rem 1rem;
   border: 1px solid var(--color-accent-coral);
-  border-radius: var(--radius-card);
+  border-radius: 0.6rem;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-coral-dark);
   font-size: 0.9rem;
   font-weight: 600;
 }
 
-.course-studio__alert-close {
+.create-alert__close {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
+  font-size: 1.2rem;
   cursor: pointer;
 }
 
-.course-studio__layout {
+.create-layout {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
 }
 
-.course-studio__panel,
-.course-studio__rail-panel,
-.course-studio__soon {
-  position: relative;
-  background: var(--industrial-panel);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-card);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 18px 50px rgba(20, 20, 20, 0.06);
+@media (min-width: 960px) {
+  .create-layout {
+    grid-template-columns: minmax(0, 1.5fr) minmax(14rem, 0.7fr);
+    align-items: start;
+  }
 }
 
-.course-studio__panel {
+.create-form {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
-  padding: 1.75rem 1.5rem 1.5rem;
-  animation: studio-rise 0.45s ease 0.06s both;
 }
 
-.course-studio__panel-mark {
-  position: absolute;
-  top: 1.1rem;
-  right: 1.25rem;
-  color: var(--color-ink-faint);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.course-studio__category {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.course-studio__category-legend {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.65rem;
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.course-studio__category-legend span:last-child {
-  color: var(--color-ink-faint);
-  letter-spacing: 0.14em;
-}
-
-.course-studio__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.course-studio__chip {
-  padding: 0.55rem 0.95rem;
-  color: var(--color-ink-muted);
-  background: transparent;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-pill);
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
-}
-
-.course-studio__chip:hover {
-  color: var(--color-ink);
-  border-color: var(--color-ink-faint);
-}
-
-.course-studio__chip.is-active {
-  color: #fff;
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-}
-
-.course-studio__chip:active {
-  transform: scale(0.97);
-}
-
-.course-studio__swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.75rem;
-}
-
-.course-studio__swatch {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 0 0 1px var(--color-border-subtle);
-  transition: transform 0.12s ease, box-shadow 0.15s ease;
-}
-
-.course-studio__swatch:hover {
-  transform: scale(1.08);
-}
-
-.course-studio__swatch.is-active {
-  box-shadow: 0 0 0 2px var(--color-surface-950), 0 0 0 4px var(--color-ink);
-}
-
-.course-studio__cover-image {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.course-studio__cover-upload {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  padding: 0.55rem 0.95rem;
-  color: var(--color-ink-muted);
-  background: transparent;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-pill);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.course-studio__cover-upload:hover {
-  color: var(--color-ink);
-  border-color: var(--color-ink-faint);
-}
-
-.course-studio__cover-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.course-studio__cover-preview {
-  width: 100%;
-  max-width: 18rem;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--color-border-subtle);
-}
-
-.course-studio__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--industrial-line);
-}
-
-.course-studio__submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  min-height: 3rem;
-  padding: 0.75rem 1.5rem;
-  border: 0;
-  border-radius: var(--radius-pill);
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
-}
-
-.course-studio__submit:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.course-studio__submit:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.course-studio__submit:disabled {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-.course-studio__back {
-  color: var(--color-ink-muted);
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.course-studio__back:hover {
-  color: var(--color-accent-coral);
-}
-
-.course-studio__rail {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  animation: studio-rise 0.45s ease 0.12s both;
-}
-
-.course-studio__rail-panel {
-  padding: 1.5rem;
-}
-
-.course-studio__rail-panel h2,
-.course-studio__soon h2 {
-  margin: 0 0 1rem;
-  color: var(--color-ink);
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.course-studio__hint {
-  margin: 0;
-  color: var(--color-ink-muted);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.course-studio__hint--error {
-  color: var(--color-accent-coral);
-}
-
-.course-studio__drafts {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.create-field {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.course-studio__draft {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.8rem 0.9rem;
-  color: inherit;
-  text-decoration: none;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.35rem;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.course-studio__draft:hover {
-  border-color: var(--industrial-line-strong);
-  background: var(--industrial-accent-wash);
-}
-
-.course-studio__draft-index {
-  color: var(--color-ink-faint);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.course-studio__draft-title {
-  color: var(--color-ink);
-  font-size: 0.9rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.course-studio__draft-action {
-  color: var(--color-accent-coral);
-  font-size: 0.78rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.course-studio__soon {
-  padding: 1.15rem 1.35rem;
-  border-style: dashed;
+.create-field__label {
   color: var(--color-ink-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
-.course-studio__soon h2 {
-  margin-bottom: 0.4rem;
-}
-
-.course-studio__soon p {
+.create-fieldset {
   margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.create-fieldset legend {
+  margin-bottom: 0.15rem;
+  color: var(--color-ink-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0;
+}
+
+.create-hint {
+  margin: 0;
+  color: var(--color-ink-muted);
   font-size: 0.88rem;
-  line-height: 1.55;
 }
 
-@media (min-width: 960px) {
-  .course-studio__meta {
-    display: flex;
-  }
-
-  .course-studio__layout {
-    grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.85fr);
-    align-items: start;
-  }
+.create-hint--error {
+  color: var(--color-accent-coral-dark);
 }
 
-@keyframes studio-rise {
-  from {
-    opacity: 0;
-    transform: translateY(0.75rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.create-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
-@keyframes studio-drift {
-  from {
-    transform: rotate(18deg) translateY(0);
-  }
-  to {
-    transform: rotate(26deg) translateY(0.5rem);
-  }
+.create-chip {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.45rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-chip:hover {
+  color: var(--color-ink);
+  background: var(--color-surface-900);
+}
+
+.create-chip.is-active {
+  border-color: transparent;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-coral-dark);
+}
+
+.create-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.create-swatch {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.create-swatch.is-active {
+  border-color: var(--color-ink);
+  outline: 2px solid var(--color-surface-950);
+  outline-offset: -4px;
+}
+
+.create-cover-image {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.create-cover-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0.55rem 0.9rem;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: 0.5rem;
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-cover-upload:hover {
+  color: var(--color-ink);
+  background: var(--color-surface-900);
+}
+
+.create-cover-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.create-cover-preview {
+  max-width: 16rem;
+  max-height: 10rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.create-actions {
+  padding-top: 0.35rem;
+}
+
+.create-rail {
+  padding: 1.15rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  background: var(--color-surface-900);
+}
+
+.create-rail h2 {
+  margin: 0 0 0.85rem;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.create-drafts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.create-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.45rem;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.create-draft:hover {
+  background: var(--color-surface-950);
+}
+
+.create-draft__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.create-draft__action {
+  flex-shrink: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 </style>

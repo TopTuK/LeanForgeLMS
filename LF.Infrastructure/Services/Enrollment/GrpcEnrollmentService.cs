@@ -146,6 +146,22 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         }
     }
 
+    public async Task<CoursePreviewDto?> GetCoursePreviewAsync(int courseId, int actingUserId)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::GetCoursePreviewAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var request = new GetCoursePreviewRequest { CourseId = courseId, ActingUserId = actingUserId };
+        try
+        {
+            var reply = await _courseServiceRpcClient.GetCoursePreviewAsync(request);
+            return reply.Adapt<CoursePreviewDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     private static async Task<EnrollmentDetailDto?> CallOrDefaultAsync(Func<AsyncUnaryCall<EnrollmentDetailReply>> call)
     {
         try

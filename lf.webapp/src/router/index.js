@@ -7,6 +7,7 @@ const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
 const AvailableCoursesView = () => import('@/views/courses/AvailableCoursesView.vue');
+const CourseDetailView = () => import('@/views/courses/CourseDetailView.vue');
 const ActiveCoursesView = () => import('@/views/courses/ActiveCoursesView.vue');
 const FinishedCoursesView = () => import('@/views/courses/FinishedCoursesView.vue');
 const TeachingCoursesView = () => import('@/views/courses/TeachingCoursesView.vue');
@@ -55,6 +56,15 @@ const routes = [
                 component: AvailableCoursesView,
                 meta: {
                     title: 'courses_available_view_title',
+                    requiresAuth: true,
+                }
+            },
+            {
+                path: 'preview/:id',
+                name: 'CourseDetail',
+                component: CourseDetailView,
+                meta: {
+                    title: 'courses_detail_view_title',
                     requiresAuth: true,
                 }
             },
