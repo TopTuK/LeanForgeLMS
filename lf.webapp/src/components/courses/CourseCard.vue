@@ -24,7 +24,7 @@ const props = defineProps({
     coverImageUrl: { type: String, default: null },
 });
 
-defineEmits(['enroll', 'continue', 'manage']);
+defineEmits(['view-details', 'continue', 'manage']);
 
 
 const showCoverImage = computed(() => props.coverType === 'Image' && Boolean(props.coverImageUrl));
@@ -100,9 +100,9 @@ const coverStyle = computed(() => (
         type="button"
         :disabled="busy"
         class="course-card__submit"
-        @click="$emit('enroll')"
+        @click="$emit('view-details')"
       >
-        <span>{{ $t('courses.available.enroll') }}</span>
+        <span>{{ $t('courses.available.view_details') }}</span>
         <span aria-hidden="true">→</span>
       </button>
 

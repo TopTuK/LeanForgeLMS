@@ -519,4 +519,84 @@ public class EnrollmentServiceTests
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_UnpublishedCourse_ReturnsNull()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.GetCoursePreviewAsync(course.Id, actingUserId: 7);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_CourseNotFound_ReturnsNull()
+    {
+        // Arrange
+        var service = CreateService([], [], out _);
+
+        // Act
+        var result = await service.GetCoursePreviewAsync(courseId: 999, actingUserId: 7);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_PreviewLesson_CarriesContentAndParts()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Full description", category, createdByUserId: 1, DateTime.UtcNow);
+        EntityIdSetter.SetId(course, 1);
+        var chapter = course.AddChapter("Chapter 1");
+        var previewLesson = chapter.AddLesson("Preview lesson", "Lesson body", includeInPreview: true);
+        EntityIdSetter.SetId(previewLesson, 1);
+        previewLesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Hi</p>", null)]);
+        var lockedLesson = chapter.AddLesson("Locked lesson", "Secret body", includeInPreview: false);
+        EntityIdSetter.SetId(lockedLesson, 2);
+        lockedLesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Secret</p>", null)]);
+        course.Publish();
+        var service = CreateService([course], [], out _);
+
+        // Act
+        var result = await service.GetCoursePreviewAsync(course.Id, actingUserId: 7);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Full description", result!.Description);
+        Assert.False(result.IsEnrolled);
+        Assert.Null(result.EnrollmentId);
+
+        var previewLessonDto = result.Chapters[0].Lessons.Single(l => l.Id == previewLesson.Id);
+        Assert.Equal("Lesson body", previewLessonDto.Content);
+        Assert.Single(previewLessonDto.Parts);
+
+        var lockedLessonDto = result.Chapters[0].Lessons.Single(l => l.Id == lockedLesson.Id);
+        Assert.Null(lockedLessonDto.Content);
+        Assert.Empty(lockedLessonDto.Parts);
+    }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_EnrolledUser_ReturnsEnrollmentId()
+    {
+        // Arrange
+        var course = CreatePublishedCourse();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        // Act
+        var result = await service.GetCoursePreviewAsync(course.Id, actingUserId: 7);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result!.IsEnrolled);
+        Assert.Equal(enrollment.Id, result.EnrollmentId);
+    }
 }

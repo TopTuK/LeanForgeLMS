@@ -310,6 +310,17 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         return new CourseCoverReply { CoverImageKey = cover.CoverImageKey, CoverImageContentType = cover.CoverImageContentType };
     }
 
+    public override async Task<CoursePreviewReply> GetCoursePreview(GetCoursePreviewRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::GetCoursePreview: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
+
+        var preview = await _enrollmentService.GetCoursePreviewAsync(request.CourseId, request.ActingUserId);
+        if (preview is null)
+            throw new RpcException(new Status(StatusCode.NotFound, "Course not found or not published."));
+
+        return ToCoursePreviewReply(preview);
+    }
+
     private static async Task<CourseDetailDto> GuardedAsync(Func<Task<CourseDetailDto?>> operation)
     {
         try
@@ -405,6 +416,32 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
             foreach (var lessonDto in chapterDto.Lessons)
             {
                 var lessonReply = lessonDto.Adapt<EnrollmentLessonReply>();
+                lessonReply.Parts.Clear();
+                lessonReply.Parts.AddRange(lessonDto.Parts.Select(ToLessonPartReply));
+                chapterReply.Lessons.Add(lessonReply);
+            }
+
+            reply.Chapters.Add(chapterReply);
+        }
+
+        return reply;
+    }
+
+    // Same nested-repeated-field caveat as ToReply/ToEnrollmentReply — build scalar-first,
+    // then fill Chapters/Lessons/Parts manually.
+    private static CoursePreviewReply ToCoursePreviewReply(CoursePreviewDto dto)
+    {
+        var reply = dto.Adapt<CoursePreviewReply>();
+        reply.Chapters.Clear();
+
+        foreach (var chapterDto in dto.Chapters)
+        {
+            var chapterReply = chapterDto.Adapt<CoursePreviewChapterReply>();
+            chapterReply.Lessons.Clear();
+
+            foreach (var lessonDto in chapterDto.Lessons)
+            {
+                var lessonReply = lessonDto.Adapt<CoursePreviewLessonReply>();
                 lessonReply.Parts.Clear();
                 lessonReply.Parts.AddRange(lessonDto.Parts.Select(ToLessonPartReply));
                 chapterReply.Lessons.Add(lessonReply);

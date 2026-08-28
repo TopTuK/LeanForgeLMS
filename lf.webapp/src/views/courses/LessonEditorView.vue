@@ -233,7 +233,7 @@ function discardChanges() {
 </script>
 
 <template>
-  <StudioShell narrow>
+  <StudioShell>
     <template v-if="loading">
       <p class="lesson-studio__hint">
         {{ $t('courses.lessonEditor.loading') }}

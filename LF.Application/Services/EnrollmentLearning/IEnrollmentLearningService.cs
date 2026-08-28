@@ -11,4 +11,5 @@ public interface IEnrollmentLearningService
     Task<EnrollmentDetailDto?> CompleteLessonAsync(int id, int lessonId, int actingUserId, bool isAdmin);
     Task<QuizSubmissionDto?> SubmitQuizAttemptAsync(int id, int lessonId, int partId, IReadOnlyList<QuizAnswerInputDto> answers, int actingUserId, bool isAdmin);
     Task<CourseCoverDto?> GetCourseCoverAsync(int courseId);
+    Task<CoursePreviewDto?> GetCoursePreviewAsync(int courseId, int actingUserId);
 }

@@ -239,43 +239,46 @@ onBeforeUnmount(() => {
 }
 
 .parts-editor__inline-panel {
-  padding-left: 2.45rem;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: 2.45rem;
 }
 
 .parts-editor__empty {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.7rem;
-  padding: 1.5rem 1.25rem 1.35rem;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 2rem 1.25rem;
   border: 1px dashed var(--color-border-subtle);
-  border-radius: 0.85rem;
-  background: var(--color-surface-900);
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: center;
 }
 
 .parts-editor__empty p {
   margin: 0;
   color: var(--color-ink-muted);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .parts-editor__hint {
+  max-width: 22rem;
   color: var(--color-ink-faint) !important;
-  font-size: 0.85rem !important;
+  font-size: 0.82rem !important;
 }
 
 .parts-editor__footer {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.65rem;
+  align-items: flex-start;
+  gap: 0.55rem;
   padding: 0.35rem 0 0 2.45rem;
 }
 
 .parts-editor__add {
   display: inline-flex;
   align-items: center;
-  align-self: flex-start;
   gap: 0.35rem;
   padding: 0.4rem 0.55rem;
   border: 0;

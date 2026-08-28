@@ -3,7 +3,7 @@ import { computed, inject, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import CourseCard from '@/components/courses/CourseCard.vue';
-import { fetchCatalog, enroll, fetchCourseCoverImageObjectUrl } from '@/services/enrollmentService';
+import { fetchCatalog, fetchCourseCoverImageObjectUrl } from '@/services/enrollmentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
@@ -12,7 +12,6 @@ const router = useRouter();
 const courses = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
-const enrollingId = ref(null);
 const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
 const searchQuery = inject('courseSearch', ref(''));
 const visibleCourses = computed(() => {
@@ -40,16 +39,8 @@ async function loadCatalog() {
 
 onMounted(loadCatalog);
 
-async function onEnroll(courseId) {
-  enrollingId.value = courseId;
-  errorMessage.value = '';
-  try {
-    const enrollment = await enroll(courseId);
-    router.push({ name: 'CourseLearn', params: { enrollmentId: enrollment.id } });
-  } catch {
-    errorMessage.value = t('courses.available.enroll_error');
-    enrollingId.value = null;
-  }
+function onViewDetails(courseId) {
+  router.push({ name: 'CourseDetail', params: { id: courseId } });
 }
 </script>
 
@@ -95,11 +86,10 @@ async function onEnroll(courseId) {
         :title="course.title"
         :description="course.shortIntroduction"
         :category="course.categoryName"
-        :busy="enrollingId === course.id"
         :cover-type="course.coverType"
         :cover-color="course.coverColor"
         :cover-image-url="coverImageUrls[course.id] ?? null"
-        @enroll="onEnroll(course.id)"
+        @view-details="onViewDetails(course.id)"
       />
     </div>
     <p

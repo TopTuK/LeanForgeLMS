@@ -1,5 +1,5 @@
 <script setup>
-import { FileText, Image, Video, AudioLines, CircleHelp, Paperclip } from 'lucide-vue-next';
+import { Type, Image, Film, Headphones, ListChecks, Paperclip } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -16,7 +16,7 @@ const types = [
     type: 'text',
     labelKey: 'courses.lessonEditor.parts.type_text',
     descKey: 'courses.lessonEditor.parts.desc_text',
-    icon: FileText,
+    icon: Type,
   },
   {
     type: 'image',
@@ -28,19 +28,19 @@ const types = [
     type: 'video',
     labelKey: 'courses.lessonEditor.parts.type_video',
     descKey: 'courses.lessonEditor.parts.desc_video',
-    icon: Video,
+    icon: Film,
   },
   {
     type: 'audio',
     labelKey: 'courses.lessonEditor.parts.type_audio',
     descKey: 'courses.lessonEditor.parts.desc_audio',
-    icon: AudioLines,
+    icon: Headphones,
   },
   {
     type: 'quiz',
     labelKey: 'courses.lessonEditor.parts.type_quiz',
     descKey: 'courses.lessonEditor.parts.desc_quiz',
-    icon: CircleHelp,
+    icon: ListChecks,
   },
   {
     type: 'files',
@@ -73,18 +73,21 @@ function choose(type) {
         class="part-type-card"
         role="menuitem"
         :disabled="disabled"
+        :title="t(item.descKey)"
+        :aria-label="`${t(item.labelKey)}. ${t(item.descKey)}`"
         @click="choose(item.type)"
       >
-        <span class="part-type-card__icon">
+        <span
+          class="part-type-card__icon"
+          aria-hidden="true"
+        >
           <component
             :is="item.icon"
-            :size="20"
+            :size="22"
+            :stroke-width="1.75"
           />
         </span>
-        <span class="part-type-card__text">
-          <span class="part-type-card__title">{{ t(item.labelKey) }}</span>
-          <span class="part-type-card__hint">{{ t(item.descKey) }}</span>
-        </span>
+        <span class="part-type-card__title">{{ t(item.labelKey) }}</span>
       </button>
     </div>
   </div>
@@ -93,17 +96,19 @@ function choose(type) {
 <style scoped>
 .part-type-panel {
   width: 100%;
-  padding: 1rem 1rem 1.05rem;
-  background: var(--color-surface-950);
+  max-width: 22rem;
+  padding: 0.85rem;
   border: 1px solid var(--color-border-subtle);
-  border-radius: 0.85rem;
-  animation: part-type-panel-in 0.16s ease;
+  border-radius: 0.75rem;
+  background: var(--color-surface-950);
+  box-shadow: 0 12px 28px -20px rgb(15 23 42 / 0.35);
+  animation: part-type-panel-in 0.14s ease;
 }
 
 @keyframes part-type-panel-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-3px);
   }
   to {
     opacity: 1;
@@ -112,91 +117,78 @@ function choose(type) {
 }
 
 .part-type-panel__heading {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.65rem;
+  padding: 0 0.15rem;
   color: var(--color-ink-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .part-type-panel__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-}
-
-@media (min-width: 640px) {
-  .part-type-panel__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 900px) {
-  .part-type-panel__grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
 .part-type-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.7rem;
-  min-height: 7.25rem;
-  padding: 0.9rem 0.85rem 0.95rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.7rem;
-  background: var(--color-surface-950);
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 4.75rem;
+  padding: 0.7rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: var(--color-surface-900);
   color: var(--color-ink);
   cursor: pointer;
-  text-align: left;
   transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease;
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .part-type-card__icon {
   display: inline-grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.55rem;
-  background: var(--color-accent-soft);
-  color: var(--color-accent-coral);
-}
-
-.part-type-card__text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.5rem;
+  color: var(--color-ink-muted);
+  transition: color 0.12s ease, background-color 0.12s ease;
 }
 
 .part-type-card__title {
-  font-size: 0.92rem;
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.part-type-card__hint {
   color: var(--color-ink-muted);
   font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  transition: color 0.12s ease;
 }
 
 .part-type-card:hover:not(:disabled),
 .part-type-card:focus-visible {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-coral);
+  border-color: var(--color-border-subtle);
+  background: var(--color-surface-950);
   outline: none;
-  transform: translateY(-1px);
+}
+
+.part-type-card:hover:not(:disabled) .part-type-card__icon,
+.part-type-card:focus-visible .part-type-card__icon {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-coral);
+}
+
+.part-type-card:hover:not(:disabled) .part-type-card__title,
+.part-type-card:focus-visible .part-type-card__title {
+  color: var(--color-ink);
 }
 
 .part-type-card:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 </style>

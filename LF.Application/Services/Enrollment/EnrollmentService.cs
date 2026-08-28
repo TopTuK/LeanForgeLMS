@@ -244,6 +244,102 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         return new CourseCoverDto { CoverImageKey = storageObject.ObjectKey, CoverImageContentType = storageObject.ContentType };
     }
 
+    public async Task<CoursePreviewDto?> GetCoursePreviewAsync(int courseId, int actingUserId)
+    {
+        _logger.LogInformation("EnrollmentService::GetCoursePreviewAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var course = await LoadCourseAsync(courseId);
+        if (course is null || !course.IsPublished)
+            return null;
+
+        var enrollment = await _dbContext.Enrollments.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.CourseId == courseId && e.UserId == actingUserId);
+
+        return new CoursePreviewDto
+        {
+            Id = course.Id,
+            Title = course.Title,
+            ShortIntroduction = course.ShortIntroduction,
+            Description = course.Description,
+            CategoryId = course.CategoryId,
+            CategoryName = course.Category.Name,
+            LessonCount = course.Chapters.Sum(ch => ch.Lessons.Count),
+            CoverType = course.CoverType,
+            CoverColor = course.CoverColor,
+            CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
+            CoverImageContentType = course.CoverImageStorageObject?.ContentType,
+            IsEnrolled = enrollment is not null,
+            EnrollmentId = enrollment?.Id,
+            Chapters = [.. course.Chapters
+                .OrderBy(ch => ch.SortOrder)
+                .Select(ch => new CoursePreviewChapterDto
+                {
+                    Id = ch.Id,
+                    Title = ch.Title,
+                    SortOrder = ch.SortOrder,
+                    Lessons = [.. ch.Lessons
+                        .OrderBy(l => l.SortOrder)
+                        .Select(ToPreviewLessonDto)],
+                })],
+        };
+    }
+
+    // Non-preview lessons must never carry Content/Parts past this point — this is the only
+    // read path a not-yet-enrolled student can reach, so the omission here is the enforcement.
+    private static CoursePreviewLessonDto ToPreviewLessonDto(LF.AppDomain.Entities.Course.Lesson lesson) => new()
+    {
+        Id = lesson.Id,
+        Title = lesson.Title,
+        SortOrder = lesson.SortOrder,
+        IncludeInPreview = lesson.IncludeInPreview,
+        Content = lesson.IncludeInPreview ? lesson.Content : null,
+        Parts = lesson.IncludeInPreview
+            ? [.. lesson.Parts
+                .OrderBy(p => p.SortOrder)
+                .Select(p => new LessonPartDto
+                {
+                    Id = p.Id,
+                    PartType = p.PartType,
+                    SortOrder = p.SortOrder,
+                    Html = p.Html,
+                    StorageObjectId = p.StorageObjectId,
+                    StorageObjectKey = p.StorageObject?.ObjectKey,
+                    StorageObjectContentType = p.StorageObject?.ContentType,
+                    QuizPassThresholdPercent = p.QuizPassThresholdPercent,
+                    QuizQuestions = [.. p.QuizQuestions
+                        .OrderBy(q => q.SortOrder)
+                        .Select(q => new QuizQuestionDto
+                        {
+                            Id = q.Id,
+                            Text = q.Text,
+                            QuestionType = q.QuestionType,
+                            SortOrder = q.SortOrder,
+                            Options = [.. q.Options
+                                .OrderBy(o => o.SortOrder)
+                                .Select(o => new QuizOptionDto
+                                {
+                                    Id = o.Id,
+                                    Text = o.Text,
+                                    IsCorrect = o.IsCorrect,
+                                    SortOrder = o.SortOrder,
+                                })],
+                        })],
+                    Files = [.. p.Files
+                        .OrderBy(f => f.SortOrder)
+                        .Select(f => new LessonPartFileDto
+                        {
+                            Id = f.Id,
+                            FileName = f.FileName,
+                            SortOrder = f.SortOrder,
+                            StorageObjectId = f.StorageObjectId,
+                            StorageObjectKey = f.StorageObject.ObjectKey,
+                            StorageObjectContentType = f.StorageObject.ContentType,
+                            StorageObjectSizeBytes = f.StorageObject.SizeBytes,
+                        })],
+                })]
+            : [],
+    };
+
     private static void EnsureOwnership(DomainEnrollment enrollment, int actingUserId, bool isAdmin)
     {
         if (!isAdmin && enrollment.UserId != actingUserId)

@@ -107,4 +107,21 @@ public class EnrollmentLearningServiceTests
         Assert.Same(expected, result);
         grpcMock.Verify(s => s.GetCourseCoverAsync(3), Times.Once);
     }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_DelegatesToGrpcEnrollmentService()
+    {
+        // Arrange
+        var expected = new CoursePreviewDto { Id = 3, Title = "Title" };
+        var grpcMock = new Mock<IGrpcEnrollmentService>();
+        grpcMock.Setup(s => s.GetCoursePreviewAsync(3, 5)).ReturnsAsync(expected);
+        var service = new EnrollmentLearningService(NullLogger<EnrollmentLearningService>.Instance, grpcMock.Object);
+
+        // Act
+        var result = await service.GetCoursePreviewAsync(3, actingUserId: 5);
+
+        // Assert
+        Assert.Same(expected, result);
+        grpcMock.Verify(s => s.GetCoursePreviewAsync(3, 5), Times.Once);
+    }
 }
