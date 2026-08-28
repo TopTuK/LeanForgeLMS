@@ -1,0 +1,49 @@
+name: Webapp Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "lf.webapp/**"
+      - ".github/workflows/webapp-tests.yml"
+
+jobs:
+  webapp-tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: lf.webapp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: lf.webapp/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Test
+        run: npm run test
+        env:
+          CI: "true"
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: lf.webapp vitest results
+          path: "lf.webapp/test-results/junit.xml"
+          reporter: jest-junit
