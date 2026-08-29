@@ -18,12 +18,19 @@
         "logout": "Log out",
         "menu_toggle": "Toggle menu",
         "theme_light": "Switch to light theme",
-        "theme_dark": "Switch to dark theme"
+        "theme_dark": "Switch to dark theme",
+        "programs": "Programs",
+        "approach": "Approach"
     },
     "footer": {
         "privacy": "Privacy policy",
         "offer": "Terms of service",
-        "cookies": "Cookie policy"
+        "cookies": "Cookie policy",
+        "manifesto": "A practice-first school for managers, analysts and IT specialists — built and taught by one practitioner.",
+        "explore": "Explore",
+        "contact": "Contact",
+        "settings": "Settings",
+        "email": "hello{'@'}s-sidorov.ru"
     },
     "login_view_title": "Student login — High Managers School",
     "courses_view_title": "Courses — High Managers School",
@@ -427,58 +434,60 @@
             "title": "Continue with Google",
             "description": "Use your Google account to sign in."
         },
-        "note": "Authentication is provided securely by the selected service."
+        "note": "Authentication is provided securely by the selected service.",
+        "benefits": [
+            "Self-paced chapters and lessons",
+            "Progress tracked as you go",
+            "Practice built around real work"
+        ],
+        "back": "Back to home"
     },
     "home": {
         "hero": {
-            "brand_line": "High Managers School",
-            "headline": "Become a stronger manager",
-            "subheadline": "Practice from a practitioner: LLM agents and Kanban for people who already ship work — one instructor, no assembly line.",
-            "cta_primary": "See the courses",
-            "trust_line": "Practice-first · real tools · one instructor"
+            "eyebrow": "High Managers School",
+            "headline": "Build the manager's skill set — by practising it",
+            "subheadline": "Practice from a practitioner: LLM agents and Kanban for people who already ship work. One instructor, no course assembly line.",
+            "cta_primary": "See the programs",
+            "cta_secondary": "Sign in",
+            "note": "Practice-first · real tools · one instructor"
         },
-        "facts": {
+        "disciplines": {
             "items": [
-                {
-                    "value": "Practice",
-                    "label": "from the person who ships, not slide decks"
-                },
-                {
-                    "value": "2",
-                    "label": "starting courses"
-                },
-                {
-                    "value": "1",
-                    "label": "instructor, no assembly line"
-                }
+                "AI agents",
+                "Kanban & flow",
+                "Systems analysis",
+                ".NET architecture"
             ]
         },
-        "audience": {
-            "title": "Who it's for",
-            "subtitle": "Built for IT teams, not developers alone.",
+        "outcomes": {
+            "eyebrow": "What you'll gain",
+            "title": "Skills you can use the next working day",
+            "subtitle": "Every program is built around real work — you leave with something you can apply, not a certificate to file away.",
             "items": {
-                "developer": {
-                    "title": "Developers",
-                    "description": "Get hands-on with agentic development workflows and see where AI agents actually fit in day-to-day engineering."
+                "agents": {
+                    "title": "Work with AI agents",
+                    "description": "Understand how LLMs work and where agents genuinely fit into day-to-day delivery — from prompts to autonomous tool use."
                 },
-                "manager": {
-                    "title": "Project & product managers",
-                    "description": "Run delivery with Kanban and understand what agentic development changes for your roadmap and your team."
+                "flow": {
+                    "title": "Manage the flow of work",
+                    "description": "Visualise work, limit work in progress and manage delivery with Kanban for teams that ship continuously."
                 },
-                "analyst": {
-                    "title": "System analysts",
-                    "description": "Use LLM agents to speed up specs and analysis, and structure the flow of work with Kanban."
+                "analysis": {
+                    "title": "Sharpen analysis",
+                    "description": "Use LLM agents to speed up specs and analysis, and structure the flow of work so nothing gets lost."
                 },
-                "other": {
-                    "title": "Other IT specialists",
-                    "description": "QA, DevOps, support — anyone whose job just started including AI agents and flow-based delivery."
+                "systems": {
+                    "title": "See the whole system",
+                    "description": "Connect architecture, delivery and product decisions so the systems you build survive production."
                 }
             }
         },
-        "courses": {
-            "title": "Courses",
+        "programs": {
+            "eyebrow": "Programs",
+            "title": "Two programs to start",
             "subtitle": "The first programs — practical, low on ceremony, built around real work rather than certificates.",
             "cta": "Learn more",
+            "more_note": "More programs are in progress. Sign in to get notified when the next one opens.",
             "filters": {
                 "all": "All",
                 "ai": "AI",
@@ -489,22 +498,42 @@
                 "llm_agentic": {
                     "title": "Introduction to LLM: Agentic Development",
                     "description": "How large language models work, and how to build and use AI agents in real development workflows — from prompts to autonomous tool use.",
-                    "duration": "New course",
+                    "duration": "New program",
                     "category": "AI & Agents",
                     "filter": "ai"
                 },
                 "kanban": {
                     "title": "Introduction to Kanban",
                     "description": "Visualize work, limit work in progress, and manage flow — a practical Kanban course for teams shipping continuously.",
-                    "duration": "New course",
+                    "duration": "New program",
                     "category": "Delivery",
                     "filter": "flow"
                 }
             }
         },
+        "approach": {
+            "eyebrow": "How learning works",
+            "title": "Self-paced, on one platform",
+            "subtitle": "No cohorts, no live calls to catch. You move at your own speed and your progress is always saved.",
+            "steps": {
+                "1": {
+                    "title": "Work through chapters and lessons",
+                    "description": "Each program is split into chapters and lessons with text, images, video and audio — structured so you can go deep without getting lost."
+                },
+                "2": {
+                    "title": "Track progress as you go",
+                    "description": "The platform remembers where you stopped and what you've completed, so picking back up takes seconds."
+                },
+                "3": {
+                    "title": "Practise on real work",
+                    "description": "Every program is built around applying the ideas to work you actually do — not memorising for an exam."
+                }
+            }
+        },
         "author": {
-            "title": "Instructor",
-            "subtitle": "Not a slide-deck theorist — someone who ships.",
+            "eyebrow": "Instructor",
+            "title": "One person, and someone who ships",
+            "subtitle": "Not a slide-deck theorist — the programs are built and taught by the person who does the work.",
             "name": "Sergey Sidorov",
             "role": "Founder · project lead and product manager",
             "bio": "A professional in project management and IT product development. Much of his career was spent on flagship projects at Kaspersky Lab. He removes uncertainty, drives initiatives to completion, and designs systems that survive production. .NET, architecture, systems analysis, and AI — in one skill set.",
@@ -519,6 +548,7 @@
             "url": "https://s-sidorov.ru"
         },
         "faq": {
+            "eyebrow": "FAQ",
             "title": "Questions",
             "items": {
                 "1": {
@@ -527,30 +557,34 @@
                 },
                 "2": {
                     "question": "Do I need to already know how to code?",
-                    "answer": "It depends on the course. Neither starting course has a hard coding prerequisite — check the description before enrolling."
+                    "answer": "It depends on the program. Neither starting program has a hard coding prerequisite — check the description before enrolling."
                 },
                 "3": {
-                    "question": "How are courses delivered?",
+                    "question": "How are programs delivered?",
                     "answer": "Self-paced on the platform: chapters and lessons with text, images, video, and audio, with progress tracked as you go."
                 },
                 "4": {
-                    "question": "Can I suggest a course topic?",
-                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and courses can be shaped by what people actually ask for."
+                    "question": "Can I suggest a topic?",
+                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and programs can be shaped by what people actually ask for."
                 },
                 "5": {
                     "question": "Who runs this school?",
                     "answer": "One person so far — Sergey Sidorov. See the instructor section and s-sidorov.ru."
+                },
+                "6": {
+                    "question": "How do I enrol?",
+                    "answer": "Sign in with your PMI Club or Google account, open a program and start. There's no separate checkout for the starting programs."
                 }
             }
         },
-        "contacts": {
-            "title": "Contacts",
-            "subtitle": "Questions? Write us — we reply within a day.",
-            "support": "hello{'@'}s-sidorov.ru",
-            "notify_title": "Get notified about new courses",
-            "notify_subtitle": "We'll email you when a new course launches — no spam.",
-            "notify_subject": "Notify me about new courses",
-            "notify_cta": "Email us"
+        "cta": {
+            "eyebrow": "Start",
+            "title": "Start practising",
+            "subtitle": "Sign in with PMI Club or Google, open a program and begin at your own pace.",
+            "primary": "Sign in to start",
+            "notify_cta": "Get notified about new programs",
+            "notify_subject": "Notify me about new programs",
+            "email": "hello{'@'}s-sidorov.ru"
         }
     }
 }

@@ -14,7 +14,9 @@ import FooterLayout from './FooterLayout.vue';
       </main>
 
       <footer class="base-footer">
-        <FooterLayout />
+        <slot name="footer">
+          <FooterLayout />
+        </slot>
       </footer>
     </div>
   </div>

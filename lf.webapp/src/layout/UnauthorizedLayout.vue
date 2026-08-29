@@ -1,6 +1,7 @@
 <script setup>
 import BaseLayout from './BaseLayout.vue';
 import UnauthorizedHeader from './UnauthorizedHeader.vue';
+import PublicFooter from './PublicFooter.vue';
 </script>
 
 <template>
@@ -11,6 +12,10 @@ import UnauthorizedHeader from './UnauthorizedHeader.vue';
 
     <template #default>
       <router-view />
+    </template>
+
+    <template #footer>
+      <PublicFooter />
     </template>
   </BaseLayout>
 </template>

@@ -8,6 +8,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import './main.css';
 
 import { createApp } from 'vue';
+import { MotionPlugin } from '@vueuse/motion';
 import App from './App.vue';
 
 import { i18n, setLocale } from './i18n/index.js';
@@ -26,5 +27,6 @@ const pinia = createPinia();
 app.use(i18n);
 app.use(pinia);
 app.use(router);
+app.use(MotionPlugin);
 
 app.mount('#app');
