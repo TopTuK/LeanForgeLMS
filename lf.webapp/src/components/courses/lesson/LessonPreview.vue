@@ -48,14 +48,12 @@ function mediaPlaceholder(part) {
         v-for="part in parts"
         :key="part.id"
       >
-        <!-- Instructor-authored TipTap HTML, same pattern as the student learn view. -->
-        <!-- eslint-disable vue/no-v-html -->
+        <!-- Instructor-authored TipTap HTML, sanitised by the v-safe-html directive. -->
         <div
           v-if="part.type === 'text'"
+          v-safe-html="part.html"
           class="lesson-preview__prose"
-          v-html="part.html"
         />
-        <!-- eslint-enable vue/no-v-html -->
 
         <div
           v-else-if="part.type === 'quiz'"

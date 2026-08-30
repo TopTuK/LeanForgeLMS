@@ -13,11 +13,16 @@ using DomainEnrollment = LF.AppDomain.Entities.Course.Enrollment;
 
 namespace LF.Application.Services.Course;
 
-internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext dbContext, TimeProvider timeProvider) : ICourseService
+internal sealed class CourseService(
+    ILogger<CourseService> logger,
+    IAppDbContext dbContext,
+    TimeProvider timeProvider,
+    IHtmlSanitizer htmlSanitizer) : ICourseService
 {
     private readonly ILogger<CourseService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly IHtmlSanitizer _htmlSanitizer = htmlSanitizer;
 
     public async Task<CourseDetailDto> CreateCourseAsync(CreateCourseDto dto, int createdByUserId)
     {
@@ -28,7 +33,8 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         if (category is null)
             throw new ArgumentException($"Category {dto.CategoryId} not found.", nameof(dto));
 
-        var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, dto.Description, category, createdByUserId,
+        // Description is authored as rich HTML (TipTap); strip any script-bearing markup before it is stored.
+        var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, _htmlSanitizer.Sanitize(dto.Description), category, createdByUserId,
             _timeProvider.GetUtcNow().UtcDateTime, dto.PricingType, dto.Price, dto.EnrollmentMode);
 
         switch (dto.CoverType)
@@ -257,7 +263,7 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         if (chapter is null)
             return null;
 
-        chapter.AddLesson(dto.Title, dto.Content, dto.IncludeInPreview);
+        chapter.AddLesson(dto.Title, _htmlSanitizer.Sanitize(dto.Content), dto.IncludeInPreview);
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
@@ -280,7 +286,7 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
             return null;
 
         lesson.Rename(dto.Title);
-        lesson.UpdateContent(dto.Content);
+        lesson.UpdateContent(_htmlSanitizer.Sanitize(dto.Content));
         lesson.SetIncludeInPreview(dto.IncludeInPreview);
         await _dbContext.SaveChangesAsync();
 
@@ -390,7 +396,9 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
                 }).ToList();
             }
 
-            inputs.Add(new LessonPartInput(part.PartType, part.Html, storageObject, quizQuestions, part.QuizPassThresholdPercent, files));
+            // Text parts carry rich HTML (TipTap); other part types never render Html so leave them untouched.
+            var html = part.PartType == LessonPartType.Text ? _htmlSanitizer.Sanitize(part.Html) : part.Html;
+            inputs.Add(new LessonPartInput(part.PartType, html, storageObject, quizQuestions, part.QuizPassThresholdPercent, files));
         }
 
         lesson.ReplaceParts(inputs);

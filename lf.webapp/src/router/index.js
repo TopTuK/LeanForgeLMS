@@ -228,9 +228,12 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, from) => {
-    console.log(`Router::beforeEach: from: ${from.name} -> to: ${to.name}`);  
+    console.log(`Router::beforeEach: from: ${from.name} -> to: ${to.name}`);
 
     const authStore = useAuthStore()
+    // The session lives in an HttpOnly cookie, so auth state comes from a one-time API probe.
+    await authStore.ensureInitialized()
+
     const { isAuthenticated } = storeToRefs(authStore)
     console.log('Router::beforeEach: isAuthenticated=', isAuthenticated.value)
 

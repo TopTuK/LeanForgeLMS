@@ -1,21 +1,19 @@
 import { defineStore } from 'pinia';
-import { ref, computed, watch } from 'vue'; // Uncomment when needed
-import { COOKIE_NAME } from '@/config';
-import Cookies from 'js-cookie';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
 
 export const useAuthStore = defineStore('auth', () => {
     // State
-    const hasCookie = ref(Boolean(Cookies.get(COOKIE_NAME)))
-    const user = ref(null) // { firstName, lastName, email, role, description }
-    const avatarUrl = ref(null) // object URL for the current user's avatar image
+    const user = ref(null); // { firstName, lastName, email, role, description }
+    const avatarUrl = ref(null); // object URL for the current user's avatar image
+    const initialized = ref(false);
+
+    let initPromise = null;
 
     // Getters
-    const isAuthenticated = computed(() => {
-        return hasCookie.value
-    });
+    const isAuthenticated = computed(() => user.value !== null);
 
     const isAdmin = computed(() => user.value?.role === 'Admin');
     const isStudent = computed(() => user.value?.role === 'Student');
@@ -24,29 +22,42 @@ export const useAuthStore = defineStore('auth', () => {
     const canViewTeachingCourses = computed(() => isInstructor.value || isCourseCreator.value || isAdmin.value);
     const canCreateCourses = computed(() => isCourseCreator.value || isAdmin.value);
 
-    const router = useRouter()
+    const router = useRouter();
 
-    watch(hasCookie, (newVal) => {
-        // We need this because useAuth may be called before router is initialized
+    watch(isAuthenticated, (authed) => {
         if (!router) return;
-
-        if (router.currentRoute.value.meta.requiresAuth && !newVal) {
-            router.push({ name: 'Login' })
-        }
-
-        if (!newVal) {
-            user.value = null
+        if (!authed && router.currentRoute.value.meta.requiresAuth) {
+            router.push({ name: 'Login' });
         }
     });
 
     // Actions
-    const fetchUser = async () => {
-        if (!hasCookie.value) return;
 
+    // Resolves auth state from the HttpOnly session cookie exactly once per app load:
+    // the SPA can't read the cookie, so it asks the API who it is.
+    const ensureInitialized = () => {
+        if (initialized.value) return Promise.resolve();
+        if (initPromise) return initPromise;
+
+        initPromise = (async () => {
+            try {
+                user.value = await fetchProfile({ skipAuthRedirect: true });
+            } catch {
+                user.value = null;
+            } finally {
+                initialized.value = true;
+                initPromise = null;
+            }
+        })();
+
+        return initPromise;
+    };
+
+    const fetchUser = async () => {
         try {
-            user.value = await fetchProfile()
+            user.value = await fetchProfile({ skipAuthRedirect: true });
         } catch {
-            user.value = null
+            user.value = null;
         }
     };
 
@@ -54,37 +65,39 @@ export const useAuthStore = defineStore('auth', () => {
         if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
         avatarUrl.value = null;
 
-        if (!hasCookie.value) return;
+        if (!isAuthenticated.value) return;
 
         try {
-            avatarUrl.value = await fetchAvatarObjectUrl()
+            avatarUrl.value = await fetchAvatarObjectUrl();
         } catch {
-            avatarUrl.value = null
+            avatarUrl.value = null;
         }
     };
 
     const updateUser = (updated) => {
-        user.value = { ...user.value, ...updated }
+        user.value = { ...user.value, ...updated };
+    };
+
+    const clear = () => {
+        user.value = null;
+        if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
+        avatarUrl.value = null;
     };
 
     const logout = async () => {
         try {
-            await api.get('/Auth/Logout')
+            await api.get('/Auth/Logout');
         } catch {
-            // Cookie may already be gone/expired - proceed with client-side cleanup regardless
+            // Session may already be gone — proceed with client-side cleanup regardless.
         }
 
-        Cookies.remove(COOKIE_NAME)
-        hasCookie.value = false
-        user.value = null
-
-        if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value);
-        avatarUrl.value = null
+        clear();
     };
 
     return {
-        hasCookie, isAuthenticated, isAdmin, isStudent, isInstructor, isCourseCreator,
-        canViewTeachingCourses, canCreateCourses, user, avatarUrl, fetchUser, refreshAvatar, updateUser, logout,
-    }
+        isAuthenticated, isAdmin, isStudent, isInstructor, isCourseCreator,
+        canViewTeachingCourses, canCreateCourses,
+        user, avatarUrl, initialized,
+        ensureInitialized, fetchUser, refreshAvatar, updateUser, clear, logout,
+    };
 });
-

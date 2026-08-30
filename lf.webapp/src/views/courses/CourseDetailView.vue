@@ -264,11 +264,10 @@ async function downloadFile(lesson, part, file) {
       <div class="course-detail__body">
         <div class="course-detail__main">
           <section class="course-detail__section">
-            <!-- eslint-disable-next-line vue/no-v-html -->
             <div
               v-if="course.description"
+              v-safe-html="course.description"
               class="course-detail__prose"
-              v-html="course.description"
             />
             <p
               v-else
@@ -316,11 +315,10 @@ async function downloadFile(lesson, part, file) {
                         v-for="part in lessonParts(lesson)"
                         :key="part.id"
                       >
-                        <!-- eslint-disable-next-line vue/no-v-html -->
                         <div
                           v-if="part.type === 'text'"
+                          v-safe-html="part.html"
                           class="course-detail__prose"
-                          v-html="part.html"
                         />
 
                         <p
@@ -384,11 +382,10 @@ async function downloadFile(lesson, part, file) {
                         </div>
                       </template>
                     </div>
-                    <!-- eslint-disable-next-line vue/no-v-html -->
                     <div
                       v-else
+                      v-safe-html="lesson.content"
                       class="course-detail__prose"
-                      v-html="lesson.content"
                     />
                   </details>
 

@@ -33,7 +33,7 @@
     "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "js-cookie": "^3.0.8",
+    "dompurify": "^3.4.14",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^4.0.2",
     "reka-ui": "^2.10.3",

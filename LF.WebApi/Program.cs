@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using NetEscapades.AspNetCore.SecurityHeaders;
 using Serilog;
 using System.Security.Claims;
 using System.Text;
@@ -97,14 +98,34 @@ try
             options.Cookie.Name = defaultAuth.AuthCookieName;
             options.ExpireTimeSpan = TimeSpan.FromDays(defaultAuth.AuthMaxAgeDays);
 
-            // TODO: change this
-            options.Cookie.HttpOnly = false;
+            // The session JWT must never be readable by page scripts — the SPA authenticates by
+            // sending this cookie (withCredentials), not by copying the token into a header.
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SameSite = SameSiteMode.Lax;
 
             options.LoginPath = new PathString("/login");
         })
         .AddJwtBearer(options =>
         {
             options.SaveToken = true;
+
+            // The JWT is delivered to the browser in an HttpOnly cookie, so accept it from there
+            // as well as the Authorization header (which API clients and tests still use).
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    if (string.IsNullOrEmpty(context.Token)
+                        && context.Request.Cookies.TryGetValue(defaultAuth.AuthCookieName, out var cookieToken)
+                        && !string.IsNullOrEmpty(cookieToken))
+                    {
+                        context.Token = cookieToken;
+                    }
+
+                    return Task.CompletedTask;
+                },
+            };
 
             // https://metanit.com/sharp/aspnet6/13.2.php
             options.TokenValidationParameters = new TokenValidationParameters
@@ -246,6 +267,25 @@ try
         // see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
         app.UseHttpsRedirection();
+
+        // Prod-only (dev is served through the Vite proxy, which needs a far looser policy).
+        // The CSP is the defence-in-depth backstop for the sanitized rich-text render path.
+        app.UseSecurityHeaders(policies => policies
+            .AddDefaultSecurityHeaders()
+            .AddContentSecurityPolicy(csp =>
+            {
+                csp.AddDefaultSrc().Self();
+                csp.AddScriptSrc().Self();
+                csp.AddStyleSrc().Self().UnsafeInline();          // Vue scoped styles + :style bindings + Vuestic
+                csp.AddImgSrc().Self().Data().From("blob:").From("https:");
+                csp.AddFontSrc().Self();
+                csp.AddConnectSrc().Self();
+                csp.AddBaseUri().Self();
+                csp.AddFormAction().Self();
+                csp.AddFrameAncestors().None();
+                csp.AddObjectSrc().None();
+                csp.AddUpgradeInsecureRequests();
+            }));
     }
 
     app.UseStaticFiles();

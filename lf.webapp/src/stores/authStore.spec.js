@@ -10,10 +10,6 @@ vi.mock('vue-router', () => ({
   }),
 }));
 
-vi.mock('js-cookie', () => ({
-  default: { get: vi.fn(() => undefined), remove: vi.fn() },
-}));
-
 vi.mock('@/services/api', () => ({
   default: { get: vi.fn().mockResolvedValue({ data: {} }) },
 }));
@@ -23,7 +19,6 @@ vi.mock('@/services/profileService', () => ({
   fetchAvatarObjectUrl: vi.fn(),
 }));
 
-import Cookies from 'js-cookie';
 import api from '@/services/api';
 import { fetchProfile } from '@/services/profileService';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,14 +27,13 @@ describe('useAuthStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
-    Cookies.get.mockReturnValue(undefined);
   });
 
-  it('derives isAuthenticated from the cookie presence', () => {
+  it('derives isAuthenticated from the loaded user', () => {
     const store = useAuthStore();
     expect(store.isAuthenticated).toBe(false);
 
-    store.hasCookie = true;
+    store.user = { role: 'Student' };
     expect(store.isAuthenticated).toBe(true);
   });
 
@@ -56,22 +50,47 @@ describe('useAuthStore', () => {
     }
   });
 
-  it('fetchUser is a no-op without a cookie', async () => {
-    const store = useAuthStore();
-    await store.fetchUser();
-    expect(fetchProfile).not.toHaveBeenCalled();
-    expect(store.user).toBeNull();
+  describe('ensureInitialized', () => {
+    it('loads the user from the auth probe and marks itself done', async () => {
+      fetchProfile.mockResolvedValueOnce({ firstName: 'Ada', role: 'Student' });
+      const store = useAuthStore();
+
+      await store.ensureInitialized();
+
+      expect(fetchProfile).toHaveBeenCalledWith({ skipAuthRedirect: true });
+      expect(store.user).toEqual({ firstName: 'Ada', role: 'Student' });
+      expect(store.initialized).toBe(true);
+    });
+
+    it('leaves the user null when the probe 401s', async () => {
+      fetchProfile.mockRejectedValueOnce({ response: { status: 401 } });
+      const store = useAuthStore();
+
+      await store.ensureInitialized();
+
+      expect(store.user).toBeNull();
+      expect(store.initialized).toBe(true);
+    });
+
+    it('runs the probe only once across repeated and concurrent calls', async () => {
+      fetchProfile.mockResolvedValue({ role: 'Student' });
+      const store = useAuthStore();
+
+      await Promise.all([store.ensureInitialized(), store.ensureInitialized()]);
+      await store.ensureInitialized();
+
+      expect(fetchProfile).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('fetchUser populates the user on success and nulls it on failure', async () => {
+  it('fetchUser refreshes the user and nulls it on failure', async () => {
     const store = useAuthStore();
-    store.hasCookie = true;
 
-    fetchProfile.mockResolvedValueOnce({ firstName: 'Ada', role: 'Student' });
+    fetchProfile.mockResolvedValueOnce({ role: 'Admin' });
     await store.fetchUser();
-    expect(store.user).toEqual({ firstName: 'Ada', role: 'Student' });
+    expect(store.user).toEqual({ role: 'Admin' });
 
-    fetchProfile.mockRejectedValueOnce(new Error('401'));
+    fetchProfile.mockRejectedValueOnce(new Error('boom'));
     await store.fetchUser();
     expect(store.user).toBeNull();
   });
@@ -82,36 +101,26 @@ describe('useAuthStore', () => {
 
     store.updateUser({ lastName: 'Byron', description: 'hi' });
 
-    expect(store.user).toEqual({
-      firstName: 'Ada',
-      lastName: 'Byron',
-      role: 'Student',
-      description: 'hi',
-    });
+    expect(store.user).toEqual({ firstName: 'Ada', lastName: 'Byron', role: 'Student', description: 'hi' });
   });
 
-  it('logout clears client state and calls the logout endpoint', async () => {
+  it('logout calls the logout endpoint and clears state', async () => {
     const store = useAuthStore();
-    store.hasCookie = true;
     store.user = { role: 'Student' };
 
     await store.logout();
 
     expect(api.get).toHaveBeenCalledWith('/Auth/Logout');
-    expect(Cookies.remove).toHaveBeenCalled();
-    expect(store.hasCookie).toBe(false);
     expect(store.user).toBeNull();
   });
 
-  it('logout still clears client state when the request rejects', async () => {
+  it('logout still clears state when the request rejects', async () => {
     const store = useAuthStore();
-    store.hasCookie = true;
     store.user = { role: 'Student' };
     api.get.mockRejectedValueOnce(new Error('network'));
 
     await store.logout();
 
-    expect(store.hasCookie).toBe(false);
     expect(store.user).toBeNull();
   });
 });

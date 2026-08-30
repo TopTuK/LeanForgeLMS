@@ -16,11 +16,13 @@ namespace LF.WebApi.Controllers
         IOptionsSnapshot<DefaultAuthOptions> authOptions,
         IOptionsSnapshot<PmiAuthOptions> pmiAuthOptions,
         IOptionsSnapshot<GoogleAuthOptions> googleAuthOptions,
+        IWebHostEnvironment environment,
         LFAppAuth.IAuthenticationService authenticationService,
         LFAppAuth.ITokenService tokenService) : ControllerBase
     {
         private readonly ILogger<AuthController> _logger = logger;
-        
+        private readonly IWebHostEnvironment _environment = environment;
+
         private readonly DefaultAuthOptions _authOptions = authOptions.Value;
         private readonly PmiAuthOptions _pmiAuthOptions = pmiAuthOptions.Value;
         private readonly GoogleAuthOptions _googleAuthOptions = googleAuthOptions.Value;
@@ -90,7 +92,7 @@ namespace LF.WebApi.Controllers
 
             HttpContext.Response
                 .Cookies
-                .Delete(_authOptions.AuthCookieName);
+                .Delete(_authOptions.AuthCookieName, new CookieOptions { Path = "/" });
 
             return await Task.FromResult(LocalRedirect(new PathString("/")));
         }
@@ -177,7 +179,11 @@ namespace LF.WebApi.Controllers
                     value: jwtToken.Token,
                     options: new CookieOptions()
                     {
-                        MaxAge = TimeSpan.FromDays(_authOptions.AuthMaxAgeDays)
+                        MaxAge = TimeSpan.FromDays(_authOptions.AuthMaxAgeDays),
+                        HttpOnly = true,
+                        Secure = !_environment.IsDevelopment(),
+                        SameSite = SameSiteMode.Lax,
+                        Path = "/",
                     }
                 );
             // SignOut from temp cookie

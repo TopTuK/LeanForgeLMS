@@ -323,11 +323,10 @@ function goToCourses() {
               v-for="part in selectedLessonParts"
               :key="part.id"
             >
-              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 v-if="part.type === 'text'"
+                v-safe-html="part.html"
                 class="course-learn__prose"
-                v-html="part.html"
               />
               <LearnerQuizPart
                 v-else-if="part.type === 'quiz'"
@@ -389,11 +388,10 @@ function goToCourses() {
               </div>
             </template>
           </div>
-          <!-- eslint-disable-next-line vue/no-v-html -->
           <div
             v-else
+            v-safe-html="selectedLesson.content"
             class="course-learn__prose"
-            v-html="selectedLesson.content"
           />
 
           <div class="course-learn__actions">

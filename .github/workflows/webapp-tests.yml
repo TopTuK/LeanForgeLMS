@@ -32,8 +32,11 @@ jobs:
       - name: Lint
         run: npm run lint:ci
 
+      # Runs every src/**/*.spec.js — component, Pinia store (authStore,
+      # lessonPartStore) and service (api, profile, admin, course, enrollment,
+      # lessonPart) suites — and emits coverage + a JUnit report.
       - name: Test
-        run: npm run test
+        run: npm run test:coverage
         env:
           CI: "true"
 
@@ -47,3 +50,11 @@ jobs:
           name: lf.webapp vitest results
           path: "lf.webapp/test-results/junit.xml"
           reporter: jest-junit
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lf-webapp-coverage
+          path: lf.webapp/coverage
+          if-no-files-found: ignore
