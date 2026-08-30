@@ -8,7 +8,7 @@ import {
   PART_TYPES,
   useLessonPartStore,
 } from '@/stores/lessonPartStore';
-import { replaceLessonParts } from '@/services/lessonPartService';
+import { replaceLessonParts, uploadLessonMedia, uploadLessonFiles } from '@/services/lessonPartService';
 
 vi.mock('@/services/lessonPartService', () => ({
   uploadLessonMedia: vi.fn(),
@@ -157,5 +157,95 @@ describe('useLessonPartStore', () => {
   it('exposes the supported part types and default threshold', () => {
     expect(PART_TYPES).toContain('quiz');
     expect(DEFAULT_QUIZ_PASS_THRESHOLD).toBe(60);
+  });
+
+  describe('media & file uploads', () => {
+    it('setMediaFile rejects a file whose type is not accepted for the part', async () => {
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const result = await store.setMediaFile(lessonId, part.id, { name: 'a.pdf', type: 'application/pdf' });
+
+      expect(result).toEqual({ ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' });
+      expect(uploadLessonMedia).not.toHaveBeenCalled();
+    });
+
+    it('setMediaFile uploads an accepted file and stores the returned storageObjectId', async () => {
+      uploadLessonMedia.mockResolvedValueOnce({ storageObjectId: 'obj-1' });
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+
+      const result = await store.setMediaFile(lessonId, part.id, file);
+
+      expect(result).toEqual({ ok: true });
+      const stored = store.partsFor(lessonId)[0];
+      expect(stored).toMatchObject({ fileName: 'a.png', storageObjectId: 'obj-1', uploading: false });
+    });
+
+    it('setMediaFile flags an upload error when the request fails', async () => {
+      uploadLessonMedia.mockRejectedValueOnce(new Error('boom'));
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const result = await store.setMediaFile(lessonId, part.id, new File(['x'], 'a.png', { type: 'image/png' }));
+
+      expect(result).toEqual({ ok: false, errorKey: 'courses.lessonEditor.parts.upload_error' });
+      expect(store.partsFor(lessonId)[0]).toMatchObject({ uploading: false, uploadError: true });
+    });
+
+    it('addFilesToPart appends the uploaded descriptors to a files part', async () => {
+      uploadLessonFiles.mockResolvedValueOnce([
+        { fileName: 'a.pdf', storageObjectId: 's1', sizeBytes: 10, contentType: 'application/pdf' },
+      ]);
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'files');
+
+      const result = await store.addFilesToPart(lessonId, part.id, [new File(['a'], 'a.pdf')]);
+
+      expect(result).toEqual({ ok: true });
+      expect(store.partsFor(lessonId)[0].files).toEqual([
+        expect.objectContaining({ fileName: 'a.pdf', storageObjectId: 's1', sizeBytes: 10 }),
+      ]);
+    });
+
+    it('addFilesToPart rejects a non-files part', async () => {
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'text');
+
+      const result = await store.addFilesToPart(lessonId, part.id, [new File(['a'], 'a.pdf')]);
+
+      expect(result).toEqual({ ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' });
+    });
+
+    it('removeFileFromPart drops the file with the given id', async () => {
+      uploadLessonFiles.mockResolvedValueOnce([
+        { fileName: 'a.pdf', storageObjectId: 's1' },
+        { fileName: 'b.pdf', storageObjectId: 's2' },
+      ]);
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'files');
+      await store.addFilesToPart(lessonId, part.id, [new File(['a'], 'a.pdf'), new File(['b'], 'b.pdf')]);
+
+      const firstFileId = store.partsFor(lessonId)[0].files[0].id;
+      store.removeFileFromPart(lessonId, part.id, firstFileId);
+
+      expect(store.partsFor(lessonId)[0].files.map((f) => f.fileName)).toEqual(['b.pdf']);
+    });
+
+    it('discard restores the last committed snapshot', async () => {
+      const store = useLessonPartStore();
+      await store.ensureLoaded(lessonId, '', []);
+      store.addPart(lessonId, 'text');
+      await store.commit(1, 2, lessonId);
+
+      store.addPart(lessonId, 'quiz');
+      expect(store.partsFor(lessonId)).toHaveLength(2);
+
+      store.discard(lessonId);
+
+      expect(store.partsFor(lessonId).map((p) => p.type)).toEqual(['text']);
+      expect(store.isDirty(lessonId)).toBe(false);
+    });
   });
 });

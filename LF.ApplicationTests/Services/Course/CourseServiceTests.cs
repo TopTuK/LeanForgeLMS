@@ -18,6 +18,14 @@ namespace LF.ApplicationTests.Services.Course;
 
 public class CourseServiceTests
 {
+    // A no-op sanitizer that records its calls; the real allow-list behaviour is covered by GanssHtmlSanitizerTests.
+    private static Mock<IHtmlSanitizer> CreateSanitizerMock()
+    {
+        var mock = new Mock<IHtmlSanitizer>();
+        mock.Setup(s => s.Sanitize(It.IsAny<string?>())).Returns((string? html) => html ?? string.Empty);
+        return mock;
+    }
+
     private static CourseService CreateService(
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<Category> categories,
@@ -40,7 +48,7 @@ public class CourseServiceTests
         dbContextMock.SetupGet(c => c.StorageObjects).Returns(storageObjectsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System);
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
     }
 
     [Fact]
@@ -115,7 +123,7 @@ public class CourseServiceTests
         dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollmentsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System);
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
     }
 
     private static DomainCourse CreatePublishedManagedCourse(int id = 1, int ownerId = 1)
@@ -674,5 +682,83 @@ public class CourseServiceTests
         var resultParts = result!.Chapters.Single().Lessons.Single().Parts;
         Assert.Single(resultParts);
         Assert.Equal("<p>Second</p>", resultParts[0].Html);
+    }
+
+    [Fact]
+    public async Task CreateCourseAsync_SanitizesDescriptionBeforePersisting()
+    {
+        var category = Category.Create("Backend");
+        var (service, sanitizer) = CreateSanitizingService([], [category], out _);
+        sanitizer.Setup(s => s.Sanitize("<p>hi</p><script>x</script>")).Returns("<p>hi</p>");
+        var dto = new CreateCourseDto { Title = "T", ShortIntroduction = "S", Description = "<p>hi</p><script>x</script>", CategoryId = category.Id };
+
+        var result = await service.CreateCourseAsync(dto, createdByUserId: 1);
+
+        sanitizer.Verify(s => s.Sanitize("<p>hi</p><script>x</script>"), Times.Once);
+        Assert.Equal("<p>hi</p>", result.Description);
+    }
+
+    [Fact]
+    public async Task AddLessonAsync_SanitizesContentBeforePersisting()
+    {
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("T", "S", "D", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var (service, sanitizer) = CreateSanitizingService([course], [category], out _);
+        sanitizer.Setup(s => s.Sanitize("<p>dirty</p>")).Returns("<p>clean</p>");
+
+        var result = await service.AddLessonAsync(course.Id, chapter.Id,
+            new AddLessonDto { Title = "L", Content = "<p>dirty</p>" }, actingUserId: 1, isAdmin: false);
+
+        sanitizer.Verify(s => s.Sanitize("<p>dirty</p>"), Times.Once);
+        Assert.Equal("<p>clean</p>", result!.Chapters.Single().Lessons.Single().Content);
+    }
+
+    [Fact]
+    public async Task ReplaceLessonPartsAsync_SanitizesTextPartHtmlOnly()
+    {
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("T", "S", "D", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var lesson = chapter.AddLesson("Lesson 1");
+        var storageObject = StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow);
+        var (service, sanitizer) = CreateSanitizingService([course], [category], [storageObject], out _);
+        sanitizer.Setup(s => s.Sanitize("<p>x</p><script>y</script>")).Returns("<p>x</p>");
+        var parts = new List<ReplaceLessonPartInputDto>
+        {
+            new() { PartType = LessonPartType.Text, Html = "<p>x</p><script>y</script>" },
+            new() { PartType = LessonPartType.Image, StorageObjectId = storageObject.Id },
+        };
+
+        var result = await service.ReplaceLessonPartsAsync(course.Id, chapter.Id, lesson.Id, parts, actingUserId: 1, isAdmin: false);
+
+        sanitizer.Verify(s => s.Sanitize("<p>x</p><script>y</script>"), Times.Once);
+        sanitizer.Verify(s => s.Sanitize(null), Times.Never); // image part carries no Html
+        Assert.Equal("<p>x</p>", result!.Chapters.Single().Lessons.Single().Parts[0].Html);
+    }
+
+    private static (CourseService Service, Mock<IHtmlSanitizer> Sanitizer) CreateSanitizingService(
+        IReadOnlyCollection<DomainCourse> courses,
+        IReadOnlyCollection<Category> categories,
+        out Mock<IAppDbContext> dbContextMock) =>
+        CreateSanitizingService(courses, categories, [], out dbContextMock);
+
+    private static (CourseService Service, Mock<IHtmlSanitizer> Sanitizer) CreateSanitizingService(
+        IReadOnlyCollection<DomainCourse> courses,
+        IReadOnlyCollection<Category> categories,
+        IReadOnlyCollection<StorageObject> storageObjects,
+        out Mock<IAppDbContext> dbContextMock)
+    {
+        dbContextMock = new Mock<IAppDbContext>();
+        dbContextMock.SetupGet(c => c.Courses).Returns(courses.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.Categories).Returns(categories.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.StorageObjects).Returns(storageObjects.ToList().BuildMockDbSet().Object);
+        dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var sanitizer = new Mock<IHtmlSanitizer>();
+        sanitizer.Setup(s => s.Sanitize(It.IsAny<string?>())).Returns((string? html) => html ?? string.Empty);
+
+        var service = new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, sanitizer.Object);
+        return (service, sanitizer);
     }
 }

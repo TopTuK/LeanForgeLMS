@@ -71,6 +71,9 @@ public sealed class DevAuthEndpoints : IEndpointGroup
                 options: new CookieOptions
                 {
                     MaxAge = TimeSpan.FromDays(options.AuthMaxAgeDays),
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Lax,
+                    Path = "/",
                 });
 
             return TypedResults.LocalRedirect("/courses");

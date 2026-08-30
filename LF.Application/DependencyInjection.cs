@@ -1,3 +1,5 @@
+using LF.Application.Common.Content;
+using LF.Application.Common.Interfaces;
 using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
@@ -47,6 +49,7 @@ public static class DependencyInjection
         TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
 
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IHtmlSanitizer, GanssHtmlSanitizer>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IPromoCodeService, PromoCodeService>();

@@ -406,6 +406,18 @@ src/
 
 ## Project-Specific Overrides
 
+### Rich text & auth (security)
+
+- **Never use `v-html`.** Instructor-authored course/lesson HTML is rendered with the global
+  `v-safe-html` directive (`src/directives/vSafeHtml.js` → DOMPurify via `src/lib/sanitizeHtml.js`).
+  The server also sanitises on write (`LF.Application` `GanssHtmlSanitizer`); keep the two
+  allow-lists in sync. `eslint`'s `vue/no-v-html` stays enabled.
+- The session token is in an **HttpOnly cookie** — there is no `js-cookie` dependency. `api.js`
+  relies on `withCredentials`; auth state comes from `authStore.ensureInitialized()` (a `/Profile`
+  probe). A 401 response redirects to `/login` unless the caller passes `skipAuthRedirect`.
+- `index.html` must stay free of inline `<script>`/`<style>` — the prod CSP is `script-src 'self'`
+  (the theme bootstrap lives in `public/theme-init.js`).
+
 ### Testing (actual setup)
 
 - Runner: **Vitest** (`vite.config.js` `test` block, `jsdom`, `globals: true`, `vitest.setup.js`).
