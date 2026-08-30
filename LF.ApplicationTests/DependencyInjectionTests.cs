@@ -7,6 +7,8 @@ using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Profile;
+using LF.Application.Services.Promo;
+using LF.Application.Services.PromoCodeAdmin;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +31,7 @@ public class DependencyInjectionTests
         services.AddScoped(_ => Mock.Of<IGrpcIdentityService>());
         services.AddScoped(_ => Mock.Of<IGrpcCourseService>());
         services.AddScoped(_ => Mock.Of<IGrpcEnrollmentService>());
+        services.AddScoped(_ => Mock.Of<IGrpcPromoCodeService>());
         services.AddScoped(_ => Mock.Of<IStorageRepository>());
         services.AddKeyedScoped("storage", (_, _) => Mock.Of<IFileStorageService>());
         services.AddAuthenticationApplication();
@@ -44,6 +47,7 @@ public class DependencyInjectionTests
         Assert.IsType<AdminUserService>(scope.ServiceProvider.GetRequiredService<IAdminUserService>());
         Assert.IsType<CourseAuthoringService>(scope.ServiceProvider.GetRequiredService<ICourseAuthoringService>());
         Assert.IsType<EnrollmentLearningService>(scope.ServiceProvider.GetRequiredService<IEnrollmentLearningService>());
+        Assert.IsType<PromoCodeAdminService>(scope.ServiceProvider.GetRequiredService<IPromoCodeAdminService>());
         Assert.IsType<StorageService>(scope.ServiceProvider.GetRequiredService<IStorageService>());
     }
 
@@ -80,5 +84,6 @@ public class DependencyInjectionTests
         // Assert
         Assert.IsType<CourseServiceImpl>(scope.ServiceProvider.GetRequiredService<ICourseService>());
         Assert.IsType<EnrollmentService>(scope.ServiceProvider.GetRequiredService<IEnrollmentService>());
+        Assert.IsType<PromoCodeService>(scope.ServiceProvider.GetRequiredService<IPromoCodeService>());
     }
 }

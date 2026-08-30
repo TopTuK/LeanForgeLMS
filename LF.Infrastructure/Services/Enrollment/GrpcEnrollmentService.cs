@@ -1,6 +1,7 @@
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.ModelDto.Promo;
 using LF.Application.Services.Enrollment;
 using LF.CourseService;
 using Mapster;
@@ -27,11 +28,11 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         return new PagedCourseCatalogDto { Items = reply.Items.Adapt<List<CourseCatalogItemDto>>(), TotalCount = reply.TotalCount };
     }
 
-    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId)
+    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId, string? promoCode)
     {
         _logger.LogInformation("GrpcEnrollmentService::EnrollAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
-        var request = new EnrollInCourseRequest { CourseId = courseId, ActingUserId = actingUserId };
+        var request = new EnrollInCourseRequest { CourseId = courseId, ActingUserId = actingUserId, PromoCode = promoCode };
 
         try
         {
@@ -48,8 +49,19 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
         {
-            throw new SelfEnrollmentException(ex.Status.Detail);
+            // Covers both "you created this course" and "this course does not allow self-enrollment";
+            // both surface as HTTP 403 at the endpoint.
+            throw new EnrollmentModeException(ex.Status.Detail);
         }
+    }
+
+    public async Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::ValidatePromoCodeAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var request = new ValidatePromoCodeRequest { Code = code, CourseId = courseId, ActingUserId = actingUserId };
+        var reply = await _courseServiceRpcClient.ValidatePromoCodeAsync(request);
+        return reply.Adapt<PromoCodeValidationDto>();
     }
 
     public async Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, AppEnrollmentStatusFilter status)

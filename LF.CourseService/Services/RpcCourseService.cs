@@ -1,9 +1,12 @@
+using System.Globalization;
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.ModelDto.Promo;
 using LF.Application.Services.Course;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Promo;
 using LF.CourseService;
 using Mapster;
 using AppEnrollmentStatusFilter = LF.Application.ModelDto.Enrollment.EnrollmentStatusFilter;
@@ -13,11 +16,16 @@ using AppQuestionType = LF.AppDomain.Models.Course.Enums.QuestionType;
 
 namespace LF.CourseService.Services;
 
-public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService courseService, IEnrollmentService enrollmentService) : CourseServiceRpc.CourseServiceRpcBase
+public class RpcCourseService(
+    ILogger<RpcCourseService> logger,
+    ICourseService courseService,
+    IEnrollmentService enrollmentService,
+    IPromoCodeService promoCodeService) : CourseServiceRpc.CourseServiceRpcBase
 {
     private readonly ILogger<RpcCourseService> _logger = logger;
     private readonly ICourseService _courseService = courseService;
     private readonly IEnrollmentService _enrollmentService = enrollmentService;
+    private readonly IPromoCodeService _promoCodeService = promoCodeService;
 
     public override async Task<CourseDetailReply> CreateCourse(CreateCourseRequest request, ServerCallContext context)
     {
@@ -236,10 +244,14 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
 
         try
         {
-            var enrollment = await _enrollmentService.EnrollAsync(request.CourseId, request.ActingUserId);
+            var enrollment = await _enrollmentService.EnrollAsync(request.CourseId, request.ActingUserId, request.PromoCode);
             return ToEnrollmentReply(enrollment);
         }
         catch (SelfEnrollmentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (EnrollmentModeException ex)
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
         }
@@ -247,6 +259,92 @@ public class RpcCourseService(ILogger<RpcCourseService> logger, ICourseService c
         {
             throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
         }
+    }
+
+    public override async Task<EnrollmentSummaryReply> EnrollUser(EnrollUserRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::EnrollUser: called with CourseId={CourseId} TargetUserId={TargetUserId} ActingUserId={ActingUserId}",
+            request.CourseId, request.TargetUserId, request.ActingUserId);
+
+        try
+        {
+            var summary = await _courseService.EnrollUserAsync(request.CourseId, request.TargetUserId, request.ActingUserId, request.ActingIsAdmin);
+            return summary is null
+                ? throw new RpcException(new Status(StatusCode.NotFound, "Course not found."))
+                : summary.Adapt<EnrollmentSummaryReply>();
+        }
+        catch (CourseAuthorizationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
+    public override async Task<PromoCodeValidationReply> ValidatePromoCode(ValidatePromoCodeRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ValidatePromoCode: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
+
+        var result = await _enrollmentService.ValidatePromoCodeAsync(request.Code, request.CourseId, request.ActingUserId);
+
+        return new PromoCodeValidationReply
+        {
+            IsValid = result.IsValid,
+            Reason = result.Reason,
+            OriginalPrice = result.OriginalPrice.ToString(CultureInfo.InvariantCulture),
+            DiscountedPrice = result.DiscountedPrice.ToString(CultureInfo.InvariantCulture),
+            DiscountAmount = result.DiscountAmount.ToString(CultureInfo.InvariantCulture),
+        };
+    }
+
+    public override async Task<PromoCodeReply> CreatePromoCode(CreatePromoCodeRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::CreatePromoCode: called with Code={Code} CreatedByUserId={CreatedByUserId}", request.Code, request.CreatedByUserId);
+
+        var dto = new CreatePromoCodeDto
+        {
+            Code = request.Code,
+            DiscountType = (LF.AppDomain.Models.Course.Enums.PromoCodeDiscountType)(int)request.DiscountType,
+            DiscountValue = decimal.Parse(request.DiscountValue, CultureInfo.InvariantCulture),
+            CourseId = request.CourseId,
+            ExpiresAt = request.ExpiresAt?.ToDateTime(),
+            MaxRedemptions = request.MaxRedemptions,
+        };
+
+        try
+        {
+            var promoCode = await _promoCodeService.CreatePromoCodeAsync(dto, request.CreatedByUserId);
+            return promoCode.Adapt<PromoCodeReply>();
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+        catch (FormatException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+    }
+
+    public override async Task<ListPromoCodesReply> ListPromoCodes(ListPromoCodesRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ListPromoCodes: called with Page={Page} PageSize={PageSize}", request.Page, request.PageSize);
+
+        var paged = await _promoCodeService.ListPromoCodesAsync(request.Page, request.PageSize);
+
+        var reply = new ListPromoCodesReply { TotalCount = paged.TotalCount };
+        reply.Items.AddRange(paged.Items.Select(p => p.Adapt<PromoCodeReply>()));
+        return reply;
+    }
+
+    public override async Task<DeactivatePromoCodeReply> DeactivatePromoCode(DeactivatePromoCodeRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::DeactivatePromoCode: called with Id={PromoCodeId}", request.Id);
+
+        var deactivated = await _promoCodeService.DeactivatePromoCodeAsync(request.Id);
+        return new DeactivatePromoCodeReply { Deactivated = deactivated };
     }
 
     public override async Task<ListMyEnrollmentsReply> ListMyEnrollments(ListMyEnrollmentsRequest request, ServerCallContext context)

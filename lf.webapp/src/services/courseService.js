@@ -40,3 +40,6 @@ export const removeLesson = (courseId, chapterId, lessonId) =>
   api.delete(`/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}`).then((r) => r.data);
 
 export const publishCourse = (courseId) => api.post(`/courses/${courseId}/publish`).then((r) => r.data);
+
+export const enrollStudent = (courseId, userId) =>
+  api.post(`/courses/${courseId}/enrollments`, { userId }).then((r) => r.data);

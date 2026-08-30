@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Models.Course.Enums;
 
 namespace LF.AppDomainTests.Entities.CourseAggregate;
 
@@ -19,6 +20,37 @@ public class EnrollmentTests
         Assert.Equal(enrolledAt, enrollment.EnrolledAt);
         Assert.Null(enrollment.CompletedAt);
         Assert.Empty(enrollment.CompletedLessonIds);
+        Assert.Equal(EnrollmentStatus.Active, enrollment.Status);
+        Assert.Equal(0m, enrollment.PricePaid);
+    }
+
+    [Fact]
+    public void Create_PendingPayment_SetsStatusPriceAndPromo()
+    {
+        var enrollment = Enrollment.Create(1, 2, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 1799m, promoCodeId: 5);
+
+        Assert.Equal(EnrollmentStatus.PendingPayment, enrollment.Status);
+        Assert.Equal(1799m, enrollment.PricePaid);
+        Assert.Equal(5, enrollment.PromoCodeId);
+    }
+
+    [Fact]
+    public void Activate_PendingPayment_TransitionsToActive()
+    {
+        var enrollment = Enrollment.Create(1, 2, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 0m);
+
+        enrollment.Activate(1799m);
+
+        Assert.Equal(EnrollmentStatus.Active, enrollment.Status);
+        Assert.Equal(1799m, enrollment.PricePaid);
+    }
+
+    [Fact]
+    public void Activate_AlreadyActive_Throws()
+    {
+        var enrollment = Enrollment.Create(1, 2, DateTime.UtcNow);
+
+        Assert.Throws<InvalidOperationException>(() => enrollment.Activate(0m));
     }
 
     [Fact]

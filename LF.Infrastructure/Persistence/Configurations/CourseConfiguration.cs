@@ -19,6 +19,10 @@ internal sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.Property(c => c.CoverType).IsRequired();
         builder.Property(c => c.CoverColor);
 
+        builder.Property(c => c.PricingType).IsRequired();
+        builder.Property(c => c.Price).HasColumnType("numeric(12,2)");
+        builder.Property(c => c.EnrollmentMode).IsRequired();
+
         // Users live in a separate bounded context (LF.IdentityService); this is a plain scalar
         // reference by convention, not an EF navigation/FK, even though it's physically the same DB.
         builder.Property(c => c.CreatedByUserId).IsRequired();

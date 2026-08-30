@@ -19,10 +19,19 @@ internal sealed class EnrollmentConfiguration : IEntityTypeConfiguration<Enrollm
 
         builder.Property(e => e.CompletedLessonIds).HasColumnType("integer[]");
 
+        builder.Property(e => e.Status).IsRequired();
+        builder.Property(e => e.PricePaid).HasColumnType("numeric(12,2)");
+
         builder.HasOne<Course>()
             .WithMany()
             .HasForeignKey(e => e.CourseId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<PromoCode>()
+            .WithMany()
+            .HasForeignKey(e => e.PromoCodeId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(e => new { e.CourseId, e.UserId }).IsUnique();
     }

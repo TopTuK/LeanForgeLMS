@@ -1,6 +1,7 @@
 using LF.Application.Common.Interfaces;
 using LF.Application.Services.Course;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Promo;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
 using LF.IdentityService;
@@ -58,6 +59,7 @@ public static class DependencyInjection
         });
         services.AddScoped<IGrpcCourseService, Services.Course.GrpcCourseService>();
         services.AddScoped<IGrpcEnrollmentService, Services.Enrollment.GrpcEnrollmentService>();
+        services.AddScoped<IGrpcPromoCodeService, Services.Promo.GrpcPromoCodeService>();
 
         return services;
     }

@@ -12,7 +12,47 @@ public class CourseModelsValidatorTests
         CategoryId: 1,
         CoverType: nameof(CourseCoverType.None),
         CoverColor: null,
-        CoverImageStorageObjectId: null);
+        CoverImageStorageObjectId: null,
+        PricingType: nameof(CoursePricingType.Free),
+        Price: null,
+        EnrollmentMode: nameof(CourseEnrollmentMode.Open));
+
+    [Fact]
+    public void CreateCourse_PaidWithoutPrice_Fails()
+    {
+        var result = new CreateCourseRequestValidator().Validate(
+            ValidCreateCourse() with { PricingType = nameof(CoursePricingType.Paid), Price = null });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCourseRequest.Price));
+    }
+
+    [Fact]
+    public void CreateCourse_PaidWithPrice_Passes()
+    {
+        var result = new CreateCourseRequestValidator().Validate(
+            ValidCreateCourse() with { PricingType = nameof(CoursePricingType.Paid), Price = 1990m });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CreateCourse_UnknownPricingType_Fails()
+    {
+        var result = new CreateCourseRequestValidator().Validate(ValidCreateCourse() with { PricingType = "Trial" });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCourseRequest.PricingType));
+    }
+
+    [Fact]
+    public void CreateCourse_UnknownEnrollmentMode_Fails()
+    {
+        var result = new CreateCourseRequestValidator().Validate(ValidCreateCourse() with { EnrollmentMode = "Invite" });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCourseRequest.EnrollmentMode));
+    }
 
     [Fact]
     public void CreateCourse_ValidRequest_Passes()

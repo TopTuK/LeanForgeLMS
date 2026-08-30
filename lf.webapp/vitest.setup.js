@@ -29,6 +29,18 @@ if (typeof window.matchMedia !== 'function') {
   }));
 }
 
+// jsdom lacks IntersectionObserver; @vueuse/motion's visible-once directives use it.
+if (typeof window.IntersectionObserver !== 'function') {
+  class IntersectionObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() { return []; }
+  }
+  window.IntersectionObserver = IntersectionObserverStub;
+  globalThis.IntersectionObserver = IntersectionObserverStub;
+}
+
 if (!globalThis.crypto?.randomUUID) {
   globalThis.crypto = { ...globalThis.crypto, randomUUID: () => `uuid-${Math.random().toString(16).slice(2)}` };
 }

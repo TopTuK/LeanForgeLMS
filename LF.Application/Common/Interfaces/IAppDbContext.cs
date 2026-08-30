@@ -11,6 +11,7 @@ public interface IAppDbContext
     DbSet<Course> Courses { get; }
     DbSet<Category> Categories { get; }
     DbSet<Enrollment> Enrollments { get; }
+    DbSet<PromoCode> PromoCodes { get; }
     DbSet<StorageObject> StorageObjects { get; }
     DbSet<QuizAttempt> QuizAttempts { get; }
 

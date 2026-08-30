@@ -1,4 +1,5 @@
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Course;
 using Microsoft.Extensions.Logging;
 
@@ -14,6 +15,14 @@ internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> log
         _logger.LogInformation("CourseAuthoringService::CreateCourseAsync: called with Title={Title} CreatedByUserId={CreatedByUserId}", dto.Title, createdByUserId);
 
         return await _grpcCourseService.CreateCourseAsync(dto, createdByUserId);
+    }
+
+    public async Task<EnrollmentSummaryDto?> EnrollUserAsync(int courseId, int targetUserId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseAuthoringService::EnrollUserAsync: called with CourseId={CourseId} TargetUserId={TargetUserId} ActingUserId={ActingUserId}",
+            courseId, targetUserId, actingUserId);
+
+        return await _grpcCourseService.EnrollUserAsync(courseId, targetUserId, actingUserId, isAdmin);
     }
 
     public async Task<CourseDetailDto?> GetCourseAsync(int id, int actingUserId, bool isAdmin)

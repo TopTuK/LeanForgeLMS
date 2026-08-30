@@ -6,7 +6,11 @@ export const fetchCatalog = ({ page = 1, pageSize = 20 } = {}) =>
 export const fetchCoursePreview = (courseId) =>
   api.get(`/enrollments/catalog/${courseId}`).then((r) => r.data);
 
-export const enroll = (courseId) => api.post('/enrollments', { courseId }).then((r) => r.data);
+export const enroll = (courseId, promoCode = null) =>
+  api.post('/enrollments', { courseId, promoCode: promoCode || null }).then((r) => r.data);
+
+export const validatePromoCode = (code, courseId) =>
+  api.get('/enrollments/promo-codes/validate', { params: { code, courseId } }).then((r) => r.data);
 
 export const fetchMyEnrollments = ({ status = 'active' } = {}) =>
   api.get('/enrollments/mine', { params: { status } }).then((r) => r.data);

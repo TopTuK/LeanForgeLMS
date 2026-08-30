@@ -12,6 +12,7 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbC
     public DbSet<Course> Courses { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
     public DbSet<Enrollment> Enrollments { get; set; } = null!;
+    public DbSet<PromoCode> PromoCodes { get; set; } = null!;
     public DbSet<StorageObject> StorageObjects { get; set; } = null!;
     public DbSet<QuizAttempt> QuizAttempts { get; set; } = null!;
 

@@ -4,10 +4,12 @@ using LF.AppDomain.Models.Course.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
+using DomainEnrollment = LF.AppDomain.Entities.Course.Enrollment;
 
 namespace LF.Application.Services.Course;
 
@@ -26,7 +28,8 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         if (category is null)
             throw new ArgumentException($"Category {dto.CategoryId} not found.", nameof(dto));
 
-        var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, dto.Description, category, createdByUserId, _timeProvider.GetUtcNow().UtcDateTime);
+        var course = DomainCourse.Create(dto.Title, dto.ShortIntroduction, dto.Description, category, createdByUserId,
+            _timeProvider.GetUtcNow().UtcDateTime, dto.PricingType, dto.Price, dto.EnrollmentMode);
 
         switch (dto.CoverType)
         {
@@ -45,6 +48,58 @@ internal sealed class CourseService(ILogger<CourseService> logger, IAppDbContext
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
+    }
+
+    public async Task<EnrollmentSummaryDto?> EnrollUserAsync(int courseId, int targetUserId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::EnrollUserAsync: called with CourseId={CourseId} TargetUserId={TargetUserId} ActingUserId={ActingUserId}",
+            courseId, targetUserId, actingUserId);
+
+        var course = await _dbContext.Courses.AsNoTracking()
+            .Include(c => c.Category)
+            .Include(c => c.Chapters).ThenInclude(ch => ch.Lessons)
+            .Include(c => c.CoverImageStorageObject)
+            .FirstOrDefaultAsync(c => c.Id == courseId);
+
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        if (!course.IsPublished)
+            throw new InvalidOperationException("Cannot add a student to an unpublished course.");
+
+        if (course.CreatedByUserId == targetUserId)
+            throw new InvalidOperationException("The course owner cannot be enrolled as a student.");
+
+        var alreadyEnrolled = await _dbContext.Enrollments.AnyAsync(e => e.CourseId == courseId && e.UserId == targetUserId);
+        if (alreadyEnrolled)
+            throw new InvalidOperationException("The user is already enrolled in this course.");
+
+        var enrollment = DomainEnrollment.Create(courseId, targetUserId, _timeProvider.GetUtcNow().UtcDateTime, EnrollmentStatus.Active, 0m);
+        _dbContext.Enrollments.Add(enrollment);
+        await _dbContext.SaveChangesAsync();
+
+        var totalLessons = course.Chapters.Sum(ch => ch.Lessons.Count);
+        return new EnrollmentSummaryDto
+        {
+            Id = enrollment.Id,
+            CourseId = course.Id,
+            CourseTitle = course.Title,
+            CourseShortIntroduction = course.ShortIntroduction,
+            CategoryName = course.Category.Name,
+            Status = enrollment.Status,
+            PricePaid = enrollment.PricePaid,
+            TotalLessonCount = totalLessons,
+            CompletedLessonCount = 0,
+            ProgressPercent = 0,
+            EnrolledAt = enrollment.EnrolledAt,
+            CompletedAt = null,
+            CoverType = course.CoverType,
+            CoverColor = course.CoverColor,
+            CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
+            CoverImageContentType = course.CoverImageStorageObject?.ContentType,
+        };
     }
 
     public async Task<CourseDetailDto?> GetCourseAsync(int id, int actingUserId, bool isAdmin)

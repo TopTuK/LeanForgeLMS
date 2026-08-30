@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import { render } from '@testing-library/vue';
 import { createTestingPinia } from '@pinia/testing';
+import { MotionPlugin } from '@vueuse/motion';
 import { i18n } from '@/i18n';
 
 i18n.global.locale.value = 'en';
@@ -11,7 +12,7 @@ i18n.global.locale.value = 'en';
  * to Testing Library's `render`.
  */
 export function renderComponent(component, { props, slots, attrs, pinia = false, global: globalOverrides = {}, ...rest } = {}) {
-  const plugins = [i18n];
+  const plugins = [i18n, MotionPlugin];
   if (pinia) {
     plugins.push(pinia === true ? createTestingPinia({ createSpy: vi.fn }) : pinia);
   }

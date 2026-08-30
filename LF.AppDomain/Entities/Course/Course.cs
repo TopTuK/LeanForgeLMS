@@ -20,11 +20,17 @@ public sealed class Course
     public int? CoverImageStorageObjectId { get; private set; }
     public StorageObject? CoverImageStorageObject { get; private set; }
     public bool IsPublished { get; private set; }
+    public CoursePricingType PricingType { get; private set; }
+    public decimal? Price { get; private set; }
+    public CourseEnrollmentMode EnrollmentMode { get; private set; }
     public int CategoryId { get; private set; }
     public Category Category { get; private set; } = null!;
     public int CreatedByUserId { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public IReadOnlyList<Chapter> Chapters => _chapters.AsReadOnly();
+
+    // A paid course must carry a positive ruble price; a free course never carries one.
+    public const decimal MaxPrice = 10_000_000m;
 
     public static Course Create(
         string title,
@@ -32,7 +38,10 @@ public sealed class Course
         string description,
         Category category,
         int createdByUserId,
-        DateTime createdAt)
+        DateTime createdAt,
+        CoursePricingType pricingType = CoursePricingType.Free,
+        decimal? price = null,
+        CourseEnrollmentMode enrollmentMode = CourseEnrollmentMode.Open)
     {
         ArgumentNullException.ThrowIfNull(category);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(createdByUserId, 0);
@@ -46,6 +55,24 @@ public sealed class Course
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description cannot be empty.", nameof(description));
 
+        if (!Enum.IsDefined(pricingType))
+            throw new ArgumentException("Unknown course pricing type.", nameof(pricingType));
+
+        if (!Enum.IsDefined(enrollmentMode))
+            throw new ArgumentException("Unknown course enrollment mode.", nameof(enrollmentMode));
+
+        decimal? effectivePrice = null;
+        if (pricingType == CoursePricingType.Paid)
+        {
+            if (price is not > 0)
+                throw new ArgumentException("A paid course requires a price greater than zero.", nameof(price));
+
+            if (price > MaxPrice)
+                throw new ArgumentException($"Course price cannot exceed {MaxPrice} rubles.", nameof(price));
+
+            effectivePrice = decimal.Round(price.Value, 2);
+        }
+
         return new Course
         {
             Title = title.Trim(),
@@ -55,7 +82,10 @@ public sealed class Course
             CategoryId = category.Id,
             CreatedByUserId = createdByUserId,
             CreatedAt = createdAt,
-            IsPublished = false
+            IsPublished = false,
+            PricingType = pricingType,
+            Price = effectivePrice,
+            EnrollmentMode = enrollmentMode
         };
     }
 
@@ -123,6 +153,14 @@ public sealed class Course
             throw new ArgumentException("Description cannot be empty.", nameof(description));
 
         Description = description.Trim();
+    }
+
+    public void SetEnrollmentMode(CourseEnrollmentMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+            throw new ArgumentException("Unknown course enrollment mode.", nameof(mode));
+
+        EnrollmentMode = mode;
     }
 
     public void SetCategory(Category category)

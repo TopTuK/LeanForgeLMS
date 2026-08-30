@@ -56,6 +56,20 @@ describe('CourseCard', () => {
     });
   });
 
+  it('shows a Free pill for a free course', () => {
+    const { getByText } = renderComponent(CourseCard, {
+      props: { ...base, status: 'available', pricingType: 'Free' },
+    });
+    expect(getByText('Free')).toBeInTheDocument();
+  });
+
+  it('shows a formatted ruble price for a paid course', () => {
+    const { getByText } = renderComponent(CourseCard, {
+      props: { ...base, status: 'available', pricingType: 'Paid', price: 1990 },
+    });
+    expect(getByText(/1[\s ]?990\s*₽/)).toBeInTheDocument();
+  });
+
   it('renders a cover image when coverType is Image', () => {
     const { container } = renderComponent(CourseCard, {
       props: { ...base, status: 'available', coverType: 'Image', coverImageUrl: 'blob:cover' },

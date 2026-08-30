@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import StatusBadge from '@/components/courses/form/StatusBadge.vue';
 
 const props = defineProps({
@@ -22,6 +23,18 @@ const props = defineProps({
     coverType: { type: String, default: 'None' },
     coverColor: { type: String, default: null },
     coverImageUrl: { type: String, default: null },
+    pricingType: { type: String, default: null },
+    price: { type: Number, default: null },
+});
+
+const { t } = useI18n();
+
+const priceLabel = computed(() => {
+    if (props.pricingType === 'Free') return t('courses.card.free');
+    if (props.pricingType === 'Paid' && props.price != null) {
+        return `${new Intl.NumberFormat('ru-RU').format(props.price)} ₽`;
+    }
+    return null;
 });
 
 defineEmits(['view-details', 'continue', 'manage']);
@@ -70,6 +83,10 @@ const coverStyle = computed(() => (
             class="course-card__pill course-card__pill--muted"
           >{{ duration }}</span>
           <span class="course-card__pill course-card__pill--accent">{{ category }}</span>
+          <span
+            v-if="priceLabel"
+            class="course-card__pill course-card__pill--price"
+          >{{ priceLabel }}</span>
           <StatusBadge
             v-if="status === 'teaching' && isPublished !== null"
             :variant="isPublished ? 'published' : 'draft'"
@@ -305,6 +322,12 @@ const coverStyle = computed(() => (
 .course-card__pill--accent {
   background: #ffffff;
   color: var(--color-accent-coral-dark);
+  font-weight: 700;
+}
+
+.course-card__pill--price {
+  background: var(--color-surface-950);
+  color: var(--color-ink);
   font-weight: 700;
 }
 

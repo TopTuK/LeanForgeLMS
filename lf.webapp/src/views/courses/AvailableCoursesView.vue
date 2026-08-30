@@ -89,6 +89,8 @@ function onViewDetails(courseId) {
         :cover-type="course.coverType"
         :cover-color="course.coverColor"
         :cover-image-url="coverImageUrls[course.id] ?? null"
+        :pricing-type="course.pricingType"
+        :price="course.price"
         @view-details="onViewDetails(course.id)"
       />
     </div>

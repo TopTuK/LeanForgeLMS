@@ -37,6 +37,16 @@ service CourseServiceRpc {
   rpc RemoveLesson (RemoveLessonRequest) returns (CourseDetailReply);
   // Publish a course (requires at least one chapter, each with at least one lesson)
   rpc PublishCourse (PublishCourseRequest) returns (CourseDetailReply);
+  // Enroll another user in a course (course owner or admin only); used for managed-enrollment courses
+  rpc EnrollUser (EnrollUserRequest) returns (EnrollmentSummaryReply);
+  // Validate a promo code against a paid course and return the discounted price
+  rpc ValidatePromoCode (ValidatePromoCodeRequest) returns (PromoCodeValidationReply);
+  // Create a promo code (admin only)
+  rpc CreatePromoCode (CreatePromoCodeRequest) returns (PromoCodeReply);
+  // List promo codes, paged (admin only)
+  rpc ListPromoCodes (ListPromoCodesRequest) returns (ListPromoCodesReply);
+  // Deactivate a promo code (admin only)
+  rpc DeactivatePromoCode (DeactivatePromoCodeRequest) returns (DeactivatePromoCodeReply);
   // Replace a lesson's parts (text/image/video/audio blocks) with a new ordered set
   rpc ReplaceLessonParts (ReplaceLessonPartsRequest) returns (CourseDetailReply);
   // Browse published courses the acting user is not yet enrolled in, paged
@@ -94,6 +104,30 @@ enum QuestionType {
   QUESTION_TYPE_MULTIPLE_CHOICE = 1;
 }
 
+enum CoursePricingType {
+  COURSE_PRICING_TYPE_UNKNOWN = 0;
+  COURSE_PRICING_TYPE_FREE = 1;
+  COURSE_PRICING_TYPE_PAID = 2;
+}
+
+enum CourseEnrollmentMode {
+  COURSE_ENROLLMENT_MODE_UNKNOWN = 0;
+  COURSE_ENROLLMENT_MODE_OPEN = 1;
+  COURSE_ENROLLMENT_MODE_MANAGED = 2;
+}
+
+enum PromoCodeDiscountType {
+  PROMO_CODE_DISCOUNT_TYPE_UNKNOWN = 0;
+  PROMO_CODE_DISCOUNT_TYPE_PERCENTAGE = 1;
+  PROMO_CODE_DISCOUNT_TYPE_FIXED_AMOUNT = 2;
+}
+
+enum EnrollmentStatus {
+  ENROLLMENT_STATUS_UNKNOWN = 0;
+  ENROLLMENT_STATUS_ACTIVE = 1;
+  ENROLLMENT_STATUS_PENDING_PAYMENT = 2;
+}
+
 message CreateCourseRequest {
   string title = 1;
   string short_introduction = 2;
@@ -103,6 +137,9 @@ message CreateCourseRequest {
   CourseCoverType cover_type = 6;
   CourseCoverColor cover_color = 7;
   google.protobuf.Int32Value cover_image_storage_object_id = 8;
+  CoursePricingType pricing_type = 9;
+  google.protobuf.StringValue price_rub = 10;
+  CourseEnrollmentMode enrollment_mode = 11;
 }
 
 message GetCourseRequest {
@@ -137,6 +174,9 @@ message CourseSummaryReply {
   CourseCoverColor cover_color = 11;
   google.protobuf.StringValue cover_image_key = 12;
   google.protobuf.StringValue cover_image_content_type = 13;
+  CoursePricingType pricing_type = 14;
+  google.protobuf.StringValue price_rub = 15;
+  CourseEnrollmentMode enrollment_mode = 16;
 }
 
 message CourseDetailReply {
@@ -154,6 +194,9 @@ message CourseDetailReply {
   CourseCoverColor cover_color = 13;
   google.protobuf.StringValue cover_image_key = 14;
   google.protobuf.StringValue cover_image_content_type = 15;
+  CoursePricingType pricing_type = 16;
+  google.protobuf.StringValue price_rub = 17;
+  CourseEnrollmentMode enrollment_mode = 18;
 }
 
 message ChapterReply {
@@ -366,6 +409,8 @@ message CourseCatalogItemReply {
   CourseCoverColor cover_color = 8;
   google.protobuf.StringValue cover_image_key = 9;
   google.protobuf.StringValue cover_image_content_type = 10;
+  CoursePricingType pricing_type = 11;
+  google.protobuf.StringValue price_rub = 12;
 }
 
 message GetCourseCoverRequest {
@@ -380,6 +425,70 @@ message CourseCoverReply {
 message EnrollInCourseRequest {
   int32 course_id = 1;
   int32 acting_user_id = 2;
+  google.protobuf.StringValue promo_code = 3;
+}
+
+message EnrollUserRequest {
+  int32 course_id = 1;
+  int32 target_user_id = 2;
+  int32 acting_user_id = 3;
+  bool acting_is_admin = 4;
+}
+
+message ValidatePromoCodeRequest {
+  string code = 1;
+  int32 course_id = 2;
+  int32 acting_user_id = 3;
+}
+
+message PromoCodeValidationReply {
+  bool is_valid = 1;
+  google.protobuf.StringValue reason = 2;
+  string original_price = 3;
+  string discounted_price = 4;
+  string discount_amount = 5;
+}
+
+message CreatePromoCodeRequest {
+  string code = 1;
+  PromoCodeDiscountType discount_type = 2;
+  string discount_value = 3;
+  google.protobuf.Int32Value course_id = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  google.protobuf.Int32Value max_redemptions = 6;
+  int32 created_by_user_id = 7;
+}
+
+message ListPromoCodesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ListPromoCodesReply {
+  repeated PromoCodeReply items = 1;
+  int32 total_count = 2;
+}
+
+message DeactivatePromoCodeRequest {
+  int32 id = 1;
+}
+
+message DeactivatePromoCodeReply {
+  bool deactivated = 1;
+}
+
+message PromoCodeReply {
+  int32 id = 1;
+  string code = 2;
+  PromoCodeDiscountType discount_type = 3;
+  string discount_value = 4;
+  google.protobuf.Int32Value course_id = 5;
+  google.protobuf.StringValue course_title = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  google.protobuf.Int32Value max_redemptions = 8;
+  int32 redemption_count = 9;
+  bool is_active = 10;
+  google.protobuf.Timestamp created_at = 11;
 }
 
 message ListMyEnrollmentsRequest {
@@ -406,6 +515,8 @@ message EnrollmentSummaryReply {
   CourseCoverColor cover_color = 12;
   google.protobuf.StringValue cover_image_key = 13;
   google.protobuf.StringValue cover_image_content_type = 14;
+  EnrollmentStatus status = 15;
+  google.protobuf.StringValue price_paid = 16;
 }
 
 message GetEnrollmentRequest {
@@ -429,6 +540,8 @@ message EnrollmentDetailReply {
   google.protobuf.Timestamp enrolled_at = 5;
   google.protobuf.Timestamp completed_at = 6;
   repeated EnrollmentChapterReply chapters = 7;
+  EnrollmentStatus status = 8;
+  google.protobuf.StringValue price_paid = 9;
 }
 
 message EnrollmentChapterReply {
@@ -494,6 +607,8 @@ message CoursePreviewReply {
   bool is_enrolled = 12;
   google.protobuf.Int32Value enrollment_id = 13;
   repeated CoursePreviewChapterReply chapters = 14;
+  CoursePricingType pricing_type = 15;
+  google.protobuf.StringValue price_rub = 16;
 }
 
 message CoursePreviewChapterReply {

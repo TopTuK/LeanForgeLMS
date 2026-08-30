@@ -1,4 +1,5 @@
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.ModelDto.Promo;
 using LF.Application.Services.Enrollment;
 using Microsoft.Extensions.Logging;
 
@@ -17,11 +18,18 @@ internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningServic
         return await _grpcEnrollmentService.BrowseCatalogAsync(page, pageSize, actingUserId);
     }
 
-    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId)
+    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId, string? promoCode = null)
     {
         _logger.LogInformation("EnrollmentLearningService::EnrollAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
-        return await _grpcEnrollmentService.EnrollAsync(courseId, actingUserId);
+        return await _grpcEnrollmentService.EnrollAsync(courseId, actingUserId, promoCode);
+    }
+
+    public async Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId)
+    {
+        _logger.LogInformation("EnrollmentLearningService::ValidatePromoCodeAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        return await _grpcEnrollmentService.ValidatePromoCodeAsync(code, courseId, actingUserId);
     }
 
     public async Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, EnrollmentStatusFilter status)

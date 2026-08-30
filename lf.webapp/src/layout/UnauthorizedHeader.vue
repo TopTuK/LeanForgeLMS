@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { Menu } from 'lucide-vue-next';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
 import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
@@ -8,12 +8,31 @@ import { Sheet } from '@/components/ui/sheet';
 import logo from '@/assets/logo.svg';
 
 const navLinks = [
-  { href: '#courses', labelKey: 'nav.courses' },
+  { href: '#programs', labelKey: 'nav.programs' },
+  { href: '#approach', labelKey: 'nav.approach' },
   { href: '#faq', labelKey: 'nav.faq' },
-  { href: '#contacts', labelKey: 'nav.contacts' },
 ];
 
 const mobileOpen = ref(false);
+const condensed = ref(false);
+
+let scrollEl = null;
+
+function handleScroll() {
+  condensed.value = (scrollEl?.scrollTop ?? 0) > 8;
+}
+
+onMounted(() => {
+  scrollEl = document.querySelector('.base-scroll');
+  if (scrollEl) {
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+  }
+});
+
+onBeforeUnmount(() => {
+  scrollEl?.removeEventListener('scroll', handleScroll);
+});
 
 function closeMobile() {
   mobileOpen.value = false;
@@ -21,8 +40,11 @@ function closeMobile() {
 </script>
 
 <template>
-  <div class="app-header">
-    <div class="container mx-auto flex h-[4.5rem] items-center justify-between px-6">
+  <div
+    class="app-header"
+    :class="{ 'is-condensed': condensed }"
+  >
+    <div class="app-header__bar layout-max">
       <router-link
         :to="{ name: 'Home' }"
         class="app-header__brand"
@@ -31,26 +53,26 @@ function closeMobile() {
         <img
           :src="logo"
           alt=""
-          class="size-8"
+          class="app-header__logo"
         >
-        <span class="font-display text-[0.95rem] font-semibold leading-tight tracking-tight text-ink sm:text-base">
+        <span class="app-header__name font-display">
           <span class="sm:hidden">{{ $t('common.brand_short') }}</span>
           <span class="hidden sm:inline">{{ $t('common.brand_name') }}</span>
         </span>
       </router-link>
 
-      <nav class="hidden items-center gap-8 md:flex">
+      <nav class="app-header__nav">
         <a
           v-for="link in navLinks"
           :key="link.href"
           :href="link.href"
-          class="text-sm font-medium text-ink-muted transition hover:text-ink"
+          class="app-header__link"
         >
           {{ $t(link.labelKey) }}
         </a>
       </nav>
 
-      <div class="hidden items-center gap-3 md:flex">
+      <div class="app-header__actions">
         <ThemeToggleButton />
         <LocaleToggleButton />
         <Button
@@ -66,7 +88,7 @@ function closeMobile() {
 
       <button
         type="button"
-        class="text-ink md:hidden"
+        class="app-header__burger"
         :aria-label="$t('nav.menu_toggle')"
         @click="mobileOpen = true"
       >
@@ -115,9 +137,24 @@ function closeMobile() {
 .app-header {
   width: 100%;
   height: 100%;
-  background: color-mix(in srgb, var(--color-surface-950) 88%, transparent);
-  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface-950) 82%, transparent);
+  border-bottom: 1px solid transparent;
   backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.app-header.is-condensed {
+  background: color-mix(in srgb, var(--color-surface-950) 94%, transparent);
+  border-bottom-color: var(--color-border-subtle);
+}
+
+.app-header__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  height: 100%;
+  padding-inline: 1.5rem;
 }
 
 .app-header__brand {
@@ -125,5 +162,64 @@ function closeMobile() {
   align-items: center;
   gap: 0.7rem;
   min-width: 0;
+}
+
+.app-header__logo {
+  width: 2rem;
+  height: 2rem;
+  transition: width 0.2s ease, height 0.2s ease;
+}
+
+.app-header.is-condensed .app-header__logo {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.app-header__name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.app-header__nav {
+  display: none;
+  align-items: center;
+  gap: 2rem;
+}
+
+.app-header__link {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-ink-muted);
+  transition: color 0.15s ease;
+}
+
+.app-header__link:hover {
+  color: var(--color-ink);
+}
+
+.app-header__actions {
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-header__burger {
+  display: inline-flex;
+  color: var(--color-ink);
+}
+
+@media (min-width: 768px) {
+  .app-header__nav,
+  .app-header__actions {
+    display: flex;
+  }
+
+  .app-header__burger {
+    display: none;
+  }
 }
 </style>

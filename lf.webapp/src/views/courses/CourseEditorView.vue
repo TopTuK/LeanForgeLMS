@@ -14,6 +14,7 @@ import {
   moveLesson,
   removeLesson,
   publishCourse,
+  enrollStudent,
 } from '@/services/courseService';
 import StudioShell from '@/components/courses/studio/StudioShell.vue';
 import StudioButton from '@/components/courses/studio/StudioButton.vue';
@@ -250,6 +251,31 @@ async function publish() {
   publishing.value = false;
 }
 
+const addStudentId = ref('');
+const addStudentBusy = ref(false);
+const addStudentMessage = ref('');
+const addStudentError = ref(false);
+
+async function submitAddStudent() {
+  const userId = Number(addStudentId.value);
+  if (!userId || userId < 1) return;
+  addStudentBusy.value = true;
+  addStudentMessage.value = '';
+  try {
+    await enrollStudent(courseId, userId);
+    addStudentError.value = false;
+    addStudentMessage.value = t('courses.editor.add_student_ok', { id: userId });
+    addStudentId.value = '';
+  } catch (err) {
+    addStudentError.value = true;
+    addStudentMessage.value = err.response?.status === 409 && typeof err.response.data === 'string'
+      ? err.response.data
+      : t('courses.editor.add_student_error');
+  } finally {
+    addStudentBusy.value = false;
+  }
+}
+
 const chapterCount = computed(() => course.value?.chapters.length ?? 0);
 const lessonCount = computed(() => (
   course.value?.chapters.reduce((sum, ch) => sum + (ch.lessons?.length ?? 0), 0) ?? 0
@@ -475,6 +501,50 @@ const lessonCount = computed(() => (
               {{ $t('courses.editor.details_tip') }}
             </p>
           </div>
+
+          <div
+            v-if="course.isPublished"
+            class="studio-details__card"
+          >
+            <h2>{{ $t('courses.editor.add_student_title') }}</h2>
+            <p class="studio-details__tip">
+              {{ course.enrollmentMode === 'Managed'
+                ? $t('courses.editor.add_student_managed_hint')
+                : $t('courses.editor.add_student_open_hint') }}
+            </p>
+            <form
+              class="studio-add-student"
+              @submit.prevent="submitAddStudent"
+            >
+              <label
+                class="studio-add-student__label"
+                for="add-student-id"
+              >{{ $t('courses.editor.add_student_label') }}</label>
+              <div class="studio-add-student__row">
+                <input
+                  id="add-student-id"
+                  v-model="addStudentId"
+                  type="number"
+                  min="1"
+                  class="studio-add-student__input"
+                >
+                <StudioButton
+                  type="submit"
+                  variant="primary"
+                  :disabled="addStudentBusy || !addStudentId"
+                >
+                  {{ addStudentBusy ? $t('courses.editor.add_student_busy') : $t('courses.editor.add_student_action') }}
+                </StudioButton>
+              </div>
+              <p
+                v-if="addStudentMessage"
+                class="studio-add-student__msg"
+                :class="{ 'studio-add-student__msg--error': addStudentError }"
+              >
+                {{ addStudentMessage }}
+              </p>
+            </form>
+          </div>
         </section>
       </div>
     </template>
@@ -583,6 +653,45 @@ const lessonCount = computed(() => (
 .studio-badge--sm {
   font-size: 0.65rem;
   padding: 0.1rem 0.4rem;
+}
+
+.studio-add-student {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.studio-add-student__label {
+  color: var(--color-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.studio-add-student__row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.studio-add-student__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.4rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.studio-add-student__msg {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+}
+
+.studio-add-student__msg--error {
+  color: var(--color-accent-coral-dark);
 }
 
 .studio-badge[data-variant='published'] {
