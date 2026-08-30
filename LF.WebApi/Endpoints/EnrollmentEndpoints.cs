@@ -85,10 +85,14 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
 
             try
             {
-                var enrollment = await enrollmentService.EnrollAsync(request.CourseId, userId.Value);
+                var enrollment = await enrollmentService.EnrollAsync(request.CourseId, userId.Value, request.PromoCode);
                 return TypedResults.Created($"/api/enrollments/{enrollment.Id}", ToDetailResponse(enrollment));
             }
             catch (SelfEnrollmentException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (EnrollmentModeException)
             {
                 return TypedResults.Forbid();
             }
@@ -96,6 +100,25 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             {
                 return TypedResults.Conflict(ex.Message);
             }
+        });
+
+        group.MapGet("/promo-codes/validate", async Task<Results<Ok<PromoCodeValidationResponse>, UnauthorizedHttpResult, ValidationProblem>>
+            (string? code, int? courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(code) || courseId is not > 0)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["code"] = ["A promo code and a valid course id are required."],
+                });
+            }
+
+            var result = await enrollmentService.ValidatePromoCodeAsync(code, courseId.Value, userId.Value);
+            return TypedResults.Ok(new PromoCodeValidationResponse(
+                result.IsValid, result.Reason, result.OriginalPrice, result.DiscountedPrice, result.DiscountAmount));
         });
 
         group.MapGet("/mine", async Task<Results<Ok<IReadOnlyList<EnrollmentSummaryResponse>>, UnauthorizedHttpResult>>
@@ -256,7 +279,9 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         item.LessonCount,
         item.CoverType.ToString(),
         item.CoverColor?.ToString(),
-        item.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{item.Id}/cover/image" : null);
+        item.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{item.Id}/cover/image" : null,
+        item.PricingType.ToString(),
+        item.Price);
 
     private static EnrollmentSummaryResponse ToSummaryResponse(EnrollmentSummaryDto dto) => new(
         dto.Id,
@@ -271,7 +296,9 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CompletedAt,
         dto.CoverType.ToString(),
         dto.CoverColor?.ToString(),
-        dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.CourseId}/cover/image" : null);
+        dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.CourseId}/cover/image" : null,
+        dto.Status.ToString(),
+        dto.PricePaid);
 
     private static QuizSubmissionResponse ToQuizSubmissionResponse(QuizSubmissionDto dto) => new(
         new QuizAttemptResultResponse(
@@ -287,7 +314,9 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CourseDescription,
         dto.EnrolledAt,
         dto.CompletedAt,
-        [.. dto.Chapters.Select(ch => ToChapterResponse(dto.Id, ch))]);
+        [.. dto.Chapters.Select(ch => ToChapterResponse(dto.Id, ch))],
+        dto.Status.ToString(),
+        dto.PricePaid);
 
     private static EnrollmentChapterResponse ToChapterResponse(int enrollmentId, EnrollmentChapterDto chapter) => new(
         chapter.Id,
@@ -340,7 +369,9 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.Id}/cover/image" : null,
         dto.IsEnrolled,
         dto.EnrollmentId,
-        [.. dto.Chapters.Select(ch => ToCoursePreviewChapterResponse(dto.Id, ch))]);
+        [.. dto.Chapters.Select(ch => ToCoursePreviewChapterResponse(dto.Id, ch))],
+        dto.PricingType.ToString(),
+        dto.Price);
 
     private static CoursePreviewChapterResponse ToCoursePreviewChapterResponse(int courseId, CoursePreviewChapterDto chapter) => new(
         chapter.Id,

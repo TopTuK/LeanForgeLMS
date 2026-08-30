@@ -1,6 +1,7 @@
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Course;
 using LF.CourseService;
 using Mapster;
@@ -31,6 +32,38 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
         {
             throw new ArgumentException(ex.Status.Detail);
+        }
+    }
+
+    public async Task<EnrollmentSummaryDto?> EnrollUserAsync(int courseId, int targetUserId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("GrpcCourseService::EnrollUserAsync: called with CourseId={CourseId} TargetUserId={TargetUserId} ActingUserId={ActingUserId}",
+            courseId, targetUserId, actingUserId);
+
+        var request = new EnrollUserRequest
+        {
+            CourseId = courseId,
+            TargetUserId = targetUserId,
+            ActingUserId = actingUserId,
+            ActingIsAdmin = isAdmin,
+        };
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.EnrollUserAsync(request);
+            return reply.Adapt<EnrollmentSummaryDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new CourseAuthorizationException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
         }
     }
 

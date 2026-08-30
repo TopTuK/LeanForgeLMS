@@ -19,6 +19,10 @@ const description = ref('');
 const category = ref(null);
 const categories = ref([]);
 
+const pricingType = ref('Free');
+const price = ref(null);
+const enrollmentMode = ref('Open');
+
 const coverMode = ref('Color');
 const coverColor = ref(COVER_COLORS[0]);
 const coverImagePreviewUrl = ref('');
@@ -88,12 +92,15 @@ async function onCoverImageSelected(event) {
   }
 }
 
+const priceIsValid = computed(() => pricingType.value === 'Free' || Number(price.value) > 0);
+
 const canSubmit = computed(() =>
   Boolean(
     title.value.trim()
     && shortIntroduction.value.trim()
     && descriptionHasText(description.value)
     && category.value
+    && priceIsValid.value
     && (coverMode.value === 'Color' ? coverColor.value : coverImageStorageObjectId.value),
   ),
 );
@@ -113,6 +120,9 @@ async function submit() {
       shortIntroduction: shortIntroduction.value,
       description: description.value,
       categoryId: category.value,
+      pricingType: pricingType.value,
+      price: pricingType.value === 'Paid' ? Number(price.value) : null,
+      enrollmentMode: enrollmentMode.value,
       coverType: coverMode.value,
       coverColor: coverMode.value === 'Color' ? coverColor.value : null,
       coverImageStorageObjectId: coverMode.value === 'Image' ? coverImageStorageObjectId.value : null,
@@ -213,6 +223,67 @@ async function submit() {
               {{ item.name }}
             </button>
           </div>
+        </fieldset>
+
+        <fieldset class="create-fieldset">
+          <legend>{{ $t('courses.create.field_pricing') }}</legend>
+          <div
+            class="create-chips"
+            role="listbox"
+            :aria-label="$t('courses.create.field_pricing')"
+          >
+            <button
+              v-for="option in ['Free', 'Paid']"
+              :key="option"
+              type="button"
+              class="create-chip"
+              role="option"
+              :aria-selected="pricingType === option"
+              :class="{ 'is-active': pricingType === option }"
+              @click="pricingType = option"
+            >
+              {{ option === 'Free' ? $t('courses.create.pricing_free') : $t('courses.create.pricing_paid') }}
+            </button>
+          </div>
+          <label
+            v-if="pricingType === 'Paid'"
+            class="create-field"
+          >
+            <span class="create-field__label">{{ $t('courses.create.field_price') }}</span>
+            <input
+              v-model.number="price"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              class="create-price-input"
+            >
+          </label>
+        </fieldset>
+
+        <fieldset class="create-fieldset">
+          <legend>{{ $t('courses.create.field_enrollment_mode') }}</legend>
+          <div
+            class="create-chips"
+            role="listbox"
+            :aria-label="$t('courses.create.field_enrollment_mode')"
+          >
+            <button
+              v-for="option in ['Open', 'Managed']"
+              :key="option"
+              type="button"
+              class="create-chip"
+              role="option"
+              :aria-selected="enrollmentMode === option"
+              :class="{ 'is-active': enrollmentMode === option }"
+              @click="enrollmentMode = option"
+            >
+              {{ option === 'Open' ? $t('courses.create.mode_open') : $t('courses.create.mode_managed') }}
+            </button>
+          </div>
+          <p class="create-hint">
+            {{ enrollmentMode === 'Open' ? $t('courses.create.mode_open_hint') : $t('courses.create.mode_managed_hint') }}
+          </p>
         </fieldset>
 
         <fieldset class="create-fieldset">
@@ -462,6 +533,16 @@ async function submit() {
 
 .create-hint--error {
   color: var(--color-accent-coral-dark);
+}
+
+.create-price-input {
+  width: 12rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.45rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  font: inherit;
 }
 
 .create-chips {

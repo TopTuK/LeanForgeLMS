@@ -20,19 +20,120 @@ public class EnrollmentServiceTests
     private static EnrollmentService CreateService(
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<DomainEnrollment> enrollments,
-        out Mock<IAppDbContext> dbContextMock)
+        out Mock<IAppDbContext> dbContextMock,
+        IReadOnlyCollection<PromoCode>? promoCodes = null)
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
         var quizAttemptsMock = new List<QuizAttempt>().BuildMockDbSet();
+        var promoCodesMock = (promoCodes ?? []).ToList().BuildMockDbSet();
 
         dbContextMock = new Mock<IAppDbContext>();
         dbContextMock.SetupGet(c => c.Courses).Returns(coursesMock.Object);
         dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollmentsMock.Object);
         dbContextMock.SetupGet(c => c.QuizAttempts).Returns(quizAttemptsMock.Object);
+        dbContextMock.SetupGet(c => c.PromoCodes).Returns(promoCodesMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System);
+    }
+
+    private static DomainCourse CreatePublishedPaidCourse(int id = 1, int createdByUserId = 1, decimal price = 1000m)
+    {
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Paid", "Short", "Description", category, createdByUserId, DateTime.UtcNow,
+            CoursePricingType.Paid, price, CourseEnrollmentMode.Open);
+        EntityIdSetter.SetId(course, id);
+        var chapter = course.AddChapter("Chapter 1");
+        EntityIdSetter.SetId(chapter.AddLesson("Lesson 1"), 1);
+        course.Publish();
+        return course;
+    }
+
+    private static DomainCourse CreatePublishedManagedCourse(int id = 1, int createdByUserId = 1)
+    {
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Managed", "Short", "Description", category, createdByUserId, DateTime.UtcNow,
+            CoursePricingType.Free, null, CourseEnrollmentMode.Managed);
+        EntityIdSetter.SetId(course, id);
+        var chapter = course.AddChapter("Chapter 1");
+        EntityIdSetter.SetId(chapter.AddLesson("Lesson 1"), 1);
+        course.Publish();
+        return course;
+    }
+
+    [Fact]
+    public async Task EnrollAsync_ManagedCourse_ThrowsEnrollmentModeException()
+    {
+        var course = CreatePublishedManagedCourse();
+        var service = CreateService([course], [], out var dbContextMock);
+
+        await Assert.ThrowsAsync<EnrollmentModeException>(() => service.EnrollAsync(course.Id, actingUserId: 7));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_PaidCourseNoPromo_CreatesPendingPaymentEnrollment()
+    {
+        var course = CreatePublishedPaidCourse(price: 1990m);
+        var service = CreateService([course], [], out var dbContextMock);
+
+        var result = await service.EnrollAsync(course.Id, actingUserId: 7);
+
+        Assert.Equal(EnrollmentStatus.PendingPayment, result.Status);
+        Assert.Equal(1990m, result.PricePaid);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_PaidCourseWithPercentagePromo_AppliesDiscount()
+    {
+        var course = CreatePublishedPaidCourse(price: 2000m);
+        var promo = PromoCode.Create("SAVE10", PromoCodeDiscountType.Percentage, 10m, course.Id, null, null, 1, DateTime.UtcNow);
+        var service = CreateService([course], [], out _, [promo]);
+
+        var result = await service.EnrollAsync(course.Id, actingUserId: 7, promoCode: "save10");
+
+        Assert.Equal(EnrollmentStatus.PendingPayment, result.Status);
+        Assert.Equal(1800m, result.PricePaid);
+    }
+
+    [Fact]
+    public async Task ValidatePromoCodeAsync_ValidPercentagePromo_ReturnsDiscountedPrice()
+    {
+        var course = CreatePublishedPaidCourse(price: 2000m);
+        var promo = PromoCode.Create("SAVE25", PromoCodeDiscountType.FixedAmount, 500m, null, null, null, 1, DateTime.UtcNow);
+        var service = CreateService([course], [], out _, [promo]);
+
+        var result = await service.ValidatePromoCodeAsync("SAVE25", course.Id, actingUserId: 7);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(2000m, result.OriginalPrice);
+        Assert.Equal(1500m, result.DiscountedPrice);
+        Assert.Equal(500m, result.DiscountAmount);
+    }
+
+    [Fact]
+    public async Task ValidatePromoCodeAsync_FreeCourse_ReturnsInvalid()
+    {
+        var course = CreatePublishedCourse();
+        var service = CreateService([course], [], out _);
+
+        var result = await service.ValidatePromoCodeAsync("ANYTHING", course.Id, actingUserId: 7);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task GetEnrollmentAsync_PendingPayment_ThrowsAuthorization()
+    {
+        var course = CreatePublishedPaidCourse();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 1000m);
+        EntityIdSetter.SetId(enrollment, 1);
+        var service = CreateService([course], [enrollment], out _);
+
+        await Assert.ThrowsAsync<EnrollmentAuthorizationException>(
+            () => service.GetEnrollmentAsync(enrollment.Id, actingUserId: 7, isAdmin: false));
     }
 
     // Quiz option Ids are DB-generated (0 until persisted); grading matches by Id, so tests need

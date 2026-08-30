@@ -1,10 +1,12 @@
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 
 namespace LF.Application.Services.CourseAuthoring;
 
 public interface ICourseAuthoringService
 {
     Task<CourseDetailDto> CreateCourseAsync(CreateCourseDto dto, int createdByUserId);
+    Task<EnrollmentSummaryDto?> EnrollUserAsync(int courseId, int targetUserId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> GetCourseAsync(int id, int actingUserId, bool isAdmin);
     Task<PagedCoursesDto> ListCoursesAsync(int page, int pageSize, int actingUserId, bool isAdmin);
     Task<IReadOnlyList<CategoryDto>> ListCategoriesAsync();

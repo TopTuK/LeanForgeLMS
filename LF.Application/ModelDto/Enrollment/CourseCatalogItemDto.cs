@@ -10,6 +10,8 @@ public sealed class CourseCatalogItemDto
     public int CategoryId { get; init; }
     public string CategoryName { get; init; } = null!;
     public int LessonCount { get; init; }
+    public CoursePricingType PricingType { get; init; }
+    public decimal? Price { get; init; }
     public CourseCoverType CoverType { get; init; }
     public CourseCoverColor? CoverColor { get; init; }
     public string? CoverImageKey { get; init; }

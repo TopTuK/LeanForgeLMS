@@ -13,6 +13,9 @@ public sealed class CourseDetailDto
     public string? CoverImageKey { get; init; }
     public string? CoverImageContentType { get; init; }
     public bool IsPublished { get; init; }
+    public CoursePricingType PricingType { get; init; }
+    public decimal? Price { get; init; }
+    public CourseEnrollmentMode EnrollmentMode { get; init; }
     public int CategoryId { get; init; }
     public string CategoryName { get; init; } = null!;
     public int CreatedByUserId { get; init; }

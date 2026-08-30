@@ -40,7 +40,10 @@ public sealed record CourseDetailResponse(
     string CategoryName,
     int CreatedByUserId,
     DateTime CreatedAt,
-    IReadOnlyList<ChapterResponse> Chapters);
+    IReadOnlyList<ChapterResponse> Chapters,
+    string PricingType,
+    decimal? Price,
+    string EnrollmentMode);
 
 public sealed record CourseSummaryResponse(
     int Id,
@@ -54,7 +57,10 @@ public sealed record CourseSummaryResponse(
     string CategoryName,
     int CreatedByUserId,
     DateTime CreatedAt,
-    int ChapterCount);
+    int ChapterCount,
+    string PricingType,
+    decimal? Price,
+    string EnrollmentMode);
 
 public sealed record PagedCoursesResponse(IReadOnlyList<CourseSummaryResponse> Items, int TotalCount, int Page, int PageSize);
 
@@ -65,16 +71,31 @@ public sealed record CreateCourseRequest(
     int CategoryId,
     string CoverType,
     string? CoverColor,
-    int? CoverImageStorageObjectId);
+    int? CoverImageStorageObjectId,
+    string PricingType,
+    decimal? Price,
+    string EnrollmentMode);
 
 public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCourseRequest>
 {
+    private const decimal MaxPrice = 10_000_000m;
+
     public CreateCourseRequestValidator()
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ShortIntroduction).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Description).NotEmpty();
         RuleFor(x => x.CategoryId).GreaterThan(0);
+
+        RuleFor(x => x.PricingType).Must(t => Enum.TryParse<CoursePricingType>(t, ignoreCase: true, out _))
+            .WithMessage("Pricing type must be Free or Paid.");
+
+        RuleFor(x => x.EnrollmentMode).Must(m => Enum.TryParse<CourseEnrollmentMode>(m, ignoreCase: true, out _))
+            .WithMessage("Enrollment mode must be Open or Managed.");
+
+        RuleFor(x => x.Price).NotNull().GreaterThan(0).LessThanOrEqualTo(MaxPrice)
+            .When(x => string.Equals(x.PricingType, nameof(CoursePricingType.Paid), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("A paid course requires a price between 0 and 10000000 rubles.");
 
         RuleFor(x => x.CoverType).Must(t => Enum.TryParse<CourseCoverType>(t, out _))
             .WithMessage("Cover type must be one of None, Color, Image.");
@@ -86,6 +107,16 @@ public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCours
         RuleFor(x => x.CoverImageStorageObjectId).GreaterThan(0)
             .When(x => string.Equals(x.CoverType, nameof(CourseCoverType.Image), StringComparison.OrdinalIgnoreCase))
             .WithMessage("A cover image storage object id is required when cover type is Image.");
+    }
+}
+
+public sealed record EnrollUserRequest(int UserId);
+
+public sealed class EnrollUserRequestValidator : AbstractValidator<EnrollUserRequest>
+{
+    public EnrollUserRequestValidator()
+    {
+        RuleFor(x => x.UserId).GreaterThan(0);
     }
 }
 

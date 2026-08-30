@@ -8,6 +8,9 @@ public sealed class CreateCourseDto
     public string ShortIntroduction { get; init; } = null!;
     public string Description { get; init; } = null!;
     public int CategoryId { get; init; }
+    public CoursePricingType PricingType { get; init; } = CoursePricingType.Free;
+    public decimal? Price { get; init; }
+    public CourseEnrollmentMode EnrollmentMode { get; init; } = CourseEnrollmentMode.Open;
     public CourseCoverType CoverType { get; init; } = CourseCoverType.None;
     public CourseCoverColor? CoverColor { get; init; }
     public int? CoverImageStorageObjectId { get; init; }

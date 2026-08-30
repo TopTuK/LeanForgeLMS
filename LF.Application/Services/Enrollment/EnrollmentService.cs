@@ -4,6 +4,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.ModelDto.Promo;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
@@ -49,6 +50,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             CategoryId = c.CategoryId,
             CategoryName = c.Category.Name,
             LessonCount = c.Chapters.Sum(ch => ch.Lessons.Count),
+            PricingType = c.PricingType,
+            Price = c.Price,
             CoverType = c.CoverType,
             CoverColor = c.CoverColor,
             CoverImageKey = c.CoverImageStorageObject?.ObjectKey,
@@ -58,7 +61,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         return new PagedCourseCatalogDto { Items = items, TotalCount = totalCount };
     }
 
-    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId)
+    public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId, string? promoCode = null)
     {
         _logger.LogInformation("EnrollmentService::EnrollAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
@@ -72,15 +75,80 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         if (!course.IsPublished)
             throw new InvalidOperationException("Cannot enroll in an unpublished course.");
 
+        if (course.EnrollmentMode == CourseEnrollmentMode.Managed)
+            throw new EnrollmentModeException("This course does not allow self-enrollment.");
+
         var alreadyEnrolled = await _dbContext.Enrollments.AnyAsync(e => e.CourseId == courseId && e.UserId == actingUserId);
         if (alreadyEnrolled)
             throw new InvalidOperationException("Already enrolled in this course.");
 
-        var enrollment = DomainEnrollment.Create(courseId, actingUserId, _timeProvider.GetUtcNow().UtcDateTime);
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        DomainEnrollment enrollment;
+
+        if (course.PricingType == CoursePricingType.Free)
+        {
+            enrollment = DomainEnrollment.Create(courseId, actingUserId, now, EnrollmentStatus.Active, 0m);
+        }
+        else
+        {
+            var price = course.Price!.Value;
+            int? appliedPromoId = null;
+
+            var promo = await ResolvePromoAsync(promoCode, courseId);
+            if (promo is not null && promo.IsRedeemable(now))
+            {
+                price = promo.ApplyTo(price);
+                appliedPromoId = promo.Id;
+            }
+
+            // No charge and no promo redemption yet — a paid enrollment stays PendingPayment
+            // until the (not-yet-built) payment flow activates it and redeems the code.
+            enrollment = DomainEnrollment.Create(courseId, actingUserId, now, EnrollmentStatus.PendingPayment, price, appliedPromoId);
+        }
+
         _dbContext.Enrollments.Add(enrollment);
         await _dbContext.SaveChangesAsync();
 
         return ToDetailDto(enrollment, course);
+    }
+
+    public async Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId)
+    {
+        _logger.LogInformation("EnrollmentService::ValidatePromoCodeAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var course = await _dbContext.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
+        if (course is null)
+            return new PromoCodeValidationDto { IsValid = false, Reason = "Course not found." };
+
+        if (course.PricingType != CoursePricingType.Paid)
+            return new PromoCodeValidationDto { IsValid = false, Reason = "This course is free." };
+
+        var promo = await ResolvePromoAsync(code, courseId);
+        if (promo is null)
+            return new PromoCodeValidationDto { IsValid = false, Reason = "Promo code not found for this course." };
+
+        if (!promo.IsRedeemable(_timeProvider.GetUtcNow().UtcDateTime))
+            return new PromoCodeValidationDto { IsValid = false, Reason = "Promo code is expired or has reached its redemption limit." };
+
+        var original = course.Price!.Value;
+        var discounted = promo.ApplyTo(original);
+        return new PromoCodeValidationDto
+        {
+            IsValid = true,
+            OriginalPrice = original,
+            DiscountedPrice = discounted,
+            DiscountAmount = decimal.Round(original - discounted, 2),
+        };
+    }
+
+    private async Task<PromoCode?> ResolvePromoAsync(string? code, int courseId)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return null;
+
+        var normalized = code.Trim().ToUpperInvariant();
+        return await _dbContext.PromoCodes.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Code == normalized && (p.CourseId == null || p.CourseId == courseId));
     }
 
     public async Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, EnrollmentStatusFilter status)
@@ -119,6 +187,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
                     CourseTitle = course.Title,
                     CourseShortIntroduction = course.ShortIntroduction,
                     CategoryName = course.Category.Name,
+                    Status = e.Status,
+                    PricePaid = e.PricePaid,
                     TotalLessonCount = totalLessons,
                     CompletedLessonCount = e.CompletedLessonIds.Length,
                     ProgressPercent = e.ProgressPercent(totalLessons),
@@ -141,6 +211,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             return null;
 
         EnsureOwnership(enrollment, actingUserId, isAdmin);
+        EnsureAccessible(enrollment, isAdmin);
 
         var course = await LoadCourseAsync(enrollment.CourseId);
         return course is null ? null : ToDetailDto(enrollment, course);
@@ -156,6 +227,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             return null;
 
         EnsureOwnership(enrollment, actingUserId, isAdmin);
+        EnsureAccessible(enrollment, isAdmin);
 
         var course = await LoadCourseAsync(enrollment.CourseId);
         if (course is null)
@@ -189,6 +261,7 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             return null;
 
         EnsureOwnership(enrollment, actingUserId, isAdmin);
+        EnsureAccessible(enrollment, isAdmin);
 
         var course = await LoadCourseAsync(enrollment.CourseId);
         if (course is null)
@@ -264,6 +337,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             CategoryId = course.CategoryId,
             CategoryName = course.Category.Name,
             LessonCount = course.Chapters.Sum(ch => ch.Lessons.Count),
+            PricingType = course.PricingType,
+            Price = course.Price,
             CoverType = course.CoverType,
             CoverColor = course.CoverColor,
             CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
@@ -346,6 +421,14 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
             throw new EnrollmentAuthorizationException("You do not have access to this enrollment.");
     }
 
+    // A paid enrollment stays locked until the payment flow activates it. Reuses the
+    // authorization exception so it travels the existing PermissionDenied -> 403 path.
+    private static void EnsureAccessible(DomainEnrollment enrollment, bool isAdmin)
+    {
+        if (!isAdmin && enrollment.Status == EnrollmentStatus.PendingPayment)
+            throw new EnrollmentAuthorizationException("This enrollment is awaiting payment.");
+    }
+
     private Task<DomainCourse?> LoadCourseAsync(int courseId) =>
         _dbContext.Courses
             .AsNoTracking()
@@ -372,6 +455,8 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         CourseId = course.Id,
         CourseTitle = course.Title,
         CourseDescription = course.Description,
+        Status = enrollment.Status,
+        PricePaid = enrollment.PricePaid,
         EnrolledAt = enrollment.EnrolledAt,
         CompletedAt = enrollment.CompletedAt,
         Chapters = [.. course.Chapters

@@ -9,6 +9,8 @@ public sealed class EnrollmentSummaryDto
     public string CourseTitle { get; init; } = null!;
     public string CourseShortIntroduction { get; init; } = null!;
     public string CategoryName { get; init; } = null!;
+    public EnrollmentStatus Status { get; init; }
+    public decimal PricePaid { get; init; }
     public int TotalLessonCount { get; init; }
     public int CompletedLessonCount { get; init; }
     public int ProgressPercent { get; init; }

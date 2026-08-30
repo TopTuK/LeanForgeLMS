@@ -1,11 +1,13 @@
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.ModelDto.Promo;
 
 namespace LF.Application.Services.EnrollmentLearning;
 
 public interface IEnrollmentLearningService
 {
     Task<PagedCourseCatalogDto> BrowseCatalogAsync(int page, int pageSize, int actingUserId);
-    Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId);
+    Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId, string? promoCode = null);
+    Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId);
     Task<IReadOnlyList<EnrollmentSummaryDto>> ListMyEnrollmentsAsync(int actingUserId, EnrollmentStatusFilter status);
     Task<EnrollmentDetailDto?> GetEnrollmentAsync(int id, int actingUserId, bool isAdmin);
     Task<EnrollmentDetailDto?> CompleteLessonAsync(int id, int lessonId, int actingUserId, bool isAdmin);

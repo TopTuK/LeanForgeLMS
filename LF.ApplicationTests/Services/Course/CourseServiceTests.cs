@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.Moq;
 using Moq;
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
+using DomainEnrollment = LF.AppDomain.Entities.Course.Enrollment;
 
 namespace LF.ApplicationTests.Services.Course;
 
@@ -61,6 +62,106 @@ public class CourseServiceTests
     }
 
     [Fact]
+    public async Task CreateCourseAsync_PaidCourse_StoresPriceAndMode()
+    {
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out _);
+        var dto = new CreateCourseDto
+        {
+            Title = "Title",
+            ShortIntroduction = "Short",
+            Description = "Description",
+            CategoryId = category.Id,
+            PricingType = CoursePricingType.Paid,
+            Price = 1990m,
+            EnrollmentMode = CourseEnrollmentMode.Managed,
+        };
+
+        var result = await service.CreateCourseAsync(dto, createdByUserId: 1);
+
+        Assert.Equal(CoursePricingType.Paid, result.PricingType);
+        Assert.Equal(1990m, result.Price);
+        Assert.Equal(CourseEnrollmentMode.Managed, result.EnrollmentMode);
+    }
+
+    [Fact]
+    public async Task CreateCourseAsync_PaidWithoutPrice_ThrowsArgumentException()
+    {
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out _);
+        var dto = new CreateCourseDto
+        {
+            Title = "Title",
+            ShortIntroduction = "Short",
+            Description = "Description",
+            CategoryId = category.Id,
+            PricingType = CoursePricingType.Paid,
+            Price = null,
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCourseAsync(dto, createdByUserId: 1));
+    }
+
+    private static CourseService CreateServiceWithEnrollments(
+        IReadOnlyCollection<DomainCourse> courses,
+        IReadOnlyCollection<DomainEnrollment> enrollments,
+        out Mock<IAppDbContext> dbContextMock)
+    {
+        var coursesMock = courses.ToList().BuildMockDbSet();
+        var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
+
+        dbContextMock = new Mock<IAppDbContext>();
+        dbContextMock.SetupGet(c => c.Courses).Returns(coursesMock.Object);
+        dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollmentsMock.Object);
+        dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System);
+    }
+
+    private static DomainCourse CreatePublishedManagedCourse(int id = 1, int ownerId = 1)
+    {
+        var course = DomainCourse.Create("Managed", "Short", "Description", Category.Create("Backend"), ownerId, DateTime.UtcNow,
+            CoursePricingType.Free, null, CourseEnrollmentMode.Managed);
+        EntityIdSetter.SetId(course, id);
+        var chapter = course.AddChapter("Chapter 1");
+        EntityIdSetter.SetId(chapter.AddLesson("Lesson 1"), 1);
+        course.Publish();
+        return course;
+    }
+
+    [Fact]
+    public async Task EnrollUserAsync_ByOwner_CreatesActiveEnrollment()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var service = CreateServiceWithEnrollments([course], [], out var dbContextMock);
+
+        var result = await service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 1, isAdmin: false);
+
+        Assert.NotNull(result);
+        Assert.Equal(EnrollmentStatus.Active, result!.Status);
+        Assert.Equal(0m, result.PricePaid);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnrollUserAsync_ByNonOwnerNonAdmin_ThrowsAuthorization()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var service = CreateServiceWithEnrollments([course], [], out _);
+
+        await Assert.ThrowsAsync<CourseAuthorizationException>(
+            () => service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 99, isAdmin: false));
+    }
+
+    [Fact]
+    public async Task EnrollUserAsync_MissingCourse_ReturnsNull()
+    {
+        var service = CreateServiceWithEnrollments([], [], out _);
+
+        Assert.Null(await service.EnrollUserAsync(courseId: 42, targetUserId: 7, actingUserId: 1, isAdmin: true));
+    }
+
+    [Fact]
     public async Task CreateCourseAsync_UnknownCategory_ThrowsArgumentException()
     {
         // Arrange
@@ -79,8 +180,12 @@ public class CourseServiceTests
         var service = CreateService([], [category], out _);
         var dto = new CreateCourseDto
         {
-            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
-            CoverType = CourseCoverType.Color, CoverColor = CourseCoverColor.Ocean,
+            Title = "Title",
+            ShortIntroduction = "Short",
+            Description = "Description",
+            CategoryId = category.Id,
+            CoverType = CourseCoverType.Color,
+            CoverColor = CourseCoverColor.Ocean,
         };
 
         // Act
@@ -101,8 +206,12 @@ public class CourseServiceTests
         var service = CreateService([], [category], [storageObject], out _);
         var dto = new CreateCourseDto
         {
-            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
-            CoverType = CourseCoverType.Image, CoverImageStorageObjectId = storageObject.Id,
+            Title = "Title",
+            ShortIntroduction = "Short",
+            Description = "Description",
+            CategoryId = category.Id,
+            CoverType = CourseCoverType.Image,
+            CoverImageStorageObjectId = storageObject.Id,
         };
 
         // Act
@@ -122,8 +231,12 @@ public class CourseServiceTests
         var service = CreateService([], [category], out _);
         var dto = new CreateCourseDto
         {
-            Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = category.Id,
-            CoverType = CourseCoverType.Image, CoverImageStorageObjectId = 999,
+            Title = "Title",
+            ShortIntroduction = "Short",
+            Description = "Description",
+            CategoryId = category.Id,
+            CoverType = CourseCoverType.Image,
+            CoverImageStorageObjectId = 999,
         };
 
         // Act & Assert

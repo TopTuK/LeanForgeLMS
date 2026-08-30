@@ -9,6 +9,7 @@ import {
   fetchCoursePreviewLessonMediaObjectUrl,
   fetchCoursePreviewLessonPartFileObjectUrl,
   enroll,
+  validatePromoCode,
 } from '@/services/enrollmentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
@@ -23,6 +24,40 @@ const loading = ref(true);
 const notFound = ref(false);
 const errorMessage = ref('');
 const enrolling = ref(false);
+const pendingPayment = ref(false);
+
+const isPaid = computed(() => course.value?.pricingType === 'Paid');
+const rubFormatter = new Intl.NumberFormat('ru-RU');
+
+const promoCode = ref('');
+const promoChecking = ref(false);
+const promoResult = ref(null);
+
+const effectivePrice = computed(() => {
+  if (!isPaid.value) return null;
+  if (promoResult.value?.isValid) return promoResult.value.discountedPrice;
+  return course.value.price;
+});
+
+const priceLabel = computed(() => {
+  if (!course.value) return '';
+  if (!isPaid.value) return t('courses.detail.price_free');
+  return `${rubFormatter.format(effectivePrice.value)} ₽`;
+});
+
+async function applyPromoCode() {
+  const code = promoCode.value.trim();
+  if (!code || !course.value) return;
+  promoChecking.value = true;
+  promoResult.value = null;
+  try {
+    promoResult.value = await validatePromoCode(code, course.value.id);
+  } catch {
+    promoResult.value = { isValid: false, reason: t('courses.detail.promo_error') };
+  } finally {
+    promoChecking.value = false;
+  }
+}
 
 const { coverImageUrls, load: loadCoverImages } = useCourseCoverImages(fetchCourseCoverImageObjectUrl);
 const coverImageUrl = computed(() => (course.value ? coverImageUrls.value[course.value.id] ?? null : null));
@@ -70,10 +105,17 @@ async function onCtaClick() {
   enrolling.value = true;
   errorMessage.value = '';
   try {
-    const enrollment = await enroll(course.value.id);
+    const appliedCode = promoResult.value?.isValid ? promoCode.value.trim() : null;
+    const enrollment = await enroll(course.value.id, appliedCode);
+    if (enrollment.status === 'PendingPayment') {
+      pendingPayment.value = true;
+      return;
+    }
     router.push({ name: 'CourseLearn', params: { enrollmentId: enrollment.id } });
-  } catch {
-    errorMessage.value = t('courses.detail.enroll_error');
+  } catch (err) {
+    errorMessage.value = err.response?.status === 403
+      ? t('courses.detail.managed_only')
+      : t('courses.detail.enroll_error');
   } finally {
     enrolling.value = false;
   }
@@ -368,7 +410,61 @@ async function downloadFile(lesson, part, file) {
         </div>
 
         <aside class="course-detail__cta-panel">
+          <p class="course-detail__price">
+            {{ priceLabel }}
+            <span
+              v-if="isPaid && promoResult?.isValid"
+              class="course-detail__price-old"
+            >{{ rubFormatter.format(course.price) }} ₽</span>
+          </p>
+
+          <div
+            v-if="isPaid && !course.isEnrolled && !pendingPayment"
+            class="course-detail__promo"
+          >
+            <label
+              class="course-detail__promo-label"
+              :for="'promo-code'"
+            >{{ $t('courses.detail.promo_label') }}</label>
+            <div class="course-detail__promo-row">
+              <input
+                id="promo-code"
+                v-model="promoCode"
+                type="text"
+                class="course-detail__promo-input"
+                :placeholder="$t('courses.detail.promo_placeholder')"
+              >
+              <button
+                type="button"
+                class="course-detail__promo-btn"
+                :disabled="promoChecking || !promoCode.trim()"
+                @click="applyPromoCode"
+              >
+                {{ promoChecking ? $t('courses.detail.promo_checking') : $t('courses.detail.promo_apply') }}
+              </button>
+            </div>
+            <p
+              v-if="promoResult && !promoResult.isValid"
+              class="course-detail__promo-msg course-detail__promo-msg--error"
+            >
+              {{ promoResult.reason || $t('courses.detail.promo_invalid') }}
+            </p>
+            <p
+              v-else-if="promoResult?.isValid"
+              class="course-detail__promo-msg"
+            >
+              {{ $t('courses.detail.promo_applied', { amount: rubFormatter.format(promoResult.discountAmount) }) }}
+            </p>
+          </div>
+
+          <p
+            v-if="pendingPayment"
+            class="course-detail__pending"
+          >
+            {{ $t('courses.detail.awaiting_payment') }}
+          </p>
           <button
+            v-else
             type="button"
             class="course-detail__cta-btn"
             :disabled="enrolling"
@@ -767,6 +863,95 @@ async function downloadFile(lesson, part, file) {
 .course-detail__cta-panel {
   position: sticky;
   top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-900);
+}
+
+.course-detail__price {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.course-detail__price-old {
+  margin-left: 0.5rem;
+  color: var(--color-ink-faint);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: line-through;
+}
+
+.course-detail__promo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.course-detail__promo-label {
+  color: var(--color-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.course-detail__promo-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.course-detail__promo-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.4rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.course-detail__promo-btn {
+  flex-shrink: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.4rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.course-detail__promo-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.course-detail__promo-msg {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-ink-muted);
+}
+
+.course-detail__promo-msg--error {
+  color: var(--color-accent-coral-dark);
+}
+
+.course-detail__pending {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: 0.5rem;
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .course-detail__cta-btn {

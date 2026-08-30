@@ -11,19 +11,29 @@ public sealed record CourseCatalogItemResponse(
     int LessonCount,
     string CoverType,
     string? CoverColor,
-    string? CoverImageUrl);
+    string? CoverImageUrl,
+    string PricingType,
+    decimal? Price);
 
 public sealed record PagedCourseCatalogResponse(IReadOnlyList<CourseCatalogItemResponse> Items, int TotalCount, int Page, int PageSize);
 
-public sealed record EnrollRequest(int CourseId);
+public sealed record EnrollRequest(int CourseId, string? PromoCode = null);
 
 public sealed class EnrollRequestValidator : AbstractValidator<EnrollRequest>
 {
     public EnrollRequestValidator()
     {
         RuleFor(x => x.CourseId).GreaterThan(0);
+        RuleFor(x => x.PromoCode).MaximumLength(64).When(x => !string.IsNullOrEmpty(x.PromoCode));
     }
 }
+
+public sealed record PromoCodeValidationResponse(
+    bool IsValid,
+    string? Reason,
+    decimal OriginalPrice,
+    decimal DiscountedPrice,
+    decimal DiscountAmount);
 
 public sealed record EnrollmentSummaryResponse(
     int Id,
@@ -38,7 +48,9 @@ public sealed record EnrollmentSummaryResponse(
     DateTime? CompletedAt,
     string CoverType,
     string? CoverColor,
-    string? CoverImageUrl);
+    string? CoverImageUrl,
+    string Status,
+    decimal PricePaid);
 
 public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted, IReadOnlyList<LessonPartResponse> Parts);
 
@@ -51,7 +63,9 @@ public sealed record EnrollmentDetailResponse(
     string CourseDescription,
     DateTime EnrolledAt,
     DateTime? CompletedAt,
-    IReadOnlyList<EnrollmentChapterResponse> Chapters);
+    IReadOnlyList<EnrollmentChapterResponse> Chapters,
+    string Status,
+    decimal PricePaid);
 
 public sealed record QuizAnswerRequest(int QuestionId, IReadOnlyList<int> SelectedOptionIds);
 
@@ -100,4 +114,6 @@ public sealed record CoursePreviewResponse(
     string? CoverImageUrl,
     bool IsEnrolled,
     int? EnrollmentId,
-    IReadOnlyList<CoursePreviewChapterResponse> Chapters);
+    IReadOnlyList<CoursePreviewChapterResponse> Chapters,
+    string PricingType,
+    decimal? Price);

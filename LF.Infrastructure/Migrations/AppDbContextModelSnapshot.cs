@@ -101,8 +101,17 @@ namespace LF.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("EnrollmentMode")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("IsPublished")
                         .HasColumnType("boolean");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<int>("PricingType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ShortIntroduction")
                         .IsRequired()
@@ -144,10 +153,21 @@ namespace LF.Infrastructure.Migrations
                     b.Property<DateTime>("EnrolledAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("PricePaid")
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<int?>("PromoCodeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PromoCodeId");
 
                     b.HasIndex("CourseId", "UserId")
                         .IsUnique();
@@ -252,6 +272,56 @@ namespace LF.Infrastructure.Migrations
                     b.HasIndex("StorageObjectId");
 
                     b.ToTable("LFLessonPartFiles", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.PromoCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxRedemptions")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RedemptionCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CourseId");
+
+                    b.ToTable("LFPromoCodes", (string)null);
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>
@@ -473,6 +543,11 @@ namespace LF.Infrastructure.Migrations
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("LF.AppDomain.Entities.Course.PromoCode", null)
+                        .WithMany()
+                        .HasForeignKey("PromoCodeId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Lesson", b =>
@@ -515,6 +590,16 @@ namespace LF.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("StorageObject");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.PromoCode", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Course");
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizAnswer", b =>

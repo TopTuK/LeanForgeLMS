@@ -5,6 +5,8 @@ using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Profile;
+using LF.Application.Services.Promo;
+using LF.Application.Services.PromoCodeAdmin;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
 using Mapster;
@@ -25,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<ICourseAuthoringService, CourseAuthoringService>();
         services.AddScoped<IEnrollmentLearningService, EnrollmentLearningService>();
+        services.AddScoped<IPromoCodeAdminService, PromoCodeAdminService>();
         services.AddScoped<IStorageService, StorageService>();
 
         return services;
@@ -46,6 +49,7 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
+        services.AddScoped<IPromoCodeService, PromoCodeService>();
 
         return services;
     }

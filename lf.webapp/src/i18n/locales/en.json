@@ -54,7 +54,8 @@
             "users": "Users",
             "courses": "Courses",
             "categories": "Categories",
-            "toggle": "Toggle sidebar"
+            "toggle": "Toggle sidebar",
+            "promo_codes": "Promo codes"
         },
         "users": {
             "title": "Users",
@@ -98,6 +99,31 @@
             "no_categories": "No categories found.",
             "load_error": "Could not load categories. Please try again.",
             "save_error": "Could not save changes. Please try again."
+        },
+        "promo_codes": {
+            "title": "Promo codes",
+            "add_action": "New promo code",
+            "add_title": "New promo code",
+            "save": "Create",
+            "code": "Code",
+            "discount": "Discount",
+            "discount_type": "Discount type",
+            "discount_value": "Discount value",
+            "percentage": "Percentage (%)",
+            "fixed_amount": "Fixed amount (RUB)",
+            "course_id_optional": "Course id (optional - leave blank for all paid courses)",
+            "expires_at_optional": "Expires on (optional)",
+            "max_redemptions_optional": "Max redemptions (optional)",
+            "scope": "Scope",
+            "global": "All paid courses",
+            "redemptions": "Redemptions",
+            "inactive": "Inactive",
+            "deactivate": "Deactivate",
+            "deactivate_title": "Deactivate promo code",
+            "deactivate_confirm": "Deactivate promo code \"{code}\"? It can no longer be applied.",
+            "empty": "No promo codes yet.",
+            "load_error": "Could not load promo codes. Please try again.",
+            "save_error": "Could not save. Please try again."
         }
     },
     "courses": {
@@ -137,7 +163,17 @@
                 "download": "Download",
                 "downloading": "Downloading…",
                 "download_error": "Could not download this file. Please try again."
-            }
+            },
+            "price_free": "Free",
+            "promo_label": "Promo code",
+            "promo_placeholder": "Enter code",
+            "promo_apply": "Apply",
+            "promo_checking": "Checking...",
+            "promo_applied": "Promo applied - you save {amount} RUB.",
+            "promo_invalid": "This promo code cannot be applied.",
+            "promo_error": "Could not check the promo code. Please try again.",
+            "managed_only": "This course is enrollment-by-invitation only.",
+            "awaiting_payment": "You are enrolled. Access opens once payment is completed."
         },
         "active": {
             "title": "Active courses",
@@ -232,7 +268,16 @@
             "edit_action": "Continue",
             "coming_soon_section_title": "More options coming soon",
             "coming_soon": "Instructors, tags, pricing and certification are coming soon.",
-            "back": "Back to courses"
+            "back": "Back to courses",
+            "field_pricing": "Pricing",
+            "pricing_free": "Free",
+            "pricing_paid": "Paid",
+            "field_price": "Price, RUB",
+            "field_enrollment_mode": "Enrollment",
+            "mode_open": "Open",
+            "mode_managed": "Managed",
+            "mode_open_hint": "Students can enroll themselves.",
+            "mode_managed_hint": "Only a course creator, instructor or admin can add students."
         },
         "editor": {
             "eyebrow": "Course editor",
@@ -273,7 +318,15 @@
             "back_to_courses": "Back to courses",
             "outline_summary": "{chapters} chapters · {lessons} lessons",
             "details_title": "Course details",
-            "details_tip": "Add a chapter to start. Add a lesson to open the editor and write content."
+            "details_tip": "Add a chapter to start. Add a lesson to open the editor and write content.",
+            "add_student_title": "Add a student",
+            "add_student_managed_hint": "This course is managed - students cannot enroll themselves.",
+            "add_student_open_hint": "Add a student directly by their user id.",
+            "add_student_label": "Student user id",
+            "add_student_action": "Add",
+            "add_student_busy": "Adding...",
+            "add_student_ok": "Student {id} was enrolled.",
+            "add_student_error": "Could not add the student. Please try again."
         },
         "lessonEditor": {
             "eyebrow": "Lesson",
@@ -386,7 +439,10 @@
                 }
             }
         },
-        "search_placeholder": "Search by title"
+        "search_placeholder": "Search by title",
+        "card": {
+            "free": "Free"
+        }
     },
     "events": {
         "hello": "This section is coming later."
@@ -586,5 +642,6 @@
             "notify_subject": "Notify me about new programs",
             "email": "hello{'@'}s-sidorov.ru"
         }
-    }
+    },
+    "admin_promo_codes_view_title": "Promo codes - Admin"
 }

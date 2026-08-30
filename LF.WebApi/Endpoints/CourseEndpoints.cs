@@ -5,6 +5,7 @@ using LF.AppDomain.Models.User.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
+using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Storage;
 using LF.WebApi.Common;
@@ -54,6 +55,7 @@ public sealed class CourseEndpoints : IEndpointGroup
             if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
 
             var coverType = Enum.Parse<CourseCoverType>(request.CoverType, ignoreCase: true);
+            var pricingType = Enum.Parse<CoursePricingType>(request.PricingType, ignoreCase: true);
             var dto = new CreateCourseDto
             {
                 Title = request.Title,
@@ -63,6 +65,9 @@ public sealed class CourseEndpoints : IEndpointGroup
                 CoverType = coverType,
                 CoverColor = coverType == CourseCoverType.Color ? Enum.Parse<CourseCoverColor>(request.CoverColor!, ignoreCase: true) : null,
                 CoverImageStorageObjectId = coverType == CourseCoverType.Image ? request.CoverImageStorageObjectId : null,
+                PricingType = pricingType,
+                Price = pricingType == CoursePricingType.Paid ? request.Price : null,
+                EnrollmentMode = Enum.Parse<CourseEnrollmentMode>(request.EnrollmentMode, ignoreCase: true),
             };
 
             try
@@ -76,6 +81,34 @@ public sealed class CourseEndpoints : IEndpointGroup
                 {
                     ["categoryId"] = ["Category or cover image not found."],
                 });
+            }
+        });
+
+        group.MapPost("/{id:int}/enrollments", async Task<Results<Created<EnrollmentSummaryResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult, Conflict<string>>>
+            (int id, EnrollUserRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var validation = new EnrollUserRequestValidator().Validate(request);
+            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            try
+            {
+                var enrollment = await courseService.EnrollUserAsync(id, request.UserId, userId.Value, isAdmin);
+                return enrollment is null
+                    ? TypedResults.NotFound()
+                    : TypedResults.Created($"/api/courses/{id}/enrollments", ToStudentEnrollmentResponse(enrollment));
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.Conflict(ex.Message);
             }
         });
 
@@ -487,7 +520,27 @@ public sealed class CourseEndpoints : IEndpointGroup
         course.CategoryName,
         course.CreatedByUserId,
         course.CreatedAt,
-        [.. course.Chapters.Select(ch => ToChapterResponse(course.Id, ch))]);
+        [.. course.Chapters.Select(ch => ToChapterResponse(course.Id, ch))],
+        course.PricingType.ToString(),
+        course.Price,
+        course.EnrollmentMode.ToString());
+
+    private static EnrollmentSummaryResponse ToStudentEnrollmentResponse(EnrollmentSummaryDto dto) => new(
+        dto.Id,
+        dto.CourseId,
+        dto.CourseTitle,
+        dto.CourseShortIntroduction,
+        dto.CategoryName,
+        dto.TotalLessonCount,
+        dto.CompletedLessonCount,
+        dto.ProgressPercent,
+        dto.EnrolledAt,
+        dto.CompletedAt,
+        dto.CoverType.ToString(),
+        dto.CoverColor?.ToString(),
+        dto.CoverType == CourseCoverType.Image ? $"/api/courses/{dto.CourseId}/cover/image" : null,
+        dto.Status.ToString(),
+        dto.PricePaid);
 
     private static ChapterResponse ToChapterResponse(int courseId, ChapterDto chapter) => new(
         chapter.Id,
@@ -543,5 +596,8 @@ public sealed class CourseEndpoints : IEndpointGroup
         course.CategoryName,
         course.CreatedByUserId,
         course.CreatedAt,
-        course.ChapterCount);
+        course.ChapterCount,
+        course.PricingType.ToString(),
+        course.Price,
+        course.EnrollmentMode.ToString());
 }

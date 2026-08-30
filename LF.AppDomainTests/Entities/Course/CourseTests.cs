@@ -40,6 +40,36 @@ public class CourseTests
     }
 
     [Fact]
+    public void Create_Free_DefaultsAndIgnoresPrice()
+    {
+        var course = Course.Create("Title", "Short intro", "Description", CreateCategory(), 1, DateTime.UtcNow,
+            CoursePricingType.Free, price: 999m, CourseEnrollmentMode.Open);
+
+        Assert.Equal(CoursePricingType.Free, course.PricingType);
+        Assert.Null(course.Price);
+        Assert.Equal(CourseEnrollmentMode.Open, course.EnrollmentMode);
+    }
+
+    [Fact]
+    public void Create_Paid_RequiresPositivePrice()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Course.Create("Title", "Short intro", "Description", CreateCategory(), 1, DateTime.UtcNow,
+                CoursePricingType.Paid, price: null, CourseEnrollmentMode.Open));
+    }
+
+    [Fact]
+    public void Create_Paid_RoundsAndStoresPrice()
+    {
+        var course = Course.Create("Title", "Short intro", "Description", CreateCategory(), 1, DateTime.UtcNow,
+            CoursePricingType.Paid, price: 1990.126m, CourseEnrollmentMode.Managed);
+
+        Assert.Equal(CoursePricingType.Paid, course.PricingType);
+        Assert.Equal(1990.13m, course.Price);
+        Assert.Equal(CourseEnrollmentMode.Managed, course.EnrollmentMode);
+    }
+
+    [Fact]
     public void AddChapter_IncrementsSortOrder()
     {
         // Arrange
