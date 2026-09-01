@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -59,6 +60,19 @@ public static class Extensions
             // it here to keep framework request/routing noise out of the console.
             .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
             .WriteTo.Console(theme: AnsiConsoleTheme.Code, outputTemplate: ConsoleOutputTemplate));
+
+        // Sentry error monitoring. Runs after ClearProviders() so its ILoggerProvider survives, and
+        // sits alongside Serilog (both receive ILogger output). The DSN comes from the SENTRY_DSN
+        // environment variable, which the SDK reads natively — when it's unset the SDK stays disabled.
+        if (builder is WebApplicationBuilder webBuilder)
+        {
+            webBuilder.WebHost.UseSentry((context, options) =>
+            {
+                // ??= lets anything bound from the "Sentry" config section win over these defaults.
+                options.Environment ??= context.HostingEnvironment.EnvironmentName;
+                options.TracesSampleRate ??= context.HostingEnvironment.IsDevelopment() ? 1.0 : 0.1;
+            });
+        }
 
         builder.ConfigureOpenTelemetry();
 

@@ -261,6 +261,30 @@ public class RpcCourseService(
         }
     }
 
+    public override async Task<ConfirmEnrollmentPaymentReply> ConfirmEnrollmentPayment(ConfirmEnrollmentPaymentRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ConfirmEnrollmentPayment: called with EnrollmentId={EnrollmentId} PaidAmount={PaidAmount}",
+            request.EnrollmentId, request.PaidAmount);
+
+        var paidAmount = decimal.Parse(request.PaidAmount, CultureInfo.InvariantCulture);
+
+        try
+        {
+            var activation = await _enrollmentService.ActivatePaidEnrollmentAsync(request.EnrollmentId, paidAmount);
+            return new ConfirmEnrollmentPaymentReply
+            {
+                EnrollmentId = activation.EnrollmentId,
+                CourseId = activation.CourseId,
+                Status = (EnrollmentStatus)(int)activation.Status,
+                PricePaid = activation.PricePaid.ToString(CultureInfo.InvariantCulture),
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
     public override async Task<EnrollmentSummaryReply> EnrollUser(EnrollUserRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::EnrollUser: called with CourseId={CourseId} TargetUserId={TargetUserId} ActingUserId={ActingUserId}",

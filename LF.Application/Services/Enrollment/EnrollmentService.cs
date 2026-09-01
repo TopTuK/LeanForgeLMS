@@ -78,9 +78,16 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         if (course.EnrollmentMode == CourseEnrollmentMode.Managed)
             throw new EnrollmentModeException("This course does not allow self-enrollment.");
 
-        var alreadyEnrolled = await _dbContext.Enrollments.AnyAsync(e => e.CourseId == courseId && e.UserId == actingUserId);
-        if (alreadyEnrolled)
+        var existing = await _dbContext.Enrollments.FirstOrDefaultAsync(e => e.CourseId == courseId && e.UserId == actingUserId);
+        if (existing is not null)
+        {
+            // A paid enrollment awaiting payment is resumable — hand the same pending enrollment back
+            // so the caller can (re)start checkout rather than getting a hard conflict.
+            if (existing.Status == EnrollmentStatus.PendingPayment)
+                return ToDetailDto(existing, course);
+
             throw new InvalidOperationException("Already enrolled in this course.");
+        }
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         DomainEnrollment enrollment;
@@ -111,6 +118,44 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
 
         return ToDetailDto(enrollment, course);
     }
+
+    // Called (via gRPC) once LF.PaymentService confirms the Robokassa payment. Idempotent: a repeated
+    // Robokassa ResultURL retry lands here again and returns the already-active enrollment untouched.
+    public async Task<EnrollmentActivationDto> ActivatePaidEnrollmentAsync(int enrollmentId, decimal paidAmount)
+    {
+        _logger.LogInformation("EnrollmentService::ActivatePaidEnrollmentAsync: called with EnrollmentId={EnrollmentId} PaidAmount={PaidAmount}",
+            enrollmentId, paidAmount);
+
+        var enrollment = await _dbContext.Enrollments.FirstOrDefaultAsync(e => e.Id == enrollmentId)
+            ?? throw new InvalidOperationException($"Enrollment {enrollmentId} not found.");
+
+        if (enrollment.Status == EnrollmentStatus.Active)
+            return ToActivationDto(enrollment);
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        enrollment.Activate(paidAmount);
+
+        if (enrollment.PromoCodeId is { } promoCodeId)
+        {
+            var promo = await _dbContext.PromoCodes.FirstOrDefaultAsync(p => p.Id == promoCodeId);
+            if (promo is not null && promo.IsRedeemable(now))
+                promo.Redeem(now);
+            else
+                _logger.LogWarning("EnrollmentService::ActivatePaidEnrollmentAsync: promo {PromoCodeId} no longer redeemable for enrollment {EnrollmentId}",
+                    promoCodeId, enrollmentId);
+        }
+
+        await _dbContext.SaveChangesAsync();
+        return ToActivationDto(enrollment);
+    }
+
+    private static EnrollmentActivationDto ToActivationDto(DomainEnrollment enrollment) => new()
+    {
+        EnrollmentId = enrollment.Id,
+        CourseId = enrollment.CourseId,
+        Status = enrollment.Status,
+        PricePaid = enrollment.PricePaid,
+    };
 
     public async Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId)
     {

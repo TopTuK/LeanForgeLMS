@@ -25,6 +25,14 @@ internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningServic
         return await _grpcEnrollmentService.EnrollAsync(courseId, actingUserId, promoCode);
     }
 
+    public async Task<EnrollmentActivationDto> ActivatePaidEnrollmentAsync(int enrollmentId, decimal paidAmount)
+    {
+        _logger.LogInformation("EnrollmentLearningService::ActivatePaidEnrollmentAsync: called with EnrollmentId={EnrollmentId} PaidAmount={PaidAmount}",
+            enrollmentId, paidAmount);
+
+        return await _grpcEnrollmentService.ActivatePaidEnrollmentAsync(enrollmentId, paidAmount);
+    }
+
     public async Task<PromoCodeValidationDto> ValidatePromoCodeAsync(string code, int courseId, int actingUserId)
     {
         _logger.LogInformation("EnrollmentLearningService::ValidatePromoCodeAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);

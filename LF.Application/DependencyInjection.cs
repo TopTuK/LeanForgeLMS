@@ -6,6 +6,7 @@ using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.Payment;
 using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
@@ -53,6 +54,17 @@ public static class DependencyInjection
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IPromoCodeService, PromoCodeService>();
+
+        return services;
+    }
+
+    // Used by LF.PaymentService. IPaymentGateway is supplied by AddInfrastructureRobokassa().
+    public static IServiceCollection AddPaymentApplication(this IServiceCollection services)
+    {
+        TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IPaymentOrderService, PaymentOrderService>();
 
         return services;
     }

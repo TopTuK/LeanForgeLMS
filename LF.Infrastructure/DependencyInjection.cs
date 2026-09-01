@@ -1,9 +1,11 @@
 using LF.Application.Common.Interfaces;
 using LF.Application.Services.Course;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Payment;
 using LF.Application.Services.Promo;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
+using LF.Infrastructure.Services.Payment;
 using LF.IdentityService;
 using LF.Infrastructure.Persistence;
 using LF.Infrastructure.Persistence.Repositories;
@@ -60,6 +62,28 @@ public static class DependencyInjection
         services.AddScoped<IGrpcCourseService, Services.Course.GrpcCourseService>();
         services.AddScoped<IGrpcEnrollmentService, Services.Enrollment.GrpcEnrollmentService>();
         services.AddScoped<IGrpcPromoCodeService, Services.Promo.GrpcPromoCodeService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddInfrastructurePaymentGrpcClient(this IServiceCollection services, string paymentServiceAddress)
+    {
+        TypeAdapterConfig.GlobalSettings.Scan(typeof(DependencyInjection).Assembly);
+
+        services.AddGrpcClient<global::LF.PaymentService.PaymentServiceRpc.PaymentServiceRpcClient>(options =>
+        {
+            options.Address = new Uri(paymentServiceAddress);
+        });
+        services.AddScoped<IGrpcPaymentService, Services.Payment.GrpcPaymentService>();
+
+        return services;
+    }
+
+    // Robokassa hosted-checkout gateway (IPaymentGateway) for LF.PaymentService.
+    public static IServiceCollection AddInfrastructureRobokassa(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<RobokassaOptions>(configuration.GetSection(RobokassaOptions.SectionName));
+        services.AddScoped<IPaymentGateway, RobokassaPaymentGateway>();
 
         return services;
     }

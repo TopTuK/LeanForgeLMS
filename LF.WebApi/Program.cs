@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using NetEscapades.AspNetCore.SecurityHeaders;
+using Sentry;
 using Serilog;
 using System.Security.Claims;
 using System.Text;
@@ -26,6 +27,7 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     // GrpcChannel rejects Aspire's https+http scheme; http:// works with service discovery.
     services.AddInfrastructureGrpcClient("http://lf-identityservice");
     services.AddInfrastructureCourseGrpcClient("http://lf-courseservice");
+    services.AddInfrastructurePaymentGrpcClient("http://lf-paymentservice");
     services.AddInfrastructureFileStorage(configuration);
     // Needed for IStorageService/IStorageRepository (StorageObject metadata) — LF.WebApi is the only
     // host with both MinIO and DB access, since a course-cover/lesson-media upload needs both in one call.
@@ -328,6 +330,7 @@ try
 }
 catch (Exception ex)
 {
+    SentrySdk.CaptureException(ex);
     Log.Fatal(ex, "LF.WebAPI application terminated unexpectedly");
 }
 finally

@@ -173,7 +173,8 @@
             "promo_invalid": "This promo code cannot be applied.",
             "promo_error": "Could not check the promo code. Please try again.",
             "managed_only": "This course is enrollment-by-invitation only.",
-            "awaiting_payment": "You are enrolled. Access opens once payment is completed."
+            "awaiting_payment": "You are enrolled. Access opens once payment is completed.",
+            "redirecting": "Redirecting to the payment page…"
         },
         "active": {
             "title": "Active courses",
@@ -643,5 +644,21 @@
             "email": "hello{'@'}s-sidorov.ru"
         }
     },
-    "admin_promo_codes_view_title": "Promo codes - Admin"
+    "admin_promo_codes_view_title": "Promo codes - Admin",
+    "payment_result_view_title": "Payment",
+    "payments": {
+        "success": {
+            "checking": "Confirming your payment…",
+            "done": "Payment confirmed. Opening your course…",
+            "pending_title": "Payment is being processed",
+            "pending_body": "This can take a moment. Your course will appear in \"My courses\" as soon as the payment is confirmed.",
+            "to_courses": "Go to my courses",
+            "error": "We could not confirm this payment automatically. Check \"My courses\" in a few minutes."
+        },
+        "fail": {
+            "title": "Payment was not completed",
+            "body": "The payment was cancelled or declined. You can try again from the course page.",
+            "to_catalog": "Back to catalog"
+        }
+    }
 }

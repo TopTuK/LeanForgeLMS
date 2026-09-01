@@ -5,17 +5,18 @@
 
 Lean Forge LMS is a Learning Management System for an online school for developers. It's a solo-developer project built on **.NET 10** with a **Vue 3** SPA frontend, orchestrated locally with **.NET Aspire** and deployed to production as plain **Docker Compose** services.
 
-The domain has moderate business rules (enrollment, progress tracking, course lifecycle) — not CRUD-only, but not a rich DDD domain either. The implemented slice covers authentication, user identity, profile/avatar management, and the full course domain: category-tagged courses with chapters/lessons made of ordered text/image/video/audio parts, cover art (predefined color or an uploaded image), publishing, a student catalog, ownership-restricted enrollment (a course's own creator can't enroll in it), and per-lesson progress tracking.
+The domain has moderate business rules (enrollment, progress tracking, course lifecycle, payments) — not CRUD-only, but not a rich DDD domain either. The implemented slice covers authentication, user identity, profile/avatar management, and the full course domain: category-tagged courses with chapters/lessons made of ordered text/image/video/audio parts, cover art (predefined color or an uploaded image), publishing, a student catalog, ownership-restricted enrollment (a course's own creator can't enroll in it), per-lesson progress tracking, and paid enrollment via **Robokassa** hosted checkout (free/paid pricing, promo codes, a payment-order lifecycle that activates the enrollment on the provider's confirmation webhook).
 
 ## Architecture
 
 ### Service topology
 
-The system runs as **three independently deployable ASP.NET Core processes** plus the SPA, not a single monolith:
+The system runs as **four independently deployable ASP.NET Core processes** plus the SPA, not a single monolith:
 
 - **`LF.WebApi`** — the only public-facing process. Hosts the Vue SPA, the JWT/Cookie/OIDC authentication pipeline (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s). It never touches user or course data in Postgres directly — only `StorageObjects` (see below).
 - **`LF.IdentityService`** — an internal gRPC-only service that owns the Postgres-backed `AppDbContext` and all user identity data. Not reachable from outside the deployment network.
-- **`LF.CourseService`** — an internal gRPC-only service that owns the course domain: courses, categories, chapters, lessons, and enrollments. Shares the same Postgres database as `LF.IdentityService` (`leanforge`) but only ever touches its own tables. Not reachable from outside the deployment network.
+- **`LF.CourseService`** — an internal gRPC-only service that owns the course domain: courses, categories, chapters, lessons, enrollments, and promo codes. Shares the same Postgres database as `LF.IdentityService` (`leanforge`) but only ever touches its own tables. Not reachable from outside the deployment network.
+- **`LF.PaymentService`** — an internal gRPC-only service that owns payment orders (`LFPaymentOrders`) and the Robokassa integration (signed checkout-URL construction, ResultURL/SuccessURL signature verification). It knows nothing about courses or enrollments — `LF.WebApi` orchestrates the two after a payment settles. Shares the same `leanforge` database. Not reachable from outside the deployment network.
 - **MinIO** — S3-compatible object storage. Only `LF.WebApi` talks to it; it is never exposed to the browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images, and lesson media — image/video/audio blocks).
 
 ```mermaid
@@ -23,6 +24,7 @@ graph LR
     Browser["Browser<br/>(Vue 3 SPA)"]
     PMI["PMI Club<br/>(OpenID Connect provider)"]
     Google["Google<br/>(OAuth 2.0 provider)"]
+    Robokassa["Robokassa<br/>(hosted checkout + ResultURL webhook)"]
 
     subgraph Public["Public network"]
         WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth"]
@@ -31,22 +33,27 @@ graph LR
     subgraph Internal["Internal-only network"]
         IdentitySvc["LF.IdentityService<br/>gRPC (UserServiceRpc)"]
         CourseSvc["LF.CourseService<br/>gRPC (CourseServiceRpc)"]
+        PaymentSvc["LF.PaymentService<br/>gRPC (PaymentServiceRpc)"]
         Postgres[("PostgreSQL<br/>leanforge")]
         Minio[("MinIO<br/>avatars + storage buckets")]
     end
 
     Browser -- "HTTPS / JSON (JWT Bearer)" --> WebApi
+    Browser -- "redirect to hosted checkout" --> Robokassa
+    Robokassa -- "ResultURL webhook (signed)" --> WebApi
     WebApi -- "OIDC redirect" --> PMI
     WebApi -- "OAuth redirect" --> Google
     WebApi -- "gRPC: user_service.proto" --> IdentitySvc
     WebApi -- "gRPC: course_service.proto" --> CourseSvc
+    WebApi -- "gRPC: payment_service.proto" --> PaymentSvc
     WebApi -- "S3 API (avatar + cover-image bytes)" --> Minio
     WebApi -- "StorageObjects table only" --> Postgres
     IdentitySvc --> Postgres
     CourseSvc --> Postgres
+    PaymentSvc --> Postgres
 ```
 
-Why the split exists: `LF.IdentityService` is the single owner of user identity data; `LF.CourseService` is the single owner of the course domain. `LF.WebApi` reaches both exclusively through their gRPC contracts (`user_service.proto`, `course_service.proto`) — it has no `AppDbContext` registration for *their* tables, even though it references `LF.Infrastructure`. Course/chapter/lesson/enrollment mutations always go through `LF.CourseService`'s gRPC contract, since they carry real business rules (ownership checks, publish invariants) that must not be duplicated across processes.
+Why the split exists: `LF.IdentityService` is the single owner of user identity data; `LF.CourseService` is the single owner of the course domain; `LF.PaymentService` is the single owner of payment orders and provider integration. `LF.WebApi` reaches all three exclusively through their gRPC contracts (`user_service.proto`, `course_service.proto`, `payment_service.proto`) — it has no `AppDbContext` registration for *their* tables, even though it references `LF.Infrastructure`. Course/chapter/lesson/enrollment mutations always go through `LF.CourseService`'s gRPC contract, since they carry real business rules (ownership checks, publish invariants) that must not be duplicated across processes. Payment settlement flows the same way: Robokassa's ResultURL webhook lands on `LF.WebApi`, which calls `LF.PaymentService` (verify signature, settle the order) and then `LF.CourseService` (`ConfirmEnrollmentPayment` — activate the enrollment, redeem the promo code); both calls are idempotent so a webhook retry is safe.
 
 `StorageObjects` (avatar and cover-image metadata) is the one deliberate exception: it's a generic, ownerless table, and `LF.WebApi` is the only process with both a MinIO client and a use for writing to it, so it registers `AppDbContext` too — just for that one table — letting `IStorageService.UploadImageAsync` do the MinIO upload and the metadata write in a single call instead of a gRPC round-trip. `LF.CourseService` only ever *reads* `StorageObjects` (a plain FK join to resolve a course's cover image), never writes it.
 
@@ -62,6 +69,7 @@ graph BT
     WebApi["LF.WebApi (Api)"]
     IdentitySvc["LF.IdentityService (Api)"]
     CourseSvc["LF.CourseService (Api)"]
+    PaymentSvc["LF.PaymentService (Api)"]
 
     App --> Domain
     Infra --> App
@@ -75,19 +83,22 @@ graph BT
     CourseSvc --> Infra
     CourseSvc --> App
     CourseSvc --> Domain
+    PaymentSvc --> Infra
+    PaymentSvc --> App
+    PaymentSvc --> Domain
 ```
 
 | Layer | Project | Responsibility |
 |---|---|---|
-| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `Category`, `Enrollment`, `StorageObject`), enums (`UserRole`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`). Zero project or framework references by design. |
-| Application | `LF.Application` | Use-case services (`UserService`, `ProfileService`, `AdminUserService`, `AuthenticationService`, `TokenService`, `CourseService`, `CourseAuthoringService`, `EnrollmentService`, `EnrollmentLearningService`, `StorageService`), DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IGrpcIdentityService`, `IGrpcCourseService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
-| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql), the gRPC clients to `LF.IdentityService` and `LF.CourseService`, the MinIO-backed `IFileStorageService` implementation (two keyed buckets), and `StorageRepository` — the one deliberate exception to "no repository per entity". Split into narrow DI extensions (`AddInfrastructureDatabase`, `AddInfrastructureGrpcClient`, `AddInfrastructureCourseGrpcClient`, `AddInfrastructureFileStorage`) so each host wires up only what it needs. |
-| Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (existing auth) + Minimal API (`IEndpointGroup`, auto-discovered, new features) — the only public-facing, browser-reachable process. `LF.IdentityService` and `LF.CourseService` are bare gRPC hosts, internal-only. |
+| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `Category`, `Enrollment`, `PromoCode`, `PaymentOrder`, `StorageObject`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`). Zero project or framework references by design. |
+| Application | `LF.Application` | Use-case services (`UserService`, `ProfileService`, `AdminUserService`, `AuthenticationService`, `TokenService`, `CourseService`, `CourseAuthoringService`, `EnrollmentService`, `EnrollmentLearningService`, `PromoCodeService`, `PaymentOrderService`, `StorageService`), DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IPaymentGateway`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
+| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql), the gRPC clients to `LF.IdentityService` / `LF.CourseService` / `LF.PaymentService`, the MinIO-backed `IFileStorageService` implementation (two keyed buckets), the Robokassa-backed `IPaymentGateway` implementation, and `StorageRepository` — the one deliberate exception to "no repository per entity". Split into narrow DI extensions (`AddInfrastructureDatabase`, `AddInfrastructureGrpcClient`, `AddInfrastructureCourseGrpcClient`, `AddInfrastructurePaymentGrpcClient`, `AddInfrastructureRobokassa`, `AddInfrastructureFileStorage`) so each host wires up only what it needs. |
+| Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (existing auth) + Minimal API (`IEndpointGroup`, auto-discovered, new features) — the only public-facing, browser-reachable process. `LF.IdentityService`, `LF.CourseService` and `LF.PaymentService` are bare gRPC hosts, internal-only. |
 
 Two intentional deviations from "textbook" Clean Architecture, worth knowing about:
 
-- **`AppDbContext` is registered in all three hosts, but each only touches the tables it owns.** `LF.IdentityService` owns `Users`; `LF.CourseService` owns `Courses`/`Categories`/`Chapters`/`Lessons`/`Enrollments`; `LF.WebApi` only ever reads/writes `StorageObjects` (see above) — it has no access path to the other tables beyond what the gRPC contracts expose. This is enforced by convention (which service's `Program.cs`/DI calls which use-case services), not by database-level permissions.
-- **`LF.Application`'s DI is split by host, not one `AddApplication()`.** `AddAuthenticationApplication()` (auth/token/profile/admin/course-authoring/enrollment-learning/storage services) is called only by `LF.WebApi`; `AddUserApplication()` (`UserService`) only by `LF.IdentityService`; `AddCourseApplication()` (`CourseService`, `EnrollmentService`) only by `LF.CourseService`. ASP.NET Core validates the whole DI graph at `Build()`, so a single umbrella registration would crash whichever host doesn't have all the dependencies wired up.
+- **`AppDbContext` is registered in all four hosts, but each only touches the tables it owns.** `LF.IdentityService` owns `Users`; `LF.CourseService` owns `Courses`/`Categories`/`Chapters`/`Lessons`/`Enrollments`/`PromoCodes`; `LF.PaymentService` owns `PaymentOrders`; `LF.WebApi` only ever reads/writes `StorageObjects` (see above) — none has an access path to another's tables beyond what the gRPC contracts expose. This is enforced by convention (which service's `Program.cs`/DI calls which use-case services), not by database-level permissions.
+- **`LF.Application`'s DI is split by host, not one `AddApplication()`.** `AddAuthenticationApplication()` (auth/token/profile/admin/course-authoring/enrollment-learning/storage services) is called only by `LF.WebApi`; `AddUserApplication()` (`UserService`) only by `LF.IdentityService`; `AddCourseApplication()` (`CourseService`, `EnrollmentService`, `PromoCodeService`) only by `LF.CourseService`; `AddPaymentApplication()` (`PaymentOrderService`) only by `LF.PaymentService`. ASP.NET Core validates the whole DI graph at `Build()`, so a single umbrella registration would crash whichever host doesn't have all the dependencies wired up.
 
 ### Authentication flow
 
@@ -121,7 +132,8 @@ Owned entirely by `LF.CourseService`, exposed to `LF.WebApi` over `course_servic
 - **`Course`** — title, short introduction, description, a `Category`, an ordered list of `Chapter`s (each with an ordered list of `Lesson`s), a `CoverType`/`CoverColor`/cover image, and an `IsPublished` flag. `Publish()` enforces the invariant that a course needs at least one chapter and every chapter needs at least one lesson.
 - **`Lesson`** — a title plus, in addition to a legacy single `Content` HTML string (kept for backward compatibility), an ordered list of `LessonPart`s: text blocks (rich HTML) interleaved with image/video/audio blocks, each media block referencing a `StorageObject`. `Lesson.ReplaceParts(...)` is a full bulk-replace — the whole ordered set is swapped in one call, matching how the editor UI batches local edits before saving.
 - **`Category`** — a flat, admin-managed tag set. Seeded with a protected `Common` category (`IsDefault = true`, cannot be deleted) plus a handful of starter categories (Backend, Frontend, DevOps, Design, Career). Categories still assigned to a course can't be deleted either.
-- **`Enrollment`** — tracks a student's progress through a published course, one row per (student, course), with per-lesson completion state. A user cannot enroll in a course they created themselves — `EnrollmentService.EnrollAsync` rejects it (`SelfEnrollmentException`, mapped to `403 Forbidden`) and `BrowseCatalogAsync` excludes the acting user's own courses from their catalog results in the first place, so there's no enroll action to even attempt on them. This is an ownership check (`Course.CreatedByUserId`), not a role-based ban — an Instructor or CourseCreator can still enroll in someone else's published course.
+- **`Enrollment`** — tracks a student's progress through a published course, one row per (student, course), with per-lesson completion state and a `Status` (`Active` / `PendingPayment`). A user cannot enroll in a course they created themselves — `EnrollmentService.EnrollAsync` rejects it (`SelfEnrollmentException`, mapped to `403 Forbidden`) and `BrowseCatalogAsync` excludes the acting user's own courses from their catalog results in the first place, so there's no enroll action to even attempt on them. This is an ownership check (`Course.CreatedByUserId`), not a role-based ban — an Instructor or CourseCreator can still enroll in someone else's published course.
+- **Pricing & promo codes** — a `Course` is `Free` or `Paid` (`CoursePricingType`, with a positive ruble `Price`). Enrolling in a free course yields an `Active` enrollment immediately; a paid course yields a `PendingPayment` one that's locked (`403` on any content read) until payment settles. `PromoCode`s (admin-managed, percentage or fixed-amount, optional course scope / expiry / redemption cap) are validated at enrollment time and redeemed only once the payment is confirmed.
 
 Two distinct endpoint groups on `LF.WebApi` reflect the two audiences:
 
@@ -129,6 +141,18 @@ Two distinct endpoint groups on `LF.WebApi` reflect the two audiences:
 - **`/api/enrollments`** (`RequireAuthorization()`, any authenticated user) — the student side: browse the published-course catalog, enroll, list your own enrollments, view one enrollment's progress (including each lesson's parts, streamed via an ownership-checked media endpoint), mark a lesson complete. Backed by `EnrollmentLearningService` → `IGrpcEnrollmentService` → `RpcCourseService` → `EnrollmentService`.
 
 Course authoring only supports setting fields at creation time today — there's no "edit course settings" endpoint yet; editing after creation is limited to chapters, lessons (including their parts), and publishing (`CourseEditorView.vue`, `LessonEditorView.vue`). Students view lesson parts on `CourseLearnView.vue`, which renders the parts list when present and falls back to the legacy `Content` string for lessons authored before this feature existed.
+
+### Payments (Robokassa)
+
+Paid enrollment uses **Robokassa** classic hosted checkout, owned by `LF.PaymentService` (`payment_service.proto`, `PaymentServiceRpc`) and orchestrated by `LF.WebApi/Endpoints/PaymentEndpoints.cs` (`/api/payments`):
+
+1. **Checkout** — `POST /api/payments/checkout` (authenticated) enrolls the student (creating or resuming a `PendingPayment` enrollment) and, for a paid course, creates a `PaymentOrder` (its integer `Id` is the Robokassa `InvId`) and returns the signed checkout URL. `LF.PaymentService` builds the URL to `auth.robokassa.ru/Merchant/Index.aspx` with `SignatureValue = HASH(MerchantLogin:OutSum:InvId[:Receipt]:Password1)` — hash algorithm (MD5/SHA256/SHA512, default SHA256) configurable to match the merchant cabinet. No outbound HTTP call; the browser navigates there.
+2. **ResultURL webhook** (authoritative) — Robokassa calls `GET/POST /api/payments/robokassa/result` (anonymous, verified by `HASH(OutSum:InvId:Password2)`). `LF.WebApi` forwards it to `LF.PaymentService` (`ConfirmPayment` — verify signature, check the amount matches, settle the order) then to `LF.CourseService` (`ConfirmEnrollmentPayment` — `Enrollment.Activate`, `PromoCode.Redeem`), and replies with the plain-text body `OK<InvId>`. Both downstream calls are idempotent (`PaymentOrder.MarkPaid` returns `false` on replay; `Enrollment.Activate` no-ops when already `Active`), so Robokassa's retries are safe.
+3. **Browser return** — Robokassa redirects to the SPA routes `/payments/success` / `/payments/fail` (`PaymentResultView.vue`); the success page polls `GET /api/payments/orders/{id}` until the order reports `Paid`, then sends the student into the course. Access is never granted off the browser redirect alone — only the ResultURL webhook activates the enrollment.
+
+Optional 54-FZ fiscalization (`Receipt` JSON, one line item = the course) is a config-gated block, off by default. Refunds and a reconciliation job for webhooks that never arrive are not implemented yet. No Redis — order state and callback idempotency are handled by the `LFPaymentOrders` status column and the domain guards above.
+
+Robokassa secrets (`MerchantLogin`, `Password1`, `Password2`) are supplied to `LF.PaymentService` via configuration (user-secrets in dev, `.env` / environment in production) — never committed; `appsettings.json` ships `"CHANGE_ME"` placeholders. The ResultURL (`https://<host>/api/payments/robokassa/result`) and Success/Fail URLs are registered in the Robokassa merchant cabinet.
 
 ### Course covers, lesson media & the Storage service
 
@@ -166,18 +190,20 @@ Users with `Role = Admin` get an "Administration" entry point in the SPA header 
 
 ```
 LeanForgeLMS.slnx
-LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), lf-identityservice, lf-courseservice, lf-webapi
+LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), lf-identityservice, lf-courseservice, lf-paymentservice, lf-webapi
 LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: OpenTelemetry, health checks, service discovery, HTTP resilience, Serilog console logging
-LF.AppDomain/                    # Domain layer — Entities/{User,Course,Storage}, Models/{User,Course,Storage}/Enums
+LF.AppDomain/                    # Domain layer — Entities/{User,Course,Payment,Storage}, Models/{User,Course,Payment,Storage}/Enums
 LF.AppDomainTests/               # xUnit v3 unit tests for LF.AppDomain entities
-LF.Application/                  # Application layer — Services/{Authentication,Profile,User,Admin,Course,CourseAuthoring,Enrollment,EnrollmentLearning,Storage}, ModelDto/*, Common/Interfaces, Common/Mapping
+LF.Application/                  # Application layer — Services/{Authentication,Profile,User,Admin,Course,CourseAuthoring,Enrollment,EnrollmentLearning,Promo,Payment,Storage}, ModelDto/*, Common/Interfaces, Common/Mapping
 LF.ApplicationTests/             # xUnit v3 unit tests for LF.Application (Moq + MockQueryable.Moq)
-LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs + Repositories/, Services/Identity + Course (gRPC clients), Services/Storage (MinIO)
+LF.Infrastructure/                # Infrastructure layer — Persistence/AppDbContext.cs + Repositories/, Services/{Identity,Course,Payment} (gRPC clients), Services/Payment (Robokassa gateway), Services/Storage (MinIO)
 LF.WebApi/                       # Public host — MVC auth controllers, Endpoints/ (Minimal API), Program.cs auth pipeline
 LF.IdentityService/              # Internal gRPC host — Services/RpcUserService.cs, Protos/user_service.proto
 LF.CourseService/                # Internal gRPC host — Services/RpcCourseService.cs, Protos/course_service.proto
+LF.PaymentService/               # Internal gRPC host — Services/RpcPaymentService.cs, Protos/payment_service.proto
+LF.PaymentServiceTests/          # xUnit v3 tests for the Robokassa gateway + RpcPaymentService
 lf.webapp/                       # Vue 3 + Vite SPA
-docker-compose.yml               # Production deployment (postgres, minio, lf-identityservice, lf-courseservice, lf-webapi)
+docker-compose.yml               # Production deployment (postgres, minio, lf-identityservice, lf-courseservice, lf-paymentservice, lf-webapi)
 ```
 
 ## Tech stack
@@ -187,19 +213,21 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 | Runtime | .NET 10 / C# 14 |
 | Web framework | ASP.NET Core — MVC (existing auth) + Minimal APIs (`IEndpointGroup`, new features) |
 | Local orchestration | .NET Aspire (AppHost + ServiceDefaults) |
-| Inter-service RPC | gRPC (`Grpc.AspNetCore` / `Grpc.Net.Client`), contracts in `LF.IdentityService/Protos/user_service.proto` and `LF.CourseService/Protos/course_service.proto` |
-| Database | PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`, one shared `leanforge` database — `LF.IdentityService` owns `Users`, `LF.CourseService` owns the course domain, `LF.WebApi` owns `StorageObjects` |
+| Inter-service RPC | gRPC (`Grpc.AspNetCore` / `Grpc.Net.Client`), contracts in `LF.IdentityService/Protos/user_service.proto`, `LF.CourseService/Protos/course_service.proto`, `LF.PaymentService/Protos/payment_service.proto` |
+| Database | PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`, one shared `leanforge` database — `LF.IdentityService` owns `Users`, `LF.CourseService` owns the course domain, `LF.PaymentService` owns `PaymentOrders`, `LF.WebApi` owns `StorageObjects` |
 | Object storage | MinIO (`CommunityToolkit.Aspire.Hosting.Minio` + `.Minio.Client`), owned solely by `LF.WebApi` — `avatars` and `storage` buckets |
+| Payments | Robokassa classic hosted checkout, owned by `LF.PaymentService` — signed redirect URL + signature-verified ResultURL webhook, no SDK (raw signature hashing), optional 54-FZ `Receipt` |
 | Authentication | JWT Bearer (primary scheme) + Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google |
 | Object mapping | Mapster |
 | Validation | FluentValidation (referenced in `LF.WebApi` today) |
-| Logging | Serilog (`Serilog.AspNetCore`), centralized in `LeanForgeLMS.ServiceDefaults` and applied to all three backend hosts — colorized console output, two-stage bootstrap (captures startup errors before DI is up), one summary line per request/RPC |
+| Logging | Serilog (`Serilog.AspNetCore`), centralized in `LeanForgeLMS.ServiceDefaults` and applied to all four backend hosts — colorized console output, two-stage bootstrap (captures startup errors before DI is up), one summary line per request/RPC |
 | Observability | OpenTelemetry (traces + metrics) via `LeanForgeLMS.ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
+| Error monitoring | Sentry (`Sentry.AspNetCore`), wired once in `LeanForgeLMS.ServiceDefaults` for all four backend hosts — errors + light performance tracing (100% sampled in Development, 10% otherwise). Enabled only when the `SENTRY_DSN` environment variable is set |
 | Testing | Backend: xUnit v3 + Moq + MockQueryable.Moq (unit tests only today — Testcontainers/WebApplicationFactory integration testing is planned, not yet built). Frontend: Vitest + `@testing-library/vue` component tests (`lf.webapp`) |
 | Frontend | Vue 3 (Composition API) + Vite, Pinia, vue-router, vue-i18n (en/ru), Vuestic UI, Tailwind CSS v4, axios |
 | Containerization | Multi-stage Dockerfiles (Node build → .NET SDK build → ASP.NET runtime), Docker Compose for production |
 
-**Not yet decided / explicitly deferred:** caching (no HybridCache/Redis), inter-service messaging (no Wolverine/MassTransit — gRPC direct calls only), editing course settings after creation, course covers on the student-facing catalog/active/finished views (creators see their own covers today; the browse/enrolled views don't render them yet), and the lesson video/audio upload size limits (200 MB / 50 MB) — current placeholders, not yet verified against Kestrel/dev-proxy request-body-size limits or signed off as final by anyone but the implementer.
+**Not yet decided / explicitly deferred:** caching (no HybridCache/Redis — payments included), inter-service messaging (no Wolverine/MassTransit — gRPC direct calls only), payment refunds and a reconciliation job for ResultURL webhooks that never arrive, editing course settings after creation, course covers on the student-facing catalog/active/finished views (creators see their own covers today; the browse/enrolled views don't render them yet), and the lesson video/audio upload size limits (200 MB / 50 MB) — current placeholders, not yet verified against Kestrel/dev-proxy request-body-size limits or signed off as final by anyone but the implementer.
 
 ## Getting started
 
@@ -215,9 +243,9 @@ docker-compose.yml               # Production deployment (postgres, minio, lf-id
 dotnet run --project LeanForgeLMS.AppHost
 ```
 
-This starts Postgres, MinIO, the Vite dev server, `LF.IdentityService`, `LF.CourseService`, and `LF.WebApi`, wires connection strings/service discovery between them automatically, and opens the Aspire dashboard (OpenTelemetry traces/metrics/logs for every resource).
+This starts Postgres, MinIO, the Vite dev server, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService`, and `LF.WebApi`, wires connection strings/service discovery between them automatically, and opens the Aspire dashboard (OpenTelemetry traces/metrics/logs for every resource).
 
-> **Known issue:** `LF.IdentityService` and `LF.CourseService` both set `Kestrel:EndpointDefaults:Protocols` to `Http2` (standard gRPC-service scaffolding), which also makes their `/health` endpoints HTTP/2-only. The AppHost's `WaitFor(...)` health probes use HTTP/1.1 and get rejected, so `lf-webapi` can hang indefinitely waiting to start. If that happens, run the services standalone instead (below). Root-fixing the AppHost health check hasn't been attempted.
+> **Known issue:** `LF.IdentityService`, `LF.CourseService` and `LF.PaymentService` all set `Kestrel:EndpointDefaults:Protocols` to `Http2` (standard gRPC-service scaffolding), which also makes their `/health` endpoints HTTP/2-only. The AppHost's `WaitFor(...)` health probes use HTTP/1.1 and get rejected, so `lf-webapi` can hang indefinitely waiting to start. If that happens, run the services standalone instead (below). Root-fixing the AppHost health check hasn't been attempted.
 
 ### Run services standalone (without Aspire)
 
@@ -228,7 +256,11 @@ dotnet run --project LF.IdentityService --no-launch-profile     # http://localho
 # Course service — needs its own Postgres connection string configured (same "leanforge" database)
 dotnet run --project LF.CourseService --no-launch-profile
 
-# Web API — needs LF.IdentityService, LF.CourseService, MinIO, and Postgres reachable,
+# Payment service — same "leanforge" database, plus Robokassa__MerchantLogin/Password1/Password2
+# (and Robokassa__IsTest=true for the sandbox) in configuration
+dotnet run --project LF.PaymentService --no-launch-profile
+
+# Web API — needs LF.IdentityService, LF.CourseService, LF.PaymentService, MinIO, and Postgres reachable,
 # PmiAuth/GoogleAuth/DefaultAuth config set, and DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT=1
 # so its gRPC clients can reach the h2c-only Kestrel endpoints above.
 dotnet run --project LF.WebApi --no-launch-profile              # http://localhost:5207
@@ -249,7 +281,7 @@ Frontend tests use Vitest (`npm test`, or `npm run test:watch` / `npm run test:c
 
 ### Database migrations
 
-`AppDbContext` is registered in all three backend hosts (see [Clean Architecture layers](#clean-architecture-layers)), but `LF.IdentityService` is the recommended startup project for EF tooling — it has the simplest dependency graph (no gRPC client wiring needed at build time):
+`AppDbContext` is registered in all four backend hosts (see [Clean Architecture layers](#clean-architecture-layers)), but `LF.IdentityService` is the recommended startup project for EF tooling — it has the simplest dependency graph (no gRPC client wiring needed at build time) and is the sole schema owner/migrator at runtime:
 
 ```bash
 dotnet ef migrations add <Name> \
@@ -260,7 +292,7 @@ dotnet ef migrations add <Name> \
 
 ## Production deployment (Docker Compose)
 
-`docker-compose.yml` defines five services across two Docker networks:
+`docker-compose.yml` defines six services across two Docker networks:
 
 | Service | Network(s) | Host-exposed? |
 |---|---|---|
@@ -268,12 +300,15 @@ dotnet ef migrations add <Name> \
 | `minio` | `leanforge-internal` | No — avatar/cover-image bytes are always proxied through `lf-webapi` |
 | `lf-identityservice` | `leanforge-internal` | No — gRPC only, reached by `lf-webapi` |
 | `lf-courseservice` | `leanforge-internal` | No — gRPC only, reached by `lf-webapi` |
+| `lf-paymentservice` | `leanforge-internal` | No — gRPC only, reached by `lf-webapi` (Robokassa's classic flow needs no egress from it) |
 | `lf-webapi` | `leanforge-public` + `leanforge-internal` | Yes (`${WEBAPI_HOST_PORT:-8081}` → `8080`) |
 
-`lf-webapi` is the only container with a published port and the only one on the public network (it needs outbound internet access for the PMI OIDC and Google OAuth handshakes). Everything else is internal-only and unreachable from the host or the internet. `lf-webapi` also gets its own `ConnectionStrings__leanforge`, needed for the `StorageObjects`-only database access described above.
+`lf-webapi` is the only container with a published port and the only one on the public network (it needs outbound internet access for the PMI OIDC and Google OAuth handshakes, and it receives Robokassa's ResultURL webhook). Everything else is internal-only and unreachable from the host or the internet. `lf-webapi` also gets its own `ConnectionStrings__leanforge`, needed for the `StorageObjects`-only database access described above.
 
 ```bash
-cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey, PmiAuth__*, GoogleAuth__*
+cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
+                       # PmiAuth__*, GoogleAuth__*, Robokassa__MerchantLogin/Password1/Password2 (+ SuccessUrl/FailUrl)
+                       # SENTRY_DSN is optional — set it to enable backend error monitoring, leave blank to disable
 docker compose up --build
 ```
 

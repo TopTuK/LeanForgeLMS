@@ -15,6 +15,7 @@ const CreateCourseView = () => import('@/views/courses/CreateCourseView.vue');
 const CourseEditorView = () => import('@/views/courses/CourseEditorView.vue');
 const LessonEditorView = () => import('@/views/courses/LessonEditorView.vue');
 const CourseLearnView = () => import('@/views/courses/CourseLearnView.vue');
+const PaymentResultView = () => import('@/views/payments/PaymentResultView.vue');
 const EventsView = () => import('@/views/EventsView.vue');
 const CertificatesView = () => import('@/views/CertificatesView.vue');
 const ProfileView = () => import('@/views/ProfileView.vue');
@@ -137,6 +138,26 @@ const routes = [
                 }
             },
         ],
+    },
+    {
+        path: '/payments/success',
+        name: 'PaymentSuccess',
+        component: PaymentResultView,
+        props: { outcome: 'success' },
+        meta: {
+            title: 'payment_result_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/payments/fail',
+        name: 'PaymentFail',
+        component: PaymentResultView,
+        props: { outcome: 'fail' },
+        meta: {
+            title: 'payment_result_view_title',
+            requiresAuth: true,
+        }
     },
     {
         path: '/events',

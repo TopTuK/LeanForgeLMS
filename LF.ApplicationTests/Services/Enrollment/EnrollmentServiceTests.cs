@@ -700,4 +700,48 @@ public class EnrollmentServiceTests
         Assert.True(result!.IsEnrolled);
         Assert.Equal(enrollment.Id, result.EnrollmentId);
     }
+
+    [Fact]
+    public async Task ActivatePaidEnrollmentAsync_PendingWithPromo_ActivatesAndRedeems()
+    {
+        // Arrange
+        var course = CreatePublishedPaidCourse(price: 1000m);
+        var promo = PromoCode.Create("SAVE10", PromoCodeDiscountType.Percentage, 10m, course.Id, null, 5, 1, DateTime.UtcNow);
+        EntityIdSetter.SetId(promo, 3);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 900m, promoCodeId: 3);
+        EntityIdSetter.SetId(enrollment, 11);
+        var service = CreateService([course], [enrollment], out var dbContextMock, [promo]);
+
+        // Act
+        var result = await service.ActivatePaidEnrollmentAsync(11, 900m);
+
+        // Assert
+        Assert.Equal(EnrollmentStatus.Active, result.Status);
+        Assert.Equal(900m, result.PricePaid);
+        Assert.Equal(EnrollmentStatus.Active, enrollment.Status);
+        Assert.Equal(1, promo.RedemptionCount);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ActivatePaidEnrollmentAsync_AlreadyActive_IsIdempotent()
+    {
+        var course = CreatePublishedPaidCourse(price: 1000m);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.Active, 1000m);
+        EntityIdSetter.SetId(enrollment, 11);
+        var service = CreateService([course], [enrollment], out var dbContextMock);
+
+        var result = await service.ActivatePaidEnrollmentAsync(11, 1000m);
+
+        Assert.Equal(EnrollmentStatus.Active, result.Status);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ActivatePaidEnrollmentAsync_UnknownEnrollment_Throws()
+    {
+        var service = CreateService([], [], out _);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ActivatePaidEnrollmentAsync(999, 100m));
+    }
 }

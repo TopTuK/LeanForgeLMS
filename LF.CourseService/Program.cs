@@ -2,6 +2,7 @@ using LF.Application;
 using LF.CourseService.Services;
 using LF.Infrastructure;
 using Mapster;
+using Sentry;
 using Serilog;
 
 Microsoft.Extensions.Hosting.Extensions.CreateBootstrapLogger();
@@ -34,6 +35,7 @@ try
 }
 catch (Exception ex)
 {
+    SentrySdk.CaptureException(ex);
     Log.Fatal(ex, "LF.CourseService application terminated unexpectedly");
 }
 finally

@@ -8,9 +8,9 @@ import {
   fetchCourseCoverImageObjectUrl,
   fetchCoursePreviewLessonMediaObjectUrl,
   fetchCoursePreviewLessonPartFileObjectUrl,
-  enroll,
   validatePromoCode,
 } from '@/services/enrollmentService';
+import { createCheckout } from '@/services/paymentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 
 const { t } = useI18n();
@@ -106,12 +106,13 @@ async function onCtaClick() {
   errorMessage.value = '';
   try {
     const appliedCode = promoResult.value?.isValid ? promoCode.value.trim() : null;
-    const enrollment = await enroll(course.value.id, appliedCode);
-    if (enrollment.status === 'PendingPayment') {
+    const checkout = await createCheckout(course.value.id, appliedCode);
+    if (checkout.paymentUrl) {
       pendingPayment.value = true;
+      window.location.assign(checkout.paymentUrl);
       return;
     }
-    router.push({ name: 'CourseLearn', params: { enrollmentId: enrollment.id } });
+    router.push({ name: 'CourseLearn', params: { enrollmentId: checkout.enrollmentId } });
   } catch (err) {
     errorMessage.value = err.response?.status === 403
       ? t('courses.detail.managed_only')
@@ -458,7 +459,7 @@ async function downloadFile(lesson, part, file) {
             v-if="pendingPayment"
             class="course-detail__pending"
           >
-            {{ $t('courses.detail.awaiting_payment') }}
+            {{ $t('courses.detail.redirecting') }}
           </p>
           <button
             v-else

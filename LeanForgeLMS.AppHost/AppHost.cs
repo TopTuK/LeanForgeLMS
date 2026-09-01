@@ -15,15 +15,31 @@ var postgres = builder
 var minioUser = builder.AddParameter("minio-user", "minioadmin");
 var minioPassword = builder.AddParameter("minio-password", "minioadmin", secret: true);
 
+// Sentry DSN forwarded to every service as SENTRY_DSN (the Sentry SDK reads that env var
+// natively). Resolves from AppHost configuration/user-secrets; empty when unset, which
+// leaves Sentry disabled for that session.
+var sentryDsn = builder.AddParameter(
+    "sentry-dsn",
+    () => builder.Configuration["SENTRY_DSN"] ?? string.Empty,
+    secret: true);
+
 var minio = builder.AddMinioContainer("minio", minioUser, minioPassword, port: 9000);
 
 var identityService = builder
     .AddProject<Projects.LF_IdentityService>("lf-identityservice")
+    .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(postgres)
     .WaitFor(postgres);
 
 var courseService = builder
     .AddProject<Projects.LF_CourseService>("lf-courseservice")
+    .WithEnvironment("SENTRY_DSN", sentryDsn)
+    .WithReference(postgres)
+    .WaitFor(postgres);
+
+var paymentService = builder
+    .AddProject<Projects.LF_PaymentService>("lf-paymentservice")
+    .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(postgres)
     .WaitFor(postgres);
 
@@ -34,10 +50,13 @@ var webApp = builder
 
 builder
     .AddProject<Projects.LF_WebApi>("lf-webapi")
+    .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(identityService)
     .WaitFor(identityService)
     .WithReference(courseService)
     .WaitFor(courseService)
+    .WithReference(paymentService)
+    .WaitFor(paymentService)
     .WithReference(webApp)
     .WaitFor(webApp)
     .WithReference(minio)

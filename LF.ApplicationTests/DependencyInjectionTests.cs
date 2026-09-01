@@ -6,6 +6,7 @@ using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.Payment;
 using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
@@ -85,5 +86,23 @@ public class DependencyInjectionTests
         Assert.IsType<CourseServiceImpl>(scope.ServiceProvider.GetRequiredService<ICourseService>());
         Assert.IsType<EnrollmentService>(scope.ServiceProvider.GetRequiredService<IEnrollmentService>());
         Assert.IsType<PromoCodeService>(scope.ServiceProvider.GetRequiredService<IPromoCodeService>());
+    }
+
+    [Fact]
+    public void AddPaymentApplication_RegistersPaymentOrderService()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton(Mock.Of<IAppDbContext>());
+        services.AddScoped(_ => Mock.Of<IPaymentGateway>());
+        services.AddPaymentApplication();
+
+        // Act
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        using var scope = provider.CreateScope();
+
+        // Assert
+        Assert.IsType<PaymentOrderService>(scope.ServiceProvider.GetRequiredService<IPaymentOrderService>());
     }
 }
