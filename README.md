@@ -245,7 +245,38 @@ dotnet run --project LeanForgeLMS.AppHost
 
 This starts Postgres, MinIO, the Vite dev server, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService`, and `LF.WebApi`, wires connection strings/service discovery between them automatically, and opens the Aspire dashboard (OpenTelemetry traces/metrics/logs for every resource).
 
-> **Known issue:** `LF.IdentityService`, `LF.CourseService` and `LF.PaymentService` all set `Kestrel:EndpointDefaults:Protocols` to `Http2` (standard gRPC-service scaffolding), which also makes their `/health` endpoints HTTP/2-only. The AppHost's `WaitFor(...)` health probes use HTTP/1.1 and get rejected, so `lf-webapi` can hang indefinitely waiting to start. If that happens, run the services standalone instead (below). Root-fixing the AppHost health check hasn't been attempted.
+> **Known issue:** `LF.IdentityService`, `LF.CourseService` and `LF.PaymentService` all set `Kestrel:EndpointDefaults:Protocols` to `Http2` (standard gRPC-service scaffolding), which also makes their `/health` endpoints HTTP/2-only. The AppHost's `WaitFor(...)` health probes use HTTP/1.1 and get rejected, so `lf-webapi` can hang indefinitely waiting to start. If that happens, run the services standalone instead (below), or use the `payment-check` launch profile (see [Testing payments locally](#testing-payments-locally-ngrok)) which swaps `WaitFor` for `WaitForStart` on the gRPC dependencies. Root-fixing the AppHost health check for the default profile hasn't been attempted.
+
+### Testing payments locally (ngrok)
+
+The `payment-check` AppHost launch profile starts everything the default profile does **plus** an ngrok tunnel to `lf-webapi`, so Robokassa's server-to-server ResultURL webhook (`/api/payments/robokassa/result`) and the browser Success/Fail redirects (`/payments/success|fail`) can reach your machine. It also swaps `WaitFor` → `WaitForStart` for the gRPC services so `lf-webapi` isn't blocked by their HTTP/2-only `/health`.
+
+**One-time setup:**
+
+```bash
+# ngrok auth token (free account: dashboard.ngrok.com) — read by the AppHost only in payment-check mode
+dotnet user-secrets set NGROK_AUTHTOKEN <token> --project LeanForgeLMS.AppHost
+
+# Robokassa test-shop credentials — LF.PaymentService owns these; IsTest=true is already set
+# in LF.PaymentService/appsettings.Development.json
+dotnet user-secrets set "Robokassa:MerchantLogin" <shop-id>          --project LF.PaymentService
+dotnet user-secrets set "Robokassa:Password1"     <test password #1> --project LF.PaymentService
+dotnet user-secrets set "Robokassa:Password2"     <test password #2> --project LF.PaymentService
+```
+
+**Each run** (the free tunnel URL is ephemeral):
+
+```bash
+dotnet run --project LeanForgeLMS.AppHost --launch-profile payment-check
+```
+
+1. In the Aspire dashboard open the `ngrok` resource and copy its public URL `$PUB` (or open the ngrok inspector at `http://localhost:4040`).
+2. In the Robokassa merchant cabinet → **Технические настройки**, set:
+   - Result URL `= $PUB/api/payments/robokassa/result`, method **POST**
+   - Success URL `= $PUB/payments/success` · Fail URL `= $PUB/payments/fail`
+   - Hash algorithm **SHA256** (must match `Robokassa:HashAlgorithm`)
+3. Open the app **at `$PUB`** (not `localhost` — the session cookie is per-origin), sign in via `$PUB/api/dev-auth/Student`, and buy a paid course.
+4. Watch the `lf-webapi` / `lf-paymentservice` logs and `http://localhost:4040`. On success `LFPaymentOrders.Status` becomes `Paid`, the enrollment becomes `Active`, and the webhook responds `OK<InvId>`.
 
 ### Run services standalone (without Aspire)
 

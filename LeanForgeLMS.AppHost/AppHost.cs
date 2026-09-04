@@ -1,5 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Set by the "payment-check" launch profile. Starts an ngrok tunnel to lf-webapi so Robokassa's
+// ResultURL webhook and Success/Fail redirects can reach the local machine.
+var tunnelEnabled = string.Equals(builder.Configuration["LF_TUNNEL"], "true", StringComparison.OrdinalIgnoreCase);
+
 var pgUser = builder.AddParameter("postgres-user", "leanforge");
 var pgPassword = builder.AddParameter("postgres-password", "leanforge", secret: true);
 var postgres = builder
@@ -48,21 +52,48 @@ var webApp = builder
     .WithNpm()
     .WithHttpEndpoint(port: 5173, env: "PORT");
 
-builder
+var webApi = builder
     .AddProject<Projects.LF_WebApi>("lf-webapi")
     .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(identityService)
-    .WaitFor(identityService)
     .WithReference(courseService)
-    .WaitFor(courseService)
     .WithReference(paymentService)
-    .WaitFor(paymentService)
     .WithReference(webApp)
     .WaitFor(webApp)
     .WithReference(minio)
     .WaitFor(minio)
     .WithReference(postgres)
     .WaitFor(postgres);
+
+if (tunnelEnabled)
+{
+    // The gRPC hosts are Http2-only, so their /health endpoint rejects Aspire's HTTP/1.1 readiness
+    // probe and WaitFor(...) would hang lf-webapi forever. Wait for Running instead of Healthy.
+    webApi
+        .WaitForStart(identityService)
+        .WaitForStart(courseService)
+        .WaitForStart(paymentService);
+
+    var ngrokAuthToken = builder.AddParameter(
+        "ngrok-auth-token",
+        () => builder.Configuration["NGROK_AUTHTOKEN"]
+              ?? throw new InvalidOperationException(
+                  "The payment-check launch profile needs an ngrok auth token: "
+                  + "dotnet user-secrets set NGROK_AUTHTOKEN <token> --project LeanForgeLMS.AppHost"),
+        secret: true);
+
+    builder
+        .AddNgrok("ngrok", endpointPort: 4040) // fixed inspector port: http://localhost:4040
+        .WithAuthToken(ngrokAuthToken)
+        .WithTunnelEndpoint(webApi, "http"); // ephemeral public domain -> lf-webapi http endpoint
+}
+else
+{
+    webApi
+        .WaitFor(identityService)
+        .WaitFor(courseService)
+        .WaitFor(paymentService);
+}
 
 builder
     .Build()
