@@ -10,7 +10,7 @@ describe('UnauthorizedHeader', () => {
       .map((a) => a.getAttribute('href'))
       .filter((href) => href?.startsWith('#'));
 
-    expect(hrefs).toEqual(expect.arrayContaining(['#programs', '#approach', '#faq']));
+    expect(hrefs).toEqual(expect.arrayContaining(['#audience', '#approach', '#faq']));
   });
 
   it('renders the mobile menu toggle', () => {

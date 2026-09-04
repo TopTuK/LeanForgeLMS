@@ -11,33 +11,39 @@ describe('HomeView', () => {
     expect(h1s).toHaveLength(1);
     expect(h1s[0]).toHaveTextContent(/skill set/i);
 
-    expect(getByRole('heading', { name: /two programs to start/i })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /built for people who run the work/i })).toBeInTheDocument();
     expect(getByRole('heading', { name: /self-paced, on one platform/i })).toBeInTheDocument();
     expect(getByRole('heading', { name: /^questions$/i })).toBeInTheDocument();
   });
 
-  it('points the hero primary call to action at the programs section', () => {
+  it('points the hero primary call to action at the audience section', () => {
     const { getByRole } = renderComponent(HomeView);
 
-    expect(getByRole('link', { name: /see the programs/i })).toHaveAttribute('href', '#programs');
+    expect(getByRole('link', { name: /see who it's for/i })).toHaveAttribute('href', '#audience');
   });
 
-  it('renders both starting programs and filters them by category', async () => {
-    const { getByRole, queryByRole } = renderComponent(HomeView);
+  it('states this is Sergey Sidorov\'s personal project and links to his site', () => {
+    const { getByRole, getAllByRole } = renderComponent(HomeView);
 
-    expect(getByRole('heading', { name: /introduction to llm/i })).toBeInTheDocument();
-    expect(getByRole('heading', { name: /introduction to kanban/i })).toBeInTheDocument();
+    const bylineLink = getByRole('link', { name: /personal project by sergey sidorov/i });
+    expect(bylineLink).toHaveAttribute('href', 'https://s-sidorov.ru');
 
-    await userEvent.click(getByRole('button', { name: /^AI$/ }));
+    const siteLinks = getAllByRole('link', { name: /read full bio/i });
+    expect(siteLinks[0]).toHaveAttribute('href', 'https://s-sidorov.ru');
+  });
 
-    expect(getByRole('heading', { name: /introduction to llm/i })).toBeInTheDocument();
-    expect(queryByRole('heading', { name: /introduction to kanban/i })).not.toBeInTheDocument();
+  it('renders the audience cards for the roles this platform serves', () => {
+    const { getByRole } = renderComponent(HomeView);
+
+    expect(getByRole('heading', { name: 'Project managers' })).toBeInTheDocument();
+    expect(getByRole('heading', { name: 'Product managers' })).toBeInTheDocument();
+    expect(getByRole('heading', { name: 'Product team members' })).toBeInTheDocument();
   });
 
   it('expands a FAQ entry on click', async () => {
     const { getByRole } = renderComponent(HomeView);
 
-    const trigger = getByRole('button', { name: /who is this school for/i });
+    const trigger = getByRole('button', { name: /who is this for/i });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
     await userEvent.click(trigger);

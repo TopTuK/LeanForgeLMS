@@ -4,7 +4,7 @@ import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
 import logo from '@/assets/logo.svg';
 
 const navLinks = [
-  { href: '#programs', labelKey: 'nav.programs' },
+  { href: '#audience', labelKey: 'nav.audience' },
   { href: '#approach', labelKey: 'nav.approach' },
   { href: '#faq', labelKey: 'nav.faq' },
 ];

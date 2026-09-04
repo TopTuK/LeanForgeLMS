@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue';
-import { Target, Workflow, FileSearch, Handshake } from 'lucide-vue-next';
+import { ClipboardList, Compass, Users } from 'lucide-vue-next';
 
-const ICONS = { planning: Target, flow: Workflow, analysis: FileSearch, leadership: Handshake };
+const ICONS = { pm: ClipboardList, product: Compass, team: Users };
 
 const props = defineProps({
   index: { type: String, required: true },
   icon: {
     type: String,
     required: true,
-    validator: (value) => ['planning', 'flow', 'analysis', 'leadership'].includes(value),
+    validator: (value) => ['pm', 'product', 'team'].includes(value),
   },
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -19,10 +19,10 @@ const iconComponent = computed(() => ICONS[props.icon]);
 </script>
 
 <template>
-  <article class="outcome-card">
-    <div class="outcome-card__top">
+  <article class="audience-card">
+    <div class="audience-card__top">
       <span
-        class="outcome-card__icon"
+        class="audience-card__icon"
         aria-hidden="true"
       >
         <component
@@ -30,20 +30,20 @@ const iconComponent = computed(() => ICONS[props.icon]);
           :size="20"
         />
       </span>
-      <span class="outcome-card__index mono-label">{{ index }}</span>
+      <span class="audience-card__index mono-label">{{ index }}</span>
     </div>
 
-    <h3 class="outcome-card__title">
+    <h3 class="audience-card__title">
       {{ title }}
     </h3>
-    <p class="outcome-card__text">
+    <p class="audience-card__text">
       {{ description }}
     </p>
   </article>
 </template>
 
 <style scoped>
-.outcome-card {
+.audience-card {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -55,18 +55,18 @@ const iconComponent = computed(() => ICONS[props.icon]);
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
-.outcome-card:hover {
+.audience-card:hover {
   border-color: color-mix(in srgb, var(--color-accent-coral) 45%, var(--color-border-subtle));
   transform: translateY(-2px);
 }
 
-.outcome-card__top {
+.audience-card__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.outcome-card__icon {
+.audience-card__icon {
   display: grid;
   place-items: center;
   width: 2.75rem;
@@ -76,11 +76,11 @@ const iconComponent = computed(() => ICONS[props.icon]);
   background: var(--color-accent-soft);
 }
 
-.outcome-card__index {
+.audience-card__index {
   color: var(--color-ink-faint);
 }
 
-.outcome-card__title {
+.audience-card__title {
   margin: 0;
   color: var(--color-ink);
   font-family: var(--font-sans);
@@ -89,7 +89,7 @@ const iconComponent = computed(() => ICONS[props.icon]);
   line-height: 1.35;
 }
 
-.outcome-card__text {
+.audience-card__text {
   margin: 0;
   color: var(--color-ink-muted);
   font-size: 0.9rem;
