@@ -4,20 +4,42 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  imageSrc: {
+    type: String,
+    default: '',
+  },
+  imageAlt: {
+    type: String,
+    default: '',
+  },
 });
 </script>
 
 <template>
   <div
     class="hero-diagram"
-    aria-hidden="true"
   >
-    <span class="hero-diagram__grid" />
+    <img
+      v-if="imageSrc"
+      :src="imageSrc"
+      :alt="imageAlt"
+      class="hero-diagram__image"
+      fetchpriority="high"
+    >
+    <span
+      class="hero-diagram__scrim"
+      aria-hidden="true"
+    />
+    <span
+      class="hero-diagram__grid"
+      aria-hidden="true"
+    />
 
     <svg
       class="hero-diagram__draw"
       viewBox="0 0 320 320"
       fill="none"
+      aria-hidden="true"
     >
       <rect
         x="40.5"
@@ -97,6 +119,24 @@ defineProps({
   overflow: hidden;
 }
 
+.hero-diagram__image,
+.hero-diagram__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-diagram__image {
+  object-fit: cover;
+}
+
+.hero-diagram__scrim {
+  background:
+    linear-gradient(180deg, transparent 40%, color-mix(in srgb, var(--band-bg) 88%, transparent) 100%),
+    color-mix(in srgb, var(--band-bg) 12%, transparent);
+}
+
 .hero-diagram__grid {
   position: absolute;
   inset: 0;
@@ -130,7 +170,8 @@ defineProps({
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  color: var(--band-ink-muted);
+  color: var(--band-ink);
+  text-shadow: 0 1px 12px var(--band-bg);
 }
 
 .hero-diagram__labels li {

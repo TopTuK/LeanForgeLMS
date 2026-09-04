@@ -509,6 +509,12 @@
             "cta_secondary": "Sign in",
             "note": "Practice-first · real tools · one instructor"
         },
+        "images": {
+            "hero_alt": "A manager arranging planning cards and workflow notes at a desk",
+            "approach_alt": "A professional applying a self-paced lesson to a project notebook",
+            "approach_caption": "Learn · apply · continue",
+            "cta_alt": "A prepared learning workspace with a laptop, notebook and project cards"
+        },
         "disciplines": {
             "items": [
                 "Project management",

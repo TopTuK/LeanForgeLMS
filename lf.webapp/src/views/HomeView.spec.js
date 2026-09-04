@@ -40,6 +40,14 @@ describe('HomeView', () => {
     expect(getByRole('heading', { name: 'Product team members' })).toBeInTheDocument();
   });
 
+  it('describes the editorial landing images', () => {
+    const { getByRole } = renderComponent(HomeView);
+
+    expect(getByRole('img', { name: /arranging planning cards/i })).toBeInTheDocument();
+    expect(getByRole('img', { name: /applying a self-paced lesson/i })).toBeInTheDocument();
+    expect(getByRole('img', { name: /prepared learning workspace/i })).toBeInTheDocument();
+  });
+
   it('expands a FAQ entry on click', async () => {
     const { getByRole } = renderComponent(HomeView);
 

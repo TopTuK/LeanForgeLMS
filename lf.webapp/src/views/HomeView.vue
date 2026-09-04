@@ -13,6 +13,9 @@ import CtaBand from '@/components/home/CtaBand.vue';
 import GeometricBackdrop from '@/components/layout/GeometricBackdrop.vue';
 import authorPortrait from '@/assets/author-portrait.jpg';
 import authorSecondary from '@/assets/author-secondary.jpg';
+import ctaWorkspace from '@/assets/home/cta-workspace.jpg';
+import heroPractice from '@/assets/home/hero-practice.jpg';
+import learningWorkflow from '@/assets/home/learning-workflow.jpg';
 
 const { tm } = useI18n();
 
@@ -121,7 +124,11 @@ function index(n) {
           v-motion="reveal(120)"
           class="landing-hero__diagram"
         >
-          <HeroDiagram :labels="disciplines" />
+          <HeroDiagram
+            :labels="disciplines"
+            :image-src="heroPractice"
+            :image-alt="$t('home.images.hero_alt')"
+          />
         </div>
       </div>
     </section>
@@ -210,19 +217,36 @@ function index(n) {
           heading-id="approach-title"
         />
 
-        <ol
-          v-motion="reveal(60)"
-          class="landing-approach__steps"
-        >
-          <ProcessStep
-            v-for="(step, i) in APPROACH_STEPS"
-            :key="step"
-            :step="step"
-            :title="$t(`home.approach.steps.${step}.title`)"
-            :description="$t(`home.approach.steps.${step}.description`)"
-            :last="i === APPROACH_STEPS.length - 1"
-          />
-        </ol>
+        <div class="landing-approach__grid">
+          <ol
+            v-motion="reveal(60)"
+            class="landing-approach__steps"
+          >
+            <ProcessStep
+              v-for="(step, i) in APPROACH_STEPS"
+              :key="step"
+              :step="step"
+              :title="$t(`home.approach.steps.${step}.title`)"
+              :description="$t(`home.approach.steps.${step}.description`)"
+              :last="i === APPROACH_STEPS.length - 1"
+            />
+          </ol>
+
+          <figure
+            v-motion="reveal(120)"
+            class="landing-approach__visual"
+          >
+            <img
+              :src="learningWorkflow"
+              :alt="$t('home.images.approach_alt')"
+              loading="lazy"
+              decoding="async"
+            >
+            <figcaption class="mono-label">
+              {{ $t('home.images.approach_caption') }}
+            </figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -297,6 +321,16 @@ function index(n) {
             :title="$t('home.cta.title')"
             :subtitle="$t('home.cta.subtitle')"
           >
+            <template #media>
+              <img
+                :src="ctaWorkspace"
+                :alt="$t('home.images.cta_alt')"
+                class="landing-cta__image"
+                loading="lazy"
+                decoding="async"
+              >
+            </template>
+
             <router-link
               :to="{ name: 'Login' }"
               class="landing-hero__cta landing-hero__cta--primary"
@@ -485,7 +519,36 @@ function index(n) {
 }
 
 .landing-approach {
-  max-width: 46rem;
+  max-width: none;
+}
+
+.landing-approach__grid {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+.landing-approach__visual {
+  position: relative;
+  min-width: 0;
+  margin: 2.75rem 0 0;
+  overflow: hidden;
+  align-self: start;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--industrial-panel);
+}
+
+.landing-approach__visual img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.landing-approach__visual figcaption {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-ink-faint);
 }
 
 .landing-faq {
@@ -507,6 +570,14 @@ function index(n) {
 .landing-cta__notify:hover {
   color: var(--band-accent);
   border-color: var(--band-accent);
+}
+
+.landing-cta__image {
+  display: block;
+  width: 100%;
+  min-height: 15rem;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
 }
 
 @media (min-width: 768px) {
@@ -531,6 +602,10 @@ function index(n) {
 
   .landing-grid--outcomes {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .landing-approach__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr);
   }
 }
 </style>
