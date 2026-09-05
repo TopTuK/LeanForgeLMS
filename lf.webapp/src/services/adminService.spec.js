@@ -16,6 +16,10 @@ import {
   fetchPromoCodes,
   createPromoCode,
   deactivatePromoCode,
+  fetchPlatformSettings,
+  updateStudentEnrollment,
+  fetchPayments,
+  downloadPaymentsCsv,
 } from '@/services/adminService';
 
 describe('adminService', () => {
@@ -89,6 +93,51 @@ describe('adminService', () => {
     it('deactivatePromoCode POSTs to the deactivate route', async () => {
       await deactivatePromoCode(7);
       expect(api.post).toHaveBeenCalledWith('/admin/promo-codes/7/deactivate');
+    });
+  });
+
+  describe('platform settings', () => {
+    it('fetchPlatformSettings GETs the platform-settings route', async () => {
+      api.get.mockResolvedValue({ data: { studentEnrollmentEnabled: false } });
+      await fetchPlatformSettings();
+      expect(api.get).toHaveBeenCalledWith('/admin/platform-settings');
+    });
+
+    it('updateStudentEnrollment PUTs the flag wrapped in an object', async () => {
+      await updateStudentEnrollment(true);
+      expect(api.put).toHaveBeenCalledWith('/admin/platform-settings/student-enrollment', { enabled: true });
+    });
+  });
+
+  describe('payments', () => {
+    it('fetchPayments sends default paging and omits empty dates', async () => {
+      api.get.mockResolvedValue({ data: { items: [] } });
+      await fetchPayments();
+      expect(api.get).toHaveBeenCalledWith('/admin/payments', {
+        params: { page: 1, pageSize: 20, from: undefined, to: undefined },
+      });
+    });
+
+    it('downloadPaymentsCsv requests a blob and triggers a download', async () => {
+      const clickSpy = vi.fn();
+      const anchor = { href: '', download: '', click: clickSpy, remove: vi.fn() };
+      vi.spyOn(document, 'createElement').mockReturnValue(anchor);
+      vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+      api.get.mockResolvedValue({
+        data: new Blob(['a;b']),
+        headers: { 'content-disposition': 'attachment; filename="course-payments-2026-09-06.csv"' },
+      });
+
+      await downloadPaymentsCsv({ from: '2026-01-01' });
+
+      expect(api.get).toHaveBeenCalledWith('/admin/payments/report.csv', {
+        params: { from: '2026-01-01', to: undefined },
+        responseType: 'blob',
+      });
+      expect(anchor.download).toBe('course-payments-2026-09-06.csv');
+      expect(clickSpy).toHaveBeenCalled();
+      document.createElement.mockRestore();
+      document.body.appendChild.mockRestore();
     });
   });
 });

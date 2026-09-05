@@ -55,7 +55,38 @@
             "courses": "Courses",
             "categories": "Categories",
             "toggle": "Toggle sidebar",
-            "promo_codes": "Promo codes"
+            "promo_codes": "Promo codes",
+            "payments": "Payments",
+            "settings": "Settings"
+        },
+        "settings": {
+            "title": "Platform settings",
+            "student_enrollment_label": "Allow students to enroll in courses",
+            "student_enrollment_hint": "When off, students can sign in and browse courses but cannot enroll or start checkout.",
+            "updated_at": "Last changed: {date}",
+            "save": "Save",
+            "saving": "Saving…",
+            "saved": "Settings saved.",
+            "load_error": "Could not load platform settings. Please try again.",
+            "save_error": "Could not save platform settings. Please try again."
+        },
+        "payments": {
+            "title": "Course payments",
+            "download": "Download CSV",
+            "downloading": "Preparing…",
+            "from": "From",
+            "to": "To",
+            "apply_filter": "Apply",
+            "paid_at": "Paid at",
+            "student": "Student",
+            "course": "Course",
+            "amount": "Amount",
+            "promo_code": "Promo code",
+            "operation_id": "Operation id",
+            "empty": "No payments yet.",
+            "summary": "{count} payment(s), {total} total",
+            "load_error": "Could not load payments. Please try again.",
+            "download_error": "Could not download the report. Please try again."
         },
         "users": {
             "title": "Users",
@@ -173,6 +204,7 @@
             "promo_invalid": "This promo code cannot be applied.",
             "promo_error": "Could not check the promo code. Please try again.",
             "managed_only": "This course is enrollment-by-invitation only.",
+            "enrollment_disabled": "Enrollment is temporarily unavailable. Please check back soon.",
             "awaiting_payment": "You are enrolled. Access opens once payment is completed.",
             "redirecting": "Redirecting to the payment page…"
         },
@@ -646,6 +678,8 @@
         }
     },
     "admin_promo_codes_view_title": "Promo codes - Admin",
+    "admin_payments_view_title": "Course payments - Admin",
+    "admin_settings_view_title": "Platform settings - Admin",
     "payment_result_view_title": "Payment",
     "payments": {
         "success": {

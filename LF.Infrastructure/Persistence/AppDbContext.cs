@@ -1,5 +1,6 @@
 using LF.AppDomain.Entities.Course;
 using LF.AppDomain.Entities.Payment;
+using LF.AppDomain.Entities.Platform;
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Entities.User;
 using LF.Application.Common.Interfaces;
@@ -15,6 +16,8 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbC
     public DbSet<Enrollment> Enrollments { get; set; } = null!;
     public DbSet<PromoCode> PromoCodes { get; set; } = null!;
     public DbSet<PaymentOrder> PaymentOrders { get; set; } = null!;
+    public DbSet<CoursePayment> CoursePayments { get; set; } = null!;
+    public DbSet<PlatformSettings> PlatformSettings { get; set; } = null!;
     public DbSet<StorageObject> StorageObjects { get; set; } = null!;
     public DbSet<QuizAttempt> QuizAttempts { get; set; } = null!;
 

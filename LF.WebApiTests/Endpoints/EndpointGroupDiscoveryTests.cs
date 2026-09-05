@@ -24,6 +24,9 @@ public class EndpointGroupDiscoveryTests
         Assert.Contains(typeof(EnrollmentEndpoints), groups);
         Assert.Contains(typeof(AdminUserEndpoints), groups);
         Assert.Contains(typeof(AdminCategoryEndpoints), groups);
+        Assert.Contains(typeof(AdminPlatformSettingsEndpoints), groups);
+        Assert.Contains(typeof(AdminPaymentReportEndpoints), groups);
+        Assert.Contains(typeof(PlatformEndpoints), groups);
         Assert.Contains(typeof(DevAuthEndpoints), groups);
     }
 

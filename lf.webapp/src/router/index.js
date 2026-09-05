@@ -24,6 +24,8 @@ const AdminUsersView = () => import('@/views/admin/AdminUsersView.vue');
 const AdminCoursesView = () => import('@/views/admin/AdminCoursesView.vue');
 const AdminCategoriesView = () => import('@/views/admin/AdminCategoriesView.vue');
 const AdminPromoCodesView = () => import('@/views/admin/AdminPromoCodesView.vue');
+const AdminSettingsView = () => import('@/views/admin/AdminSettingsView.vue');
+const AdminPaymentsView = () => import('@/views/admin/AdminPaymentsView.vue');
 
 const routes = [
     {
@@ -231,6 +233,26 @@ const routes = [
                 component: AdminPromoCodesView,
                 meta: {
                     title: 'admin_promo_codes_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'payments',
+                name: 'AdminPayments',
+                component: AdminPaymentsView,
+                meta: {
+                    title: 'admin_payments_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'settings',
+                name: 'AdminSettings',
+                component: AdminSettingsView,
+                meta: {
+                    title: 'admin_settings_view_title',
                     requiresAuth: true,
                     roles: ['Admin'],
                 }

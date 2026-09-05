@@ -7,6 +7,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Platform;
 using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.Moq;
 using Moq;
@@ -21,7 +22,8 @@ public class EnrollmentServiceTests
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<DomainEnrollment> enrollments,
         out Mock<IAppDbContext> dbContextMock,
-        IReadOnlyCollection<PromoCode>? promoCodes = null)
+        IReadOnlyCollection<PromoCode>? promoCodes = null,
+        bool studentEnrollmentEnabled = true)
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
@@ -35,7 +37,11 @@ public class EnrollmentServiceTests
         dbContextMock.SetupGet(c => c.PromoCodes).Returns(promoCodesMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System);
+        var platformSettings = new Mock<IPlatformSettingsService>();
+        platformSettings.Setup(s => s.IsStudentEnrollmentEnabledAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(studentEnrollmentEnabled);
+
+        return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System, platformSettings.Object);
     }
 
     private static DomainCourse CreatePublishedPaidCourse(int id = 1, int createdByUserId = 1, decimal price = 1000m)
@@ -69,6 +75,17 @@ public class EnrollmentServiceTests
         var service = CreateService([course], [], out var dbContextMock);
 
         await Assert.ThrowsAsync<EnrollmentModeException>(() => service.EnrollAsync(course.Id, actingUserId: 7));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_WhenStudentEnrollmentDisabled_ThrowsEnrollmentDisabledException()
+    {
+        var course = CreatePublishedCourse(createdByUserId: 1);
+        var service = CreateService([course], [], out var dbContextMock, studentEnrollmentEnabled: false);
+
+        var ex = await Assert.ThrowsAsync<EnrollmentDisabledException>(() => service.EnrollAsync(course.Id, actingUserId: 7));
+        Assert.IsAssignableFrom<InvalidOperationException>(ex);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

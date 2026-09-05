@@ -5,6 +5,7 @@ using LF.Application.ModelDto.Enrollment;
 using LF.Application.ModelDto.Payment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Payment;
+using LF.Application.Services.PaymentReporting;
 using LF.WebApi.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -75,7 +76,8 @@ public sealed class PaymentEndpoints : IEndpointGroup
         // Robokassa server-to-server webhook. Anonymous, signature-verified, idempotent. Must reply
         // with the plain-text body "OK{InvId}" or Robokassa keeps retrying.
         group.MapMethods("/robokassa/result", ["GET", "POST"], async Task<ContentHttpResult>
-            (HttpContext http, IGrpcPaymentService paymentService, IEnrollmentLearningService enrollmentService) =>
+            (HttpContext http, IGrpcPaymentService paymentService, IEnrollmentLearningService enrollmentService,
+             IPaymentReportService paymentReportService, ILogger<PaymentEndpoints> logger) =>
         {
             var values = await ReadCallbackValuesAsync(http);
 
@@ -116,6 +118,18 @@ public sealed class PaymentEndpoints : IEndpointGroup
                 // Order is settled but activation failed — reply non-OK so Robokassa retries; both
                 // ConfirmPaymentAsync and ActivatePaidEnrollmentAsync are idempotent.
                 return TypedResults.Text("retry", "text/plain", statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            try
+            {
+                // Marketing ledger write. Idempotent, and called on every callback (not just the
+                // first) so a crash between activation and recording self-heals on Robokassa's retry.
+                await paymentReportService.RecordCoursePaymentAsync(confirmation.OrderId, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                // A webhook must never 500 after a settled payment. ReconcileAsync backfills any gap.
+                logger.LogError(ex, "PaymentEndpoints::robokassa/result: CoursePayment record failed for order {OrderId}", confirmation.OrderId);
             }
 
             return TypedResults.Text($"OK{invId}");

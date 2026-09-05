@@ -12,10 +12,12 @@ import {
 } from '@/services/enrollmentService';
 import { createCheckout } from '@/services/paymentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
+import { usePlatformStore } from '@/stores/platformStore';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const platformStore = usePlatformStore();
 
 const courseId = computed(() => Number(route.params.id));
 
@@ -28,6 +30,10 @@ const pendingPayment = ref(false);
 
 const isPaid = computed(() => course.value?.pricingType === 'Paid');
 const rubFormatter = new Intl.NumberFormat('ru-RU');
+
+// Global admin kill-switch. When off, a not-yet-enrolled student can still browse the preview
+// but the enroll CTA is disabled.
+const enrollmentBlocked = computed(() => !platformStore.studentEnrollmentEnabled && !course.value?.isEnrolled);
 
 const promoCode = ref('');
 const promoChecking = ref(false);
@@ -87,7 +93,10 @@ async function load() {
   }
 }
 
-onMounted(load);
+onMounted(() => {
+  platformStore.ensureLoaded();
+  load();
+});
 watch(() => route.params.id, load);
 
 function goToCatalog() {
@@ -101,6 +110,8 @@ async function onCtaClick() {
     router.push({ name: 'CourseLearn', params: { enrollmentId: course.value.enrollmentId } });
     return;
   }
+
+  if (enrollmentBlocked.value) return;
 
   enrolling.value = true;
   errorMessage.value = '';
@@ -417,7 +428,7 @@ async function downloadFile(lesson, part, file) {
           </p>
 
           <div
-            v-if="isPaid && !course.isEnrolled && !pendingPayment"
+            v-if="isPaid && !course.isEnrolled && !pendingPayment && !enrollmentBlocked"
             class="course-detail__promo"
           >
             <label
@@ -461,17 +472,24 @@ async function downloadFile(lesson, part, file) {
           >
             {{ $t('courses.detail.redirecting') }}
           </p>
-          <button
-            v-else
-            type="button"
-            class="course-detail__cta-btn"
-            :disabled="enrolling"
-            @click="onCtaClick"
-          >
-            {{ course.isEnrolled
-              ? $t('courses.detail.continue')
-              : (enrolling ? $t('courses.detail.enrolling') : $t('courses.detail.enroll')) }}
-          </button>
+          <template v-else>
+            <p
+              v-if="enrollmentBlocked"
+              class="course-detail__pending"
+            >
+              {{ $t('courses.detail.enrollment_disabled') }}
+            </p>
+            <button
+              type="button"
+              class="course-detail__cta-btn"
+              :disabled="enrolling || enrollmentBlocked"
+              @click="onCtaClick"
+            >
+              {{ course.isEnrolled
+                ? $t('courses.detail.continue')
+                : (enrolling ? $t('courses.detail.enrolling') : $t('courses.detail.enroll')) }}
+            </button>
+          </template>
         </aside>
       </div>
     </template>
