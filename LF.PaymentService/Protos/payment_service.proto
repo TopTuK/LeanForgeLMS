@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+option csharp_namespace = "LF.PaymentService";
+
+import "google/protobuf/timestamp.proto";
+
+package payment_service;
+
+// The Payment service definition — owns payment orders and the Robokassa integration only.
+// It does not know about courses or enrollments; LF.WebApi orchestrates activation.
+service PaymentServiceRpc {
+  // Create (or reuse the open) payment order for an enrollment and return the checkout URL
+  rpc CreatePaymentOrder (CreatePaymentOrderRequest) returns (PaymentOrderReply);
+  // Read one order's current status (SPA success page polls this); owner-scoped
+  rpc GetPaymentOrder (GetPaymentOrderRequest) returns (PaymentOrderReply);
+  // Verify and settle an order from a provider ResultURL callback; idempotent
+  rpc ConfirmPayment (ConfirmPaymentRequest) returns (ConfirmPaymentReply);
+  // Mark a pending order failed (provider FailURL); idempotent
+  rpc FailPayment (FailPaymentRequest) returns (PaymentOrderReply);
+}
+
+enum PaymentOrderStatus {
+  PAYMENT_ORDER_STATUS_UNKNOWN = 0;
+  PENDING = 1;
+  PAID = 2;
+  FAILED = 3;
+  CANCELLED = 4;
+}
+
+message CreatePaymentOrderRequest {
+  int32 enrollment_id = 1;
+  int32 user_id = 2;
+  string amount = 3;
+  string description = 4;
+}
+
+message GetPaymentOrderRequest {
+  int32 order_id = 1;
+  int32 acting_user_id = 2;
+}
+
+message ConfirmPaymentRequest {
+  string out_sum = 1;
+  int32 inv_id = 2;
+  string signature_value = 3;
+  map<string, string> shp_params = 4;
+}
+
+message ConfirmPaymentReply {
+  int32 order_id = 1;
+  int32 enrollment_id = 2;
+  string amount_paid = 3;
+  bool was_newly_paid = 4;
+}
+
+message FailPaymentRequest {
+  int32 order_id = 1;
+}
+
+message PaymentOrderReply {
+  int32 id = 1;
+  int32 enrollment_id = 2;
+  int32 user_id = 3;
+  string amount = 4;
+  string description = 5;
+  PaymentOrderStatus status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp paid_at = 8;
+  string payment_url = 9;
+}

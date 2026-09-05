@@ -6,6 +6,7 @@ using LF.Application.Services.Enrollment;
 using LF.CourseService;
 using Mapster;
 using Microsoft.Extensions.Logging;
+using AppEnrollmentStatus = LF.AppDomain.Models.Course.Enums.EnrollmentStatus;
 using AppEnrollmentStatusFilter = LF.Application.ModelDto.Enrollment.EnrollmentStatusFilter;
 using RpcEnrollmentStatusFilter = LF.CourseService.EnrollmentStatusFilter;
 
@@ -52,6 +53,36 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
             // Covers both "you created this course" and "this course does not allow self-enrollment";
             // both surface as HTTP 403 at the endpoint.
             throw new EnrollmentModeException(ex.Status.Detail);
+        }
+    }
+
+    public async Task<EnrollmentActivationDto> ActivatePaidEnrollmentAsync(int enrollmentId, decimal paidAmount)
+    {
+        _logger.LogInformation("GrpcEnrollmentService::ActivatePaidEnrollmentAsync: called with EnrollmentId={EnrollmentId} PaidAmount={PaidAmount}",
+            enrollmentId, paidAmount);
+
+        var request = new ConfirmEnrollmentPaymentRequest
+        {
+            EnrollmentId = enrollmentId,
+            PaidAmount = paidAmount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.ConfirmEnrollmentPaymentAsync(request);
+            return new EnrollmentActivationDto
+            {
+                EnrollmentId = reply.EnrollmentId,
+                CourseId = reply.CourseId,
+                Status = (AppEnrollmentStatus)(int)reply.Status,
+                PricePaid = string.IsNullOrEmpty(reply.PricePaid)
+                    ? 0m
+                    : decimal.Parse(reply.PricePaid, System.Globalization.CultureInfo.InvariantCulture),
+            };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
         }
     }
 

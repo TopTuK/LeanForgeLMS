@@ -10,6 +10,9 @@ export default defineConfig({
     server: {
       host: true,
       port: 5173,
+      // LF.WebApi proxies SPA requests here and forwards the original Host header; allow the
+      // ngrok tunnel domains used by the AppHost "payment-check" profile. Inert for localhost dev.
+      allowedHosts: ['.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
     },
     resolve: {
       alias: {

@@ -7,13 +7,21 @@ defineProps({
   cta: { type: String, required: true },
   href: { type: String, required: true },
   initials: { type: String, default: 'SS' },
+  photo: { type: String, default: '' },
 });
 </script>
 
 <template>
   <article class="author-card">
     <div class="author-card__aside">
+      <img
+        v-if="photo"
+        :src="photo"
+        :alt="name"
+        class="author-card__photo"
+      >
       <span
+        v-else
         class="author-card__mark"
         aria-hidden="true"
       >{{ initials }}</span>
@@ -74,19 +82,29 @@ defineProps({
   gap: 1rem;
 }
 
-.author-card__mark {
+.author-card__mark,
+.author-card__photo {
   display: grid;
   place-items: center;
   width: 100%;
   max-width: 9rem;
   aspect-ratio: 1;
   border-radius: var(--radius-md);
+}
+
+.author-card__mark {
   background: var(--color-accent-soft);
   color: var(--color-accent-coral);
   font-family: var(--font-display);
   font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.author-card__photo {
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--color-border-subtle);
 }
 
 .author-card__coords {
@@ -160,7 +178,8 @@ defineProps({
     align-items: center;
   }
 
-  .author-card__mark {
+  .author-card__mark,
+  .author-card__photo {
     max-width: 5rem;
   }
 }

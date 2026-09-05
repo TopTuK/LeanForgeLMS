@@ -62,6 +62,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
     # No ports: — not reachable from the host.
 
   lf-courseservice:
@@ -83,6 +84,31 @@ services:
       ASPNETCORE_HTTP_PORTS: "8080"
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    # No ports: — not reachable from the host.
+
+  lf-paymentservice:
+    build:
+      context: .
+      dockerfile: LF.PaymentService/Dockerfile
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — Robokassa's classic flow needs no egress
+                             # (URL is built locally, confirmation arrives via lf-webapi's webhook)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # LF.IdentityService is the sole schema owner/migrator for the shared AppDbContext
+      # (including LFPaymentOrders) — it must have applied migrations before this starts.
+      lf-identityservice:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    env_file:
+      - .env   # Robokassa__MerchantLogin/Password1/Password2/HashAlgorithm/IsTest/SuccessUrl/FailUrl
     # No ports: — not reachable from the host.
 
   lf-webapi:
@@ -100,6 +126,8 @@ services:
         condition: service_started
       lf-courseservice:
         condition: service_started
+      lf-paymentservice:
+        condition: service_started
       minio:
         condition: service_healthy
     ports:
@@ -112,9 +140,11 @@ services:
       # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
       Services__lf-identityservice__http__0: "lf-identityservice:8080"
       Services__lf-courseservice__http__0: "lf-courseservice:8080"
+      Services__lf-paymentservice__http__0: "lf-paymentservice:8080"
       ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
       # Needed for IStorageService/IStorageRepository (StorageObject metadata) — lf-webapi is the
       # only container with both MinIO and DB access, since an upload needs both in one call.
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret

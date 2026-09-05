@@ -19,7 +19,7 @@
         "menu_toggle": "Toggle menu",
         "theme_light": "Switch to light theme",
         "theme_dark": "Switch to dark theme",
-        "programs": "Programs",
+        "audience": "Who it's for",
         "approach": "Approach"
     },
     "footer": {
@@ -173,7 +173,8 @@
             "promo_invalid": "This promo code cannot be applied.",
             "promo_error": "Could not check the promo code. Please try again.",
             "managed_only": "This course is enrollment-by-invitation only.",
-            "awaiting_payment": "You are enrolled. Access opens once payment is completed."
+            "awaiting_payment": "You are enrolled. Access opens once payment is completed.",
+            "redirecting": "Redirecting to the payment page…"
         },
         "active": {
             "title": "Active courses",
@@ -500,70 +501,67 @@
     },
     "home": {
         "hero": {
-            "eyebrow": "High Managers School",
+            "eyebrow": "A personal LMS by Sergey Sidorov",
             "headline": "Build the manager's skill set — by practising it",
-            "subheadline": "Practice from a practitioner: LLM agents and Kanban for people who already ship work. One instructor, no course assembly line.",
-            "cta_primary": "See the programs",
+            "subheadline": "Practice from a practitioner: project management, product thinking and delivery for people who already ship work. One instructor, no course assembly line.",
+            "byline": "A personal project by {name}",
+            "cta_primary": "See who it's for",
             "cta_secondary": "Sign in",
             "note": "Practice-first · real tools · one instructor"
         },
+        "images": {
+            "hero_alt": "A manager arranging planning cards and workflow notes at a desk",
+            "approach_alt": "A professional applying a self-paced lesson to a project notebook",
+            "approach_caption": "Learn · apply · continue",
+            "cta_alt": "A prepared learning workspace with a laptop, notebook and project cards"
+        },
         "disciplines": {
             "items": [
-                "AI agents",
-                "Kanban & flow",
-                "Systems analysis",
-                ".NET architecture"
+                "Project management",
+                "Product management",
+                "Delivery & flow",
+                "Systems thinking"
             ]
         },
         "outcomes": {
             "eyebrow": "What you'll gain",
             "title": "Skills you can use the next working day",
-            "subtitle": "Every program is built around real work — you leave with something you can apply, not a certificate to file away.",
+            "subtitle": "Every course is built around real work — you leave with something you can apply, not a certificate to file away.",
             "items": {
-                "agents": {
-                    "title": "Work with AI agents",
-                    "description": "Understand how LLMs work and where agents genuinely fit into day-to-day delivery — from prompts to autonomous tool use."
+                "planning": {
+                    "title": "Plan and deliver work",
+                    "description": "Turn scope into a plan, manage risk and stakeholders, and keep delivery on track from kickoff to launch."
                 },
                 "flow": {
                     "title": "Manage the flow of work",
-                    "description": "Visualise work, limit work in progress and manage delivery with Kanban for teams that ship continuously."
+                    "description": "Visualise work, limit work in progress and keep delivery predictable with Kanban-style flow management."
                 },
                 "analysis": {
-                    "title": "Sharpen analysis",
-                    "description": "Use LLM agents to speed up specs and analysis, and structure the flow of work so nothing gets lost."
+                    "title": "Sharpen systems analysis",
+                    "description": "Turn ambiguity into clear specs and decisions that hold up once work actually starts."
                 },
-                "systems": {
-                    "title": "See the whole system",
-                    "description": "Connect architecture, delivery and product decisions so the systems you build survive production."
+                "leadership": {
+                    "title": "Lead people and product",
+                    "description": "Align stakeholders, teams and product decisions so what you build survives contact with production."
                 }
             }
         },
-        "programs": {
-            "eyebrow": "Programs",
-            "title": "Two programs to start",
-            "subtitle": "The first programs — practical, low on ceremony, built around real work rather than certificates.",
-            "cta": "Learn more",
-            "more_note": "More programs are in progress. Sign in to get notified when the next one opens.",
-            "filters": {
-                "all": "All",
-                "ai": "AI",
-                "flow": "Flow",
-                "management": "Management"
-            },
+        "audience": {
+            "eyebrow": "Who it's for",
+            "title": "Built for people who run the work",
+            "subtitle": "One practitioner's platform for the roles that turn plans into shipped work.",
             "items": {
-                "llm_agentic": {
-                    "title": "Introduction to LLM: Agentic Development",
-                    "description": "How large language models work, and how to build and use AI agents in real development workflows — from prompts to autonomous tool use.",
-                    "duration": "New program",
-                    "category": "AI & Agents",
-                    "filter": "ai"
+                "pm": {
+                    "title": "Project managers",
+                    "description": "Plan, sequence and deliver initiatives without losing sight of risk, budget and stakeholders."
                 },
-                "kanban": {
-                    "title": "Introduction to Kanban",
-                    "description": "Visualize work, limit work in progress, and manage flow — a practical Kanban course for teams shipping continuously.",
-                    "duration": "New program",
-                    "category": "Delivery",
-                    "filter": "flow"
+                "product": {
+                    "title": "Product managers",
+                    "description": "Turn ambiguity into roadmaps, prioritise ruthlessly and ship products people actually use."
+                },
+                "team": {
+                    "title": "Product team members",
+                    "description": "Analysts, delivery leads and other product-team roles who keep complex work moving."
                 }
             }
         },
@@ -574,7 +572,7 @@
             "steps": {
                 "1": {
                     "title": "Work through chapters and lessons",
-                    "description": "Each program is split into chapters and lessons with text, images, video and audio — structured so you can go deep without getting lost."
+                    "description": "Each course is split into chapters and lessons with text, images, video and audio — structured so you can go deep without getting lost."
                 },
                 "2": {
                     "title": "Track progress as you go",
@@ -582,17 +580,17 @@
                 },
                 "3": {
                     "title": "Practise on real work",
-                    "description": "Every program is built around applying the ideas to work you actually do — not memorising for an exam."
+                    "description": "Every course is built around applying the ideas to work you actually do — not memorising for an exam."
                 }
             }
         },
         "author": {
             "eyebrow": "Instructor",
             "title": "One person, and someone who ships",
-            "subtitle": "Not a slide-deck theorist — the programs are built and taught by the person who does the work.",
+            "subtitle": "This is Sergey Sidorov's personal LMS — built solo, to teach the craft of project management in modern conditions.",
             "name": "Sergey Sidorov",
             "role": "Founder · project lead and product manager",
-            "bio": "A professional in project management and IT product development. Much of his career was spent on flagship projects at Kaspersky Lab. He removes uncertainty, drives initiatives to completion, and designs systems that survive production. .NET, architecture, systems analysis, and AI — in one skill set.",
+            "bio": "A professional in project management and IT product development. Much of his career was spent on flagship projects at Kaspersky Lab. He built this school himself, from the ground up, to pass on what actually works — planning, delivery, stakeholder and team leadership, and working with modern, AI-assisted tools. He removes uncertainty, drives initiatives to completion, and designs systems that survive production.",
             "highlights": [
                 "Project management",
                 "Product management",
@@ -608,20 +606,20 @@
             "title": "Questions",
             "items": {
                 "1": {
-                    "question": "Who is this school for?",
-                    "answer": "Project and product managers, systems analysts, and neighbouring IT roles who want practical skills — not certificates for their own sake."
+                    "question": "Who is this for?",
+                    "answer": "Project managers, product managers, systems analysts, and other product-team roles who want practical skills — not certificates for their own sake."
                 },
                 "2": {
-                    "question": "Do I need to already know how to code?",
-                    "answer": "It depends on the program. Neither starting program has a hard coding prerequisite — check the description before enrolling."
+                    "question": "Do I need a project management background already?",
+                    "answer": "No single background is required — courses are practical and built for people already doing the work, whatever stage they're at. Check each course's description before enrolling."
                 },
                 "3": {
-                    "question": "How are programs delivered?",
+                    "question": "How are courses delivered?",
                     "answer": "Self-paced on the platform: chapters and lessons with text, images, video, and audio, with progress tracked as you go."
                 },
                 "4": {
                     "question": "Can I suggest a topic?",
-                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and programs can be shaped by what people actually ask for."
+                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and new courses can be shaped by what people actually ask for."
                 },
                 "5": {
                     "question": "Who runs this school?",
@@ -629,19 +627,39 @@
                 },
                 "6": {
                     "question": "How do I enrol?",
-                    "answer": "Sign in with your PMI Club or Google account, open a program and start. There's no separate checkout for the starting programs."
+                    "answer": "Sign in with your PMI Club or Google account, open a course and start — there's no separate checkout."
+                },
+                "7": {
+                    "question": "Is this a company?",
+                    "answer": "No — it's Sergey Sidorov's personal project, not a company. Read more about him at s-sidorov.ru."
                 }
             }
         },
         "cta": {
             "eyebrow": "Start",
             "title": "Start practising",
-            "subtitle": "Sign in with PMI Club or Google, open a program and begin at your own pace.",
+            "subtitle": "Sign in with PMI Club or Google, open a course and begin at your own pace.",
             "primary": "Sign in to start",
-            "notify_cta": "Get notified about new programs",
-            "notify_subject": "Notify me about new programs",
+            "notify_cta": "Get notified about new courses",
+            "notify_subject": "Notify me about new courses",
             "email": "hello{'@'}s-sidorov.ru"
         }
     },
-    "admin_promo_codes_view_title": "Promo codes - Admin"
+    "admin_promo_codes_view_title": "Promo codes - Admin",
+    "payment_result_view_title": "Payment",
+    "payments": {
+        "success": {
+            "checking": "Confirming your payment…",
+            "done": "Payment confirmed. Opening your course…",
+            "pending_title": "Payment is being processed",
+            "pending_body": "This can take a moment. Your course will appear in \"My courses\" as soon as the payment is confirmed.",
+            "to_courses": "Go to my courses",
+            "error": "We could not confirm this payment automatically. Check \"My courses\" in a few minutes."
+        },
+        "fail": {
+            "title": "Payment was not completed",
+            "body": "The payment was cancelled or declined. You can try again from the course page.",
+            "to_catalog": "Back to catalog"
+        }
+    }
 }

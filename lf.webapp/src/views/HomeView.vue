@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import CourseCard from '@/components/home/CourseCard.vue';
+import AudienceCard from '@/components/home/AudienceCard.vue';
 import AuthorCard from '@/components/home/AuthorCard.vue';
 import FaqItem from '@/components/home/FaqItem.vue';
 import SectionHeading from '@/components/home/SectionHeading.vue';
@@ -11,19 +11,22 @@ import OutcomeCard from '@/components/home/OutcomeCard.vue';
 import ProcessStep from '@/components/home/ProcessStep.vue';
 import CtaBand from '@/components/home/CtaBand.vue';
 import GeometricBackdrop from '@/components/layout/GeometricBackdrop.vue';
+import authorPortrait from '@/assets/author-portrait.jpg';
+import authorSecondary from '@/assets/author-secondary.jpg';
+import ctaWorkspace from '@/assets/home/cta-workspace.jpg';
+import heroPractice from '@/assets/home/hero-practice.jpg';
+import learningWorkflow from '@/assets/home/learning-workflow.jpg';
 
-const { tm, t } = useI18n();
+const { tm } = useI18n();
 
-const COURSES = [
-  { key: 'llm_agentic', icon: 'llm', extraFilters: ['management'] },
-  { key: 'kanban', icon: 'kanban', extraFilters: ['management'] },
+const OUTCOMES = ['planning', 'flow', 'analysis', 'leadership'];
+const AUDIENCE = [
+  { key: 'pm', icon: 'pm' },
+  { key: 'product', icon: 'product' },
+  { key: 'team', icon: 'team' },
 ];
-const FILTERS = ['all', 'ai', 'flow', 'management'];
-const OUTCOMES = ['agents', 'flow', 'analysis', 'systems'];
 const APPROACH_STEPS = ['1', '2', '3'];
-const FAQ_KEYS = ['1', '2', '3', '4', '5', '6'];
-
-const activeFilter = ref('all');
+const FAQ_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
 
 const reduceMotion = typeof window !== 'undefined'
   && typeof window.matchMedia === 'function'
@@ -45,14 +48,6 @@ const disciplines = computed(() => {
 const authorHighlights = computed(() => {
   const items = tm('home.author.highlights');
   return Array.isArray(items) ? items : [];
-});
-
-const visibleCourses = computed(() => {
-  if (activeFilter.value === 'all') return COURSES;
-  return COURSES.filter((course) => {
-    const primary = t(`home.programs.items.${course.key}.filter`);
-    return primary === activeFilter.value || course.extraFilters.includes(activeFilter.value);
-  });
 });
 
 function index(n) {
@@ -90,9 +85,23 @@ function index(n) {
             {{ $t('home.hero.subheadline') }}
           </p>
 
+          <a
+            :href="$t('home.author.url')"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="landing-hero__byline"
+          >
+            <img
+              :src="authorSecondary"
+              :alt="$t('home.author.name')"
+              class="landing-hero__byline-photo"
+            >
+            <span>{{ $t('home.hero.byline', { name: $t('home.author.name') }) }}</span>
+          </a>
+
           <div class="landing-hero__actions">
             <a
-              href="#programs"
+              href="#audience"
               class="landing-hero__cta landing-hero__cta--primary"
             >
               {{ $t('home.hero.cta_primary') }}
@@ -115,7 +124,11 @@ function index(n) {
           v-motion="reveal(120)"
           class="landing-hero__diagram"
         >
-          <HeroDiagram :labels="disciplines" />
+          <HeroDiagram
+            :labels="disciplines"
+            :image-src="heroPractice"
+            :image-alt="$t('home.images.hero_alt')"
+          />
         </div>
       </div>
     </section>
@@ -160,58 +173,31 @@ function index(n) {
     </section>
 
     <section
-      id="programs"
+      id="audience"
       class="landing-section landing-section--band-soft"
-      aria-labelledby="programs-title"
+      aria-labelledby="audience-title"
     >
       <div class="layout-max landing-section__inner">
         <SectionHeading
           v-motion="reveal()"
           :index="index(2)"
-          :eyebrow="$t('home.programs.eyebrow')"
-          :title="$t('home.programs.title')"
-          :subtitle="$t('home.programs.subtitle')"
-          heading-id="programs-title"
+          :eyebrow="$t('home.audience.eyebrow')"
+          :title="$t('home.audience.title')"
+          :subtitle="$t('home.audience.subtitle')"
+          heading-id="audience-title"
         />
 
-        <div
-          v-motion="reveal(60)"
-          class="landing-filters"
-        >
-          <button
-            v-for="filter in FILTERS"
-            :key="filter"
-            type="button"
-            class="filter-chip rounded-pill"
-            :class="{ 'is-active': activeFilter === filter }"
-            @click="activeFilter = filter"
-          >
-            {{ $t(`home.programs.filters.${filter}`) }}
-          </button>
-        </div>
-
-        <div class="landing-grid landing-grid--programs">
-          <CourseCard
-            v-for="(course, i) in visibleCourses"
-            :key="course.key"
+        <div class="landing-grid landing-grid--audience">
+          <AudienceCard
+            v-for="(role, i) in AUDIENCE"
+            :key="role.key"
             v-motion="reveal(i * 90)"
             :index="index(i + 1)"
-            :icon="course.icon"
-            :title="$t(`home.programs.items.${course.key}.title`)"
-            :description="$t(`home.programs.items.${course.key}.description`)"
-            :duration="$t(`home.programs.items.${course.key}.duration`)"
-            :category="$t(`home.programs.items.${course.key}.category`)"
-            :cta="$t('home.programs.cta')"
-            :to="{ name: 'Login' }"
+            :icon="role.icon"
+            :title="$t(`home.audience.items.${role.key}.title`)"
+            :description="$t(`home.audience.items.${role.key}.description`)"
           />
         </div>
-
-        <p
-          v-motion="reveal(120)"
-          class="landing-note"
-        >
-          {{ $t('home.programs.more_note') }}
-        </p>
       </div>
     </section>
 
@@ -231,19 +217,36 @@ function index(n) {
           heading-id="approach-title"
         />
 
-        <ol
-          v-motion="reveal(60)"
-          class="landing-approach__steps"
-        >
-          <ProcessStep
-            v-for="(step, i) in APPROACH_STEPS"
-            :key="step"
-            :step="step"
-            :title="$t(`home.approach.steps.${step}.title`)"
-            :description="$t(`home.approach.steps.${step}.description`)"
-            :last="i === APPROACH_STEPS.length - 1"
-          />
-        </ol>
+        <div class="landing-approach__grid">
+          <ol
+            v-motion="reveal(60)"
+            class="landing-approach__steps"
+          >
+            <ProcessStep
+              v-for="(step, i) in APPROACH_STEPS"
+              :key="step"
+              :step="step"
+              :title="$t(`home.approach.steps.${step}.title`)"
+              :description="$t(`home.approach.steps.${step}.description`)"
+              :last="i === APPROACH_STEPS.length - 1"
+            />
+          </ol>
+
+          <figure
+            v-motion="reveal(120)"
+            class="landing-approach__visual"
+          >
+            <img
+              :src="learningWorkflow"
+              :alt="$t('home.images.approach_alt')"
+              loading="lazy"
+              decoding="async"
+            >
+            <figcaption class="mono-label">
+              {{ $t('home.images.approach_caption') }}
+            </figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
@@ -269,7 +272,8 @@ function index(n) {
             :bio="$t('home.author.bio')"
             :highlights="authorHighlights"
             :cta="$t('home.author.cta')"
-            :href="t('home.author.url')"
+            :href="$t('home.author.url')"
+            :photo="authorPortrait"
           />
         </div>
       </div>
@@ -317,6 +321,16 @@ function index(n) {
             :title="$t('home.cta.title')"
             :subtitle="$t('home.cta.subtitle')"
           >
+            <template #media>
+              <img
+                :src="ctaWorkspace"
+                :alt="$t('home.images.cta_alt')"
+                class="landing-cta__image"
+                loading="lazy"
+                decoding="async"
+              >
+            </template>
+
             <router-link
               :to="{ name: 'Login' }"
               class="landing-hero__cta landing-hero__cta--primary"
@@ -423,6 +437,30 @@ function index(n) {
   color: var(--band-ink-muted);
 }
 
+.landing-hero__byline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+  color: var(--band-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.landing-hero__byline:hover {
+  color: var(--band-accent);
+}
+
+.landing-hero__byline-photo {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--band-line);
+}
+
 .landing-hero__diagram {
   display: none;
 }
@@ -468,31 +506,8 @@ function index(n) {
   grid-template-columns: 1fr;
 }
 
-.landing-grid--programs {
+.landing-grid--audience {
   grid-template-columns: 1fr;
-  max-width: 52rem;
-}
-
-.landing-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 2.25rem;
-}
-
-.landing-filters .filter-chip {
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.landing-note {
-  margin: 2rem 0 0;
-  padding: 1rem 1.25rem;
-  border: 1px dashed var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--color-ink-muted);
-  font-size: 0.9rem;
   max-width: 52rem;
 }
 
@@ -504,7 +519,36 @@ function index(n) {
 }
 
 .landing-approach {
-  max-width: 46rem;
+  max-width: none;
+}
+
+.landing-approach__grid {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+.landing-approach__visual {
+  position: relative;
+  min-width: 0;
+  margin: 2.75rem 0 0;
+  overflow: hidden;
+  align-self: start;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--industrial-panel);
+}
+
+.landing-approach__visual img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.landing-approach__visual figcaption {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-ink-faint);
 }
 
 .landing-faq {
@@ -528,13 +572,22 @@ function index(n) {
   border-color: var(--band-accent);
 }
 
+.landing-cta__image {
+  display: block;
+  width: 100%;
+  min-height: 15rem;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
 @media (min-width: 768px) {
   .landing-grid--outcomes {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .landing-grid--programs {
-    grid-template-columns: repeat(2, 1fr);
+  .landing-grid--audience {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: none;
   }
 }
 
@@ -549,6 +602,10 @@ function index(n) {
 
   .landing-grid--outcomes {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .landing-approach__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr);
   }
 }
 </style>

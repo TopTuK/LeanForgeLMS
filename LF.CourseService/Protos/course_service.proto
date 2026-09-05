@@ -53,6 +53,8 @@ service CourseServiceRpc {
   rpc ListCatalog (ListCatalogRequest) returns (ListCatalogReply);
   // Enroll the acting user in a published course
   rpc EnrollInCourse (EnrollInCourseRequest) returns (EnrollmentDetailReply);
+  // Settle a PendingPayment enrollment once its payment order is confirmed paid; idempotent
+  rpc ConfirmEnrollmentPayment (ConfirmEnrollmentPaymentRequest) returns (ConfirmEnrollmentPaymentReply);
   // List the acting user's enrollments, optionally filtered by status
   rpc ListMyEnrollments (ListMyEnrollmentsRequest) returns (ListMyEnrollmentsReply);
   // Get one enrollment's full course structure with per-lesson completion
@@ -426,6 +428,18 @@ message EnrollInCourseRequest {
   int32 course_id = 1;
   int32 acting_user_id = 2;
   google.protobuf.StringValue promo_code = 3;
+}
+
+message ConfirmEnrollmentPaymentRequest {
+  int32 enrollment_id = 1;
+  string paid_amount = 2;
+}
+
+message ConfirmEnrollmentPaymentReply {
+  int32 enrollment_id = 1;
+  int32 course_id = 2;
+  EnrollmentStatus status = 3;
+  string price_paid = 4;
 }
 
 message EnrollUserRequest {

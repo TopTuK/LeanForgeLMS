@@ -3,6 +3,7 @@ using LF.Application;
 using LF.Infrastructure;
 using LF.Infrastructure.Persistence.Seed;
 using Mapster;
+using Sentry;
 using Serilog;
 
 Microsoft.Extensions.Hosting.Extensions.CreateBootstrapLogger();
@@ -37,6 +38,7 @@ try
 }
 catch (Exception ex)
 {
+    SentrySdk.CaptureException(ex);
     Log.Fatal(ex, "LF.IdentityService application terminated unexpectedly");
 }
 finally

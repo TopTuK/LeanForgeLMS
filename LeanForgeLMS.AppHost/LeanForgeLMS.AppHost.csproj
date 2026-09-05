@@ -13,11 +13,13 @@
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.6" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Minio" Version="13.4.0" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Ngrok" Version="13.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LF.CourseService\LF.CourseService.csproj" />
     <ProjectReference Include="..\LF.IdentityService\LF.IdentityService.csproj" />
+    <ProjectReference Include="..\LF.PaymentService\LF.PaymentService.csproj" />
     <ProjectReference Include="..\LF.WebApi\LF.WebApi.csproj" />
   </ItemGroup>
 

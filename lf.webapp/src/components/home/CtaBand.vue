@@ -23,28 +23,40 @@ const headingId = props.headingId ?? fallbackId;
       aria-hidden="true"
     />
 
-    <div class="cta-band__inner layout-max">
-      <p
-        v-if="eyebrow"
-        class="mono-label cta-band__eyebrow"
-      >
-        {{ eyebrow }}
-      </p>
-      <h2
-        :id="headingId"
-        class="cta-band__title font-display"
-      >
-        {{ title }}
-      </h2>
-      <p
-        v-if="subtitle"
-        class="cta-band__subtitle"
-      >
-        {{ subtitle }}
-      </p>
+    <div
+      class="cta-band__inner layout-max"
+      :class="{ 'cta-band__inner--with-media': $slots.media }"
+    >
+      <div class="cta-band__content">
+        <p
+          v-if="eyebrow"
+          class="mono-label cta-band__eyebrow"
+        >
+          {{ eyebrow }}
+        </p>
+        <h2
+          :id="headingId"
+          class="cta-band__title font-display"
+        >
+          {{ title }}
+        </h2>
+        <p
+          v-if="subtitle"
+          class="cta-band__subtitle"
+        >
+          {{ subtitle }}
+        </p>
 
-      <div class="cta-band__actions">
-        <slot />
+        <div class="cta-band__actions">
+          <slot />
+        </div>
+      </div>
+
+      <div
+        v-if="$slots.media"
+        class="cta-band__media"
+      >
+        <slot name="media" />
       </div>
     </div>
   </div>
@@ -68,6 +80,21 @@ const headingId = props.headingId ?? fallbackId;
   position: relative;
   z-index: 1;
   max-width: 40rem;
+}
+
+.cta-band__inner--with-media {
+  max-width: none;
+}
+
+.cta-band__content {
+  max-width: 40rem;
+}
+
+.cta-band__media {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--band-line);
+  border-radius: var(--radius-md);
 }
 
 .cta-band__eyebrow {
@@ -96,5 +123,20 @@ const headingId = props.headingId ?? fallbackId;
   align-items: center;
   gap: 1rem 1.5rem;
   margin-top: 2rem;
+}
+
+@media (min-width: 900px) {
+  .cta-band__inner--with-media {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.8fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+}
+
+@media (max-width: 899px) {
+  .cta-band__media {
+    margin-top: 2rem;
+  }
 }
 </style>

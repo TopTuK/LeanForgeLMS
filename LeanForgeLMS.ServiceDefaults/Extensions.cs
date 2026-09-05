@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
@@ -59,6 +63,19 @@ public static class Extensions
             // it here to keep framework request/routing noise out of the console.
             .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
             .WriteTo.Console(theme: AnsiConsoleTheme.Code, outputTemplate: ConsoleOutputTemplate));
+
+        // Sentry error monitoring. Runs after ClearProviders() so its ILoggerProvider survives, and
+        // sits alongside Serilog (both receive ILogger output). The DSN comes from the SENTRY_DSN
+        // environment variable, which the SDK reads natively — when it's unset the SDK stays disabled.
+        if (builder is WebApplicationBuilder webBuilder)
+        {
+            webBuilder.WebHost.UseSentry((context, options) =>
+            {
+                // ??= lets anything bound from the "Sentry" config section win over these defaults.
+                options.Environment ??= context.HostingEnvironment.EnvironmentName;
+                options.TracesSampleRate ??= context.HostingEnvironment.IsDevelopment() ? 1.0 : 0.1;
+            });
+        }
 
         builder.ConfigureOpenTelemetry();
 
@@ -147,20 +164,56 @@ public static class Extensions
     }
 
     // Collapses ASP.NET Core's/gRPC's default multi-line-per-request logging into one structured summary
-    // line. Health/liveness polling is demoted to Verbose (below the default Information minimum) so it
-    // doesn't spam the console — those paths are polled frequently in Development.
+    // line. Levels escalate so the console theme highlights failures: an unhandled exception, an HTTP 5xx,
+    // or a failed RPC (non-OK grpc-status, whose HTTP status stays 200) logs at Error; an HTTP 4xx or a
+    // client-fault gRPC status logs at Warning. Health/liveness polling is demoted to Verbose (below the
+    // default Information minimum) so it doesn't spam the console — those paths are polled frequently.
     public static WebApplication UseDefaultRequestLogging(this WebApplication app)
     {
         app.UseSerilogRequestLogging(options =>
         {
-            options.GetLevel = (httpContext, _, _) =>
-                httpContext.Request.Path.StartsWithSegments(HealthEndpointPath)
-                || httpContext.Request.Path.StartsWithSegments(AlivenessEndpointPath)
-                    ? LogEventLevel.Verbose
+            options.GetLevel = static (httpContext, _, ex) =>
+            {
+                if (httpContext.Request.Path.StartsWithSegments(HealthEndpointPath)
+                    || httpContext.Request.Path.StartsWithSegments(AlivenessEndpointPath))
+                {
+                    return LogEventLevel.Verbose;
+                }
+
+                if (ex is not null || httpContext.Response.StatusCode >= 500)
+                {
+                    return LogEventLevel.Error;
+                }
+
+                // A failed gRPC call keeps HTTP 200 — its real status rides in the grpc-status trailer.
+                if (TryGetGrpcStatusCode(httpContext, out var grpcStatus) && grpcStatus != 0)
+                {
+                    // InvalidArgument / NotFound / AlreadyExists / PermissionDenied / FailedPrecondition
+                    // / Unauthenticated are caller faults; everything else non-zero is a server fault.
+                    return grpcStatus is 3 or 5 or 6 or 7 or 9 or 16
+                        ? LogEventLevel.Warning
+                        : LogEventLevel.Error;
+                }
+
+                return httpContext.Response.StatusCode >= 400
+                    ? LogEventLevel.Warning
                     : LogEventLevel.Information;
+            };
         });
 
         return app;
+    }
+
+    private static bool TryGetGrpcStatusCode(HttpContext httpContext, out int statusCode)
+    {
+        var raw = httpContext.Response.Headers["grpc-status"];
+        if (StringValues.IsNullOrEmpty(raw))
+        {
+            raw = httpContext.Features.Get<IHttpResponseTrailersFeature>()?.Trailers["grpc-status"]
+                ?? StringValues.Empty;
+        }
+
+        return int.TryParse(raw.ToString(), out statusCode);
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)

@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue';
-import { Bot, Workflow, FileSearch, Boxes } from 'lucide-vue-next';
+import { Target, Workflow, FileSearch, Handshake } from 'lucide-vue-next';
 
-const ICONS = { agents: Bot, flow: Workflow, analysis: FileSearch, systems: Boxes };
+const ICONS = { planning: Target, flow: Workflow, analysis: FileSearch, leadership: Handshake };
 
 const props = defineProps({
   index: { type: String, required: true },
   icon: {
     type: String,
     required: true,
-    validator: (value) => ['agents', 'flow', 'analysis', 'systems'].includes(value),
+    validator: (value) => ['planning', 'flow', 'analysis', 'leadership'].includes(value),
   },
   title: { type: String, required: true },
   description: { type: String, required: true },
