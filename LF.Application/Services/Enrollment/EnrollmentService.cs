@@ -5,6 +5,7 @@ using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.ModelDto.Promo;
+using LF.Application.Services.Platform;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
@@ -12,11 +13,16 @@ using DomainEnrollment = LF.AppDomain.Entities.Course.Enrollment;
 
 namespace LF.Application.Services.Enrollment;
 
-internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppDbContext dbContext, TimeProvider timeProvider) : IEnrollmentService
+internal sealed class EnrollmentService(
+    ILogger<EnrollmentService> logger,
+    IAppDbContext dbContext,
+    TimeProvider timeProvider,
+    IPlatformSettingsService platformSettings) : IEnrollmentService
 {
     private readonly ILogger<EnrollmentService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly IPlatformSettingsService _platformSettings = platformSettings;
 
     public async Task<PagedCourseCatalogDto> BrowseCatalogAsync(int page, int pageSize, int actingUserId)
     {
@@ -68,6 +74,12 @@ internal sealed class EnrollmentService(ILogger<EnrollmentService> logger, IAppD
         var course = await LoadCourseAsync(courseId);
         if (course is null)
             throw new InvalidOperationException($"Course {courseId} not found.");
+
+        // Global admin kill-switch — blocks both free and paid self-enrollment (and resuming a
+        // PendingPayment enrollment). Admin/instructor "Managed" enrollment goes through a different
+        // method and is never gated here.
+        if (!await _platformSettings.IsStudentEnrollmentEnabledAsync())
+            throw new EnrollmentDisabledException("Student course enrollment is currently disabled.");
 
         if (course.CreatedByUserId == actingUserId)
             throw new SelfEnrollmentException("You cannot enroll in a course you created.");
