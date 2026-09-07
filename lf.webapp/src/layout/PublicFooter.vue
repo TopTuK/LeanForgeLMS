@@ -12,7 +12,7 @@ const navLinks = [
 const legalLinks = [
   { key: 'footer.privacy' },
   { key: 'footer.offer', to: { name: 'Offer' } },
-  { key: 'footer.cookies' },
+  { key: 'footer.cookies', to: { name: 'Cookies' } },
 ];
 </script>
 

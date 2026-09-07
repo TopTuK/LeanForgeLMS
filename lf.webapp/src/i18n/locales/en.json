@@ -12,6 +12,7 @@
     "home_view_title": "High Managers School — practice for managers",
     "contact_view_title": "Contacts — High Managers School",
     "offer_view_title": "Public offer — High Managers School",
+    "cookies_view_title": "Cookie policy — High Managers School",
     "nav": {
         "courses": "Courses",
         "events": "Events",
@@ -719,6 +720,78 @@
             "body": "The payment was cancelled or declined. You can try again from the course page.",
             "to_catalog": "Back to catalog"
         }
+    },
+    "cookies": {
+        "eyebrow": "Privacy and security",
+        "title": "Cookie policy",
+        "updated": "Updated 7 September 2026",
+        "back": "Back to home",
+        "intro": "High Managers School uses only the browser data required for secure sign-in and a consistent experience. We do not use advertising, analytics or profiling cookies.",
+        "image_alt": "Abstract browser panels, a security shield and small data tokens",
+        "image_caption": "Essential by design",
+        "highlights_label": "Cookie policy summary",
+        "contents_label": "On this page",
+        "highlights": [
+            { "value": "Essential only", "label": "for secure authentication" },
+            { "value": "No tracking", "label": "or advertising cookies" },
+            { "value": "First-party", "label": "browser storage" }
+        ],
+        "essential_label": "Authentication",
+        "cookies_heading": "Cookies we set",
+        "cookies_intro": "These first-party cookies are required to sign you in, protect the authentication flow and provide access to account-only features.",
+        "cookie_records": [
+            {
+                "name": "leanforge_api",
+                "duration": "Up to 7 days",
+                "purpose": "Keeps you signed in and authorizes access to your account, courses and other protected features. This secure, HttpOnly cookie is not available to browser scripts."
+            },
+            {
+                "name": "LeanForgeTempCookie",
+                "duration": "During sign-in",
+                "purpose": "Temporarily completes sign-in through PMI Club or Google. It is removed when authentication finishes."
+            },
+            {
+                "name": "Sign-in security cookies",
+                "duration": "Short-lived",
+                "purpose": "Protect external sign-in against request forgery and replay attacks. They are removed after the provider returns you to the Service."
+            }
+        ],
+        "preferences_label": "Local storage",
+        "storage_heading": "Browser preferences",
+        "storage_intro": "These preferences are stored locally on your device, are not sent with web requests and remain until you clear site data.",
+        "storage_records": [
+            { "name": "Appearance", "purpose": "Remembers your light or dark theme." },
+            { "name": "Language", "purpose": "Remembers whether the interface is displayed in Russian or English." },
+            { "name": "Workspace layout", "purpose": "Remembers the state of navigation panels available in your account." }
+        ],
+        "sections": [
+            {
+                "label": "Privacy",
+                "heading": "No tracking cookies",
+                "blocks": [
+                    { "type": "p", "text": "The Service does not use browser analytics, advertising networks, social-media trackers or profiling cookies. There are no optional cookie categories to accept or reject." }
+                ]
+            },
+            {
+                "label": "Providers",
+                "heading": "External services",
+                "blocks": [
+                    { "type": "p", "text": "PMI Club and Google process external sign-in on their own websites. Robokassa processes payments on its hosted checkout. These providers may use cookies on their domains under their own policies; High Managers School does not control them." },
+                    { "type": "p", "text": "Their pages, analytics scripts and social widgets are not embedded in this website." }
+                ]
+            },
+            {
+                "label": "Browser controls",
+                "heading": "Your controls",
+                "blocks": [
+                    { "type": "p", "text": "Logging out removes your session cookie. You can also delete cookies and local storage through your browser's site-data settings." },
+                    { "type": "p", "text": "Blocking essential cookies prevents sign-in. Clearing local storage resets interface preferences but does not delete your account or course data." }
+                ]
+            }
+        ],
+        "contact_label": "Questions",
+        "contact_text": "If you have a question about cookies or browser storage used by the Service, contact us.",
+        "contact_email": "support{'@'}pmi.moscow"
     },
     "offer": {
         "eyebrow": "Legal",

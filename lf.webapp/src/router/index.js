@@ -7,6 +7,7 @@ const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
 const ContactView = () => import('@/views/ContactView.vue');
 const OfferView = () => import('@/views/OfferView.vue');
+const CookiePolicyView = () => import('@/views/CookiePolicyView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
 const AvailableCoursesView = () => import('@/views/courses/AvailableCoursesView.vue');
 const CourseDetailView = () => import('@/views/courses/CourseDetailView.vue');
@@ -64,6 +65,16 @@ const routes = [
         component: OfferView,
         meta: {
             title: 'offer_view_title',
+            requiresAuth: false,
+            public: true,
+        }
+    },
+    {
+        path: '/cookies',
+        name: 'Cookies',
+        component: CookiePolicyView,
+        meta: {
+            title: 'cookies_view_title',
             requiresAuth: false,
             public: true,
         }

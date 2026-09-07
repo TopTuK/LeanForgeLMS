@@ -19,7 +19,9 @@
           <router-link :to="{ name: 'Offer' }">
             {{ $t('footer.offer') }}
           </router-link>
-          <a href="#contacts">{{ $t('footer.cookies') }}</a>
+          <router-link :to="{ name: 'Cookies' }">
+            {{ $t('footer.cookies') }}
+          </router-link>
         </nav>
       </div>
     </div>
