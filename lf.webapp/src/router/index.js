@@ -5,6 +5,8 @@ import { i18n } from '@/i18n';
 
 const HomeView = () => import('@/views/HomeView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
+const ContactView = () => import('@/views/ContactView.vue');
+const OfferView = () => import('@/views/OfferView.vue');
 const CoursesView = () => import('@/views/CoursesView.vue');
 const AvailableCoursesView = () => import('@/views/courses/AvailableCoursesView.vue');
 const CourseDetailView = () => import('@/views/courses/CourseDetailView.vue');
@@ -44,6 +46,26 @@ const routes = [
         meta: {
             title: 'login_view_title',
             requiresAuth: false,
+        }
+    },
+    {
+        path: '/contact',
+        name: 'Contact',
+        component: ContactView,
+        meta: {
+            title: 'contact_view_title',
+            requiresAuth: false,
+            public: true,
+        }
+    },
+    {
+        path: '/offer',
+        name: 'Offer',
+        component: OfferView,
+        meta: {
+            title: 'offer_view_title',
+            requiresAuth: false,
+            public: true,
         }
     },
     {
@@ -281,7 +303,7 @@ router.beforeEach(async (to, from) => {
     console.log('Router::beforeEach: isAuthenticated=', isAuthenticated.value)
 
     if (isAuthenticated.value) {
-        if (!to.meta.requiresAuth) {
+        if (!to.meta.requiresAuth && !to.meta.public) {
             console.log('Router::beforeEach: route does not require auth. Redirecting to Courses')
             return { name: 'Courses' }
         }
