@@ -9,7 +9,8 @@ describe('HomeView', () => {
 
     const h1s = getAllByRole('heading', { level: 1 });
     expect(h1s).toHaveLength(1);
-    expect(h1s[0]).toHaveTextContent(/skill set/i);
+    expect(h1s[0]).toHaveTextContent(/advanced technology is indistinguishable from magic/i);
+    expect(getByRole('heading', { level: 1 })).toHaveAccessibleName(/advanced technology/i);
 
     expect(getByRole('heading', { name: /built for people who run the work/i })).toBeInTheDocument();
     expect(getByRole('heading', { name: /self-paced, on one platform/i })).toBeInTheDocument();
@@ -19,13 +20,15 @@ describe('HomeView', () => {
   it('points the hero primary call to action at the audience section', () => {
     const { getByRole } = renderComponent(HomeView);
 
-    expect(getByRole('link', { name: /see who it's for/i })).toHaveAttribute('href', '#audience');
+    expect(getByRole('link', { name: /find your direction/i })).toHaveAttribute('href', '#audience');
   });
 
-  it('states this is Sergey Sidorov\'s personal project and links to his site', () => {
-    const { getByRole, getAllByRole } = renderComponent(HomeView);
+  it('attributes the quote and links the independent school to Sergey Sidorov', () => {
+    const { getByRole, getAllByRole, getByText } = renderComponent(HomeView);
 
-    const bylineLink = getByRole('link', { name: /personal project by sergey sidorov/i });
+    expect(getByText(/arthur c\. clarke/i)).toBeInTheDocument();
+
+    const bylineLink = getByRole('link', { name: /independent school by sergey sidorov/i });
     expect(bylineLink).toHaveAttribute('href', 'https://s-sidorov.ru');
 
     const siteLinks = getAllByRole('link', { name: /read full bio/i });
@@ -43,7 +46,8 @@ describe('HomeView', () => {
   it('describes the editorial landing images', () => {
     const { getByRole } = renderComponent(HomeView);
 
-    expect(getByRole('img', { name: /arranging planning cards/i })).toBeInTheDocument();
+    expect(getByRole('img', { name: /shaping a workflow/i })).toBeInTheDocument();
+    expect(getByRole('img', { name: /connecting a project card/i })).toBeInTheDocument();
     expect(getByRole('img', { name: /applying a self-paced lesson/i })).toBeInTheDocument();
     expect(getByRole('img', { name: /prepared learning workspace/i })).toBeInTheDocument();
   });

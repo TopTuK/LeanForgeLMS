@@ -550,16 +550,23 @@
     },
     "home": {
         "hero": {
-            "eyebrow": "A personal LMS by Sergey Sidorov",
-            "headline": "Build the manager's skill set — by practising it",
-            "subheadline": "Practice from a practitioner: project management, product thinking and delivery for people who already ship work. One instructor, no course assembly line.",
-            "byline": "A personal project by {name}",
-            "cta_primary": "See who it's for",
-            "cta_secondary": "Sign in",
-            "note": "Practice-first · real tools · one instructor"
+            "eyebrow": "Sergey Sidorov's school of practical leadership",
+            "headline": "Any sufficiently advanced technology is indistinguishable from magic",
+            "quote_author": "Arthur C. Clarke",
+            "subheadline": "Strong leadership can look like magic, too. Behind it are clear models, proven tools and practice grounded in real working situations.",
+            "byline": "An independent school by {name}",
+            "cta_primary": "Find your direction",
+            "cta_secondary": "Start learning",
+            "note": "No theory for theory's sake · skills for your next working day",
+            "benefits": [
+                "Work through real management situations",
+                "Build separate tools into a working system",
+                "Apply the result directly to your project"
+            ]
         },
         "images": {
-            "hero_alt": "A manager arranging planning cards and workflow notes at a desk",
+            "hero_main_alt": "A manager shaping a workflow with project cards, diagrams and notes",
+            "hero_detail_alt": "A hand connecting a project card to a glowing line across a working diagram",
             "approach_alt": "A professional applying a self-paced lesson to a project notebook",
             "approach_caption": "Learn · apply · continue",
             "cta_alt": "A prepared learning workspace with a laptop, notebook and project cards"
