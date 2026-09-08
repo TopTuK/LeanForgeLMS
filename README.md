@@ -78,7 +78,8 @@ Required repo secrets: `TOKEN` (GHCR PAT with `write:packages`), `PRODUCTION_SSH
 `/home/toptuk/leanforgelms/` and place a filled `.env` there (from `.env.example`). TLS and
 routing are handled by the shared `nginx-proxy` on the external `pmi_network` — `lf-webapi`
 joins that network and advertises itself via `VIRTUAL_HOST` (default `lms.s-sidorov.ru`,
-override with `WEBAPI_VIRTUAL_HOST` in `.env`); no host port is published in production.
+override with `WEBAPI_VIRTUAL_HOST` in `.env`). The only host binding is a loopback debug
+port (`127.0.0.1:8085` → 8080, override with `WEBAPI_HOST_PORT`).
 
 First-time server setup or manual fallback (builds images on the server):
 
