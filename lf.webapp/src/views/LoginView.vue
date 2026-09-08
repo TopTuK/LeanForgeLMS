@@ -2,6 +2,9 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ArrowLeft } from 'lucide-vue-next';
+import authPmi from '@/assets/login/auth-pmi.png';
+import authGoogle from '@/assets/login/auth-google.png';
+import authYandex from '@/assets/login/auth-yandex.png';
 
 const { tm } = useI18n();
 
@@ -16,6 +19,10 @@ function signInWithPmi() {
 
 function signInWithGoogle() {
   window.location.href = '/api/Auth/SignInGoogle';
+}
+
+function signInWithYandex() {
+  window.location.href = '/api/Auth/SignInYandex';
 }
 </script>
 
@@ -75,7 +82,14 @@ function signInWithGoogle() {
             <span
               class="login-card__mark login-card__mark--pmi"
               aria-hidden="true"
-            >PMI</span>
+            >
+              <img
+                :src="authPmi"
+                alt=""
+                width="44"
+                height="44"
+              >
+            </span>
             <span class="login-card__copy">
               <strong>{{ $t('login.pmi.title') }}</strong>
               <span>{{ $t('login.pmi.description') }}</span>
@@ -99,32 +113,46 @@ function signInWithGoogle() {
               class="login-card__mark login-card__mark--google"
               aria-hidden="true"
             >
-              <svg
-                viewBox="0 0 48 48"
-                width="22"
-                height="22"
+              <img
+                :src="authGoogle"
+                alt=""
+                width="44"
+                height="44"
               >
-                <path
-                  fill="#FFC107"
-                  d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
-                />
-                <path
-                  fill="#FF3D00"
-                  d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                />
-                <path
-                  fill="#4CAF50"
-                  d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                />
-                <path
-                  fill="#1976D2"
-                  d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
-                />
-              </svg>
             </span>
             <span class="login-card__copy">
               <strong>{{ $t('login.google.title') }}</strong>
               <span>{{ $t('login.google.description') }}</span>
+            </span>
+            <span
+              class="login-card__arrow"
+              aria-hidden="true"
+            >→</span>
+          </button>
+
+          <button
+            type="button"
+            class="login-card"
+            @click="signInWithYandex"
+          >
+            <span
+              class="login-card__no mono-label"
+              aria-hidden="true"
+            >03</span>
+            <span
+              class="login-card__mark login-card__mark--yandex"
+              aria-hidden="true"
+            >
+              <img
+                :src="authYandex"
+                alt=""
+                width="44"
+                height="44"
+              >
+            </span>
+            <span class="login-card__copy">
+              <strong>{{ $t('login.yandex.title') }}</strong>
+              <span>{{ $t('login.yandex.description') }}</span>
             </span>
             <span
               class="login-card__arrow"
@@ -330,20 +358,33 @@ function signInWithGoogle() {
   width: 2.75rem;
   height: 2.75rem;
   place-items: center;
+  overflow: hidden;
   border-radius: 0.55rem;
 }
 
+.login-card__mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .login-card__mark--pmi {
-  color: #fff;
   background: var(--color-accent-coral);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
 }
 
 .login-card__mark--google {
   background: #fff;
   border: 1px solid var(--band-line);
+}
+
+.login-card__mark--google img {
+  object-fit: contain;
+  padding: 0.28rem;
+}
+
+.login-card__mark--yandex {
+  background: #fc3f1d;
 }
 
 .login-card__copy {

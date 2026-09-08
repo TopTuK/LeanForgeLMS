@@ -1,3 +1,4 @@
+using AspNet.Security.OAuth.Yandex;
 using Duende.IdentityModel.Client;
 using LF.AppDomain.Models.User.Enums;
 using LF.Application;
@@ -64,6 +65,11 @@ static void ConfigureOptions(IServiceCollection services)
         .ValidateDataAnnotations()
         .ValidateOnStart();
 
+    services.AddOptions<YandexAuthOptions>()
+        .BindConfiguration(YandexAuthOptions.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
     services.AddOptions<DevAuthOptions>()
         .BindConfiguration(DevAuthOptions.SectionName);
 }
@@ -86,6 +92,8 @@ try
         ?? throw new InvalidOperationException("PmiAuth configuration is missing.");
     var googleAuth = configuration.GetSection(GoogleAuthOptions.SectionName).Get<GoogleAuthOptions>()
         ?? throw new InvalidOperationException("GoogleAuth configuration is missing.");
+    var yandexAuth = configuration.GetSection(YandexAuthOptions.SectionName).Get<YandexAuthOptions>()
+        ?? throw new InvalidOperationException("YandexAuth configuration is missing.");
 
     /* ADD AUTHENTICATION */
     builder.Services
@@ -235,6 +243,34 @@ try
             options.ClaimActions.MapJsonKey("sub", "sub");
             options.ClaimActions.MapJsonKey("email", "email");
             options.ClaimActions.MapJsonKey("name", "name");
+
+            options.SignInScheme = defaultAuth.TempAuthCookieName;
+        })
+        .AddYandex(yandexAuth.SchemeName, options =>
+        {
+            options.ClientId = yandexAuth.ClientId;
+            options.ClientSecret = yandexAuth.ClientSecret;
+
+            // Set the callback path, so it will call back to.
+            options.CallbackPath = new PathString(yandexAuth.CallbackPath);
+
+            // save tokens
+            options.SaveTokens = true;
+
+            // Yandex only returns the account email / real name when these scopes are requested.
+            options.Scope.Add("login:email");
+            options.Scope.Add("login:info");
+
+            // Yandex's default ClaimActions map to the long ClaimTypes.* URIs; remap to the short
+            // "sub"/"email"/"name" claim types PMI's OIDC handler produces, so the shared claim-parsing
+            // logic in AuthController doesn't need to special-case providers. "real_name" is
+            // "First Last" (matching how AuthController splits the name claim); "display_name" is
+            // the fallback when the account has no real name set.
+            options.ClaimActions.Clear();
+            options.ClaimActions.MapJsonKey("sub", "id");
+            options.ClaimActions.MapJsonKey("email", "default_email");
+            options.ClaimActions.MapJsonKey("name", "real_name");
+            options.ClaimActions.MapJsonKey("name", "display_name");
 
             options.SignInScheme = defaultAuth.TempAuthCookieName;
         });

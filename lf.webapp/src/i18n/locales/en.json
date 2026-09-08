@@ -530,6 +530,10 @@
             "title": "Continue with Google",
             "description": "Use your Google account to sign in."
         },
+        "yandex": {
+            "title": "Continue with Yandex",
+            "description": "Use your Yandex account to sign in."
+        },
         "note": "Authentication is provided securely by the selected service.",
         "benefits": [
             "Self-paced chapters and lessons",
