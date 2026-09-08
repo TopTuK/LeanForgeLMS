@@ -15,9 +15,10 @@ COPY LF.Infrastructure/ LF.Infrastructure/
 COPY LF.Application/ LF.Application/
 COPY LF.AppDomain/ LF.AppDomain/
 COPY LeanForgeLMS.ServiceDefaults/ LeanForgeLMS.ServiceDefaults/
-# LF.Infrastructure.csproj references this .proto directly, even though LF.IdentityService
-# has no ProjectReference to LF.CourseService.
+# LF.Infrastructure.csproj references these .proto files directly (gRPC clients), even
+# though LF.IdentityService has no ProjectReference to LF.CourseService/PaymentService.
 COPY LF.CourseService/Protos/ LF.CourseService/Protos/
+COPY LF.PaymentService/Protos/ LF.PaymentService/Protos/
 
 RUN dotnet publish LF.IdentityService/Lf.IdentityService.csproj -c Release -o /app/publish --no-restore
 
