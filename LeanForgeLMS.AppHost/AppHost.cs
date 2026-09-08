@@ -30,7 +30,7 @@ var sentryDsn = builder.AddParameter(
 var minio = builder.AddMinioContainer("minio", minioUser, minioPassword, port: 9000);
 
 var identityService = builder
-    .AddProject<Projects.LF_IdentityService>("lf-identityservice")
+    .AddProject<Projects.Lf_IdentityService>("lf-identityservice")
     .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(postgres)
     .WaitFor(postgres);
