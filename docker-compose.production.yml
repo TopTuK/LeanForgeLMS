@@ -134,8 +134,11 @@ services:
         condition: service_started
       minio:
         condition: service_healthy
-    expose:
-      - "8080"   # no host publish — nginx-proxy routes to this port over pmi_network
+    ports:
+      # Public traffic goes through nginx-proxy over pmi_network (VIRTUAL_* below).
+      # This publish is loopback-only — direct access on the box for debugging/curl,
+      # not reachable from outside. Override the port with WEBAPI_HOST_PORT in .env.
+      - "127.0.0.1:${WEBAPI_HOST_PORT:-8085}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
