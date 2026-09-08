@@ -75,8 +75,10 @@ then SSHs to the PROD server, copies `docker-compose.production.yml`, and runs
 
 Required repo secrets: `TOKEN` (GHCR PAT with `write:packages`), `PRODUCTION_SSH_HOST`,
 `PRODUCTION_SSH_USERNAME`, `PRODUCTION_SSH_KEY`. One-time server prep: create
-`/home/toptuk/leanforgelms/` and place a filled `.env` there (from `.env.example`), set
-`WEBAPI_HOST_PORT`, and point the host reverse proxy / TLS for `lms.s-sidorov.ru` at it.
+`/home/toptuk/leanforgelms/` and place a filled `.env` there (from `.env.example`). TLS and
+routing are handled by the shared `nginx-proxy` on the external `pmi_network` — `lf-webapi`
+joins that network and advertises itself via `VIRTUAL_HOST` (default `lms.s-sidorov.ru`,
+override with `WEBAPI_VIRTUAL_HOST` in `.env`); no host port is published in production.
 
 First-time server setup or manual fallback (builds images on the server):
 

@@ -11,6 +11,12 @@ networks:
   leanforge-internal:
     driver: bridge
     internal: true
+  # Shared reverse-proxy network. An nginx-proxy container (+ its cert/ACME setup)
+  # already runs on this network on the PROD host and terminates TLS for
+  # *.s-sidorov.ru; lf-webapi joins it and is routed by the VIRTUAL_* vars below.
+  pmi_network:
+    name: pmi_network
+    external: true
 
 volumes:
   leanforge-postgres-data:
@@ -116,6 +122,7 @@ services:
     networks:
       - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
       - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
+      - pmi_network          # reachable by the shared nginx-proxy (TLS terminates there)
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,11 +134,16 @@ services:
         condition: service_started
       minio:
         condition: service_healthy
-    ports:
-      - "${WEBAPI_HOST_PORT:-8081}:8080"
+    expose:
+      - "8080"   # no host publish — nginx-proxy routes to this port over pmi_network
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
+      # Consumed by the shared nginx-proxy: it terminates TLS for this host and
+      # forwards plain HTTP to container port 8080.
+      VIRTUAL_HOST: ${WEBAPI_VIRTUAL_HOST:-lms.s-sidorov.ru}
+      VIRTUAL_PORT: "8080"
+      VIRTUAL_PROTO: http
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
       # Microsoft.Extensions.ServiceDiscovery resolves "https+http://lf-identityservice"
       # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
