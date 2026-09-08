@@ -3,9 +3,16 @@
         "brand_name": "High Managers School",
         "author_name": "Sergey Sidorov",
         "created_date": "2026",
-        "brand_short": "High Managers"
+        "brand_short": "High Managers",
+        "inn_label": "ИНН",
+        "inn_value": "0000000000",
+        "tax_status_label": "Tax status",
+        "tax_status_note": "An individual applying the special \"Professional income tax\" regime (NPD payer, self-employed), where this status is applicable as of the payment date."
     },
     "home_view_title": "High Managers School — practice for managers",
+    "contact_view_title": "Contacts — High Managers School",
+    "offer_view_title": "Public offer — High Managers School",
+    "cookies_view_title": "Cookie policy — High Managers School",
     "nav": {
         "courses": "Courses",
         "events": "Events",
@@ -30,7 +37,7 @@
         "explore": "Explore",
         "contact": "Contact",
         "settings": "Settings",
-        "email": "hello{'@'}s-sidorov.ru"
+        "email": "support{'@'}pmi.moscow"
     },
     "login_view_title": "Student login — High Managers School",
     "courses_view_title": "Courses — High Managers School",
@@ -531,18 +538,36 @@
         ],
         "back": "Back to home"
     },
+    "contact": {
+        "eyebrow": "Contacts",
+        "title": "Get in touch",
+        "subtitle": "Questions about courses, access or partnership — reach the school directly.",
+        "admin_label": "Main administrator",
+        "telegram_label": "Telegram",
+        "email_label": "Email",
+        "inn_note": "Placeholder — the taxpayer number will be added later.",
+        "back": "Back to home",
+        "image_alt": "A quiet desk with a notebook, envelopes and a phone by the window"
+    },
     "home": {
         "hero": {
-            "eyebrow": "A personal LMS by Sergey Sidorov",
-            "headline": "Build the manager's skill set — by practising it",
-            "subheadline": "Practice from a practitioner: project management, product thinking and delivery for people who already ship work. One instructor, no course assembly line.",
-            "byline": "A personal project by {name}",
-            "cta_primary": "See who it's for",
-            "cta_secondary": "Sign in",
-            "note": "Practice-first · real tools · one instructor"
+            "eyebrow": "Sergey Sidorov's school of practical leadership",
+            "headline": "Any sufficiently advanced technology is indistinguishable from magic",
+            "quote_author": "Arthur C. Clarke",
+            "subheadline": "Strong leadership can look like magic, too. Behind it are clear models, proven tools and practice grounded in real working situations.",
+            "byline": "An independent school by {name}",
+            "cta_primary": "Find your direction",
+            "cta_secondary": "Start learning",
+            "note": "No theory for theory's sake · skills for your next working day",
+            "benefits": [
+                "Work through real management situations",
+                "Build separate tools into a working system",
+                "Apply the result directly to your project"
+            ]
         },
         "images": {
-            "hero_alt": "A manager arranging planning cards and workflow notes at a desk",
+            "hero_main_alt": "A manager shaping a workflow with project cards, diagrams and notes",
+            "hero_detail_alt": "A hand connecting a project card to a glowing line across a working diagram",
             "approach_alt": "A professional applying a self-paced lesson to a project notebook",
             "approach_caption": "Learn · apply · continue",
             "cta_alt": "A prepared learning workspace with a laptop, notebook and project cards"
@@ -651,7 +676,7 @@
                 },
                 "4": {
                     "question": "Can I suggest a topic?",
-                    "answer": "Yes. Email hello{'@'}s-sidorov.ru — we keep every request, and new courses can be shaped by what people actually ask for."
+                    "answer": "Yes. Email support{'@'}pmi.moscow — we keep every request, and new courses can be shaped by what people actually ask for."
                 },
                 "5": {
                     "question": "Who runs this school?",
@@ -674,7 +699,7 @@
             "primary": "Sign in to start",
             "notify_cta": "Get notified about new courses",
             "notify_subject": "Notify me about new courses",
-            "email": "hello{'@'}s-sidorov.ru"
+            "email": "support{'@'}pmi.moscow"
         }
     },
     "admin_promo_codes_view_title": "Promo codes - Admin",
@@ -695,5 +720,271 @@
             "body": "The payment was cancelled or declined. You can try again from the course page.",
             "to_catalog": "Back to catalog"
         }
+    },
+    "cookies": {
+        "eyebrow": "Privacy and security",
+        "title": "Cookie policy",
+        "updated": "Updated 7 September 2026",
+        "back": "Back to home",
+        "intro": "High Managers School uses only the browser data required for secure sign-in and a consistent experience. We do not use advertising, analytics or profiling cookies.",
+        "image_alt": "Abstract browser panels, a security shield and small data tokens",
+        "image_caption": "Essential by design",
+        "highlights_label": "Cookie policy summary",
+        "contents_label": "On this page",
+        "highlights": [
+            { "value": "Essential only", "label": "for secure authentication" },
+            { "value": "No tracking", "label": "or advertising cookies" },
+            { "value": "First-party", "label": "browser storage" }
+        ],
+        "essential_label": "Authentication",
+        "cookies_heading": "Cookies we set",
+        "cookies_intro": "These first-party cookies are required to sign you in, protect the authentication flow and provide access to account-only features.",
+        "cookie_records": [
+            {
+                "name": "leanforge_api",
+                "duration": "Up to 7 days",
+                "purpose": "Keeps you signed in and authorizes access to your account, courses and other protected features. This secure, HttpOnly cookie is not available to browser scripts."
+            },
+            {
+                "name": "LeanForgeTempCookie",
+                "duration": "During sign-in",
+                "purpose": "Temporarily completes sign-in through PMI Club or Google. It is removed when authentication finishes."
+            },
+            {
+                "name": "Sign-in security cookies",
+                "duration": "Short-lived",
+                "purpose": "Protect external sign-in against request forgery and replay attacks. They are removed after the provider returns you to the Service."
+            }
+        ],
+        "preferences_label": "Local storage",
+        "storage_heading": "Browser preferences",
+        "storage_intro": "These preferences are stored locally on your device, are not sent with web requests and remain until you clear site data.",
+        "storage_records": [
+            { "name": "Appearance", "purpose": "Remembers your light or dark theme." },
+            { "name": "Language", "purpose": "Remembers whether the interface is displayed in Russian or English." },
+            { "name": "Workspace layout", "purpose": "Remembers the state of navigation panels available in your account." }
+        ],
+        "sections": [
+            {
+                "label": "Privacy",
+                "heading": "No tracking cookies",
+                "blocks": [
+                    { "type": "p", "text": "The Service does not use browser analytics, advertising networks, social-media trackers or profiling cookies. There are no optional cookie categories to accept or reject." }
+                ]
+            },
+            {
+                "label": "Providers",
+                "heading": "External services",
+                "blocks": [
+                    { "type": "p", "text": "PMI Club and Google process external sign-in on their own websites. Robokassa processes payments on its hosted checkout. These providers may use cookies on their domains under their own policies; High Managers School does not control them." },
+                    { "type": "p", "text": "Their pages, analytics scripts and social widgets are not embedded in this website." }
+                ]
+            },
+            {
+                "label": "Browser controls",
+                "heading": "Your controls",
+                "blocks": [
+                    { "type": "p", "text": "Logging out removes your session cookie. You can also delete cookies and local storage through your browser's site-data settings." },
+                    { "type": "p", "text": "Blocking essential cookies prevents sign-in. Clearing local storage resets interface preferences but does not delete your account or course data." }
+                ]
+            }
+        ],
+        "contact_label": "Questions",
+        "contact_text": "If you have a question about cookies or browser storage used by the Service, contact us.",
+        "contact_email": "support{'@'}pmi.moscow"
+    },
+    "offer": {
+        "eyebrow": "Legal",
+        "title": "Public offer",
+        "updated": "Edition dated 7 September 2026.",
+        "binding": "The Russian-language text is legally binding. This English version is published for convenience only.",
+        "back": "Back to home",
+        "preamble": "This document is a public offer by Sergey Sidorov, an individual applying the special tax regime \"Professional income tax\" (NPD payer, self-employed), where that status is current as of the publication date of this Offer (the \"Provider\"), to enter into a paid services agreement with any adult who accepts this Offer (the \"User\", the \"Customer\").",
+        "requisites": "The Provider's current details, including INN (taxpayer number) and tax status, are published on the Service's Contacts page and in the site footer.",
+        "sections": [
+            {
+                "heading": "1. Definitions",
+                "blocks": [
+                    { "type": "p", "text": "1.1. Service means the website \"High Managers School\" (in the Russian interface — «Школа Сильных Менеджеров») at https://lms.s-sidorov.ru, which provides access to digital courses, lessons, materials and related platform features." },
+                    { "type": "p", "text": "1.2. Course means a structured set of chapters and lessons, which may include text, images, video, audio, files, quizzes and other digital materials published by the Provider." },
+                    { "type": "p", "text": "1.3. Enrollment means granting the User access to a specific Course. Enrollment may be free or paid. Some Courses may be available only by invitation from the Provider, without self-enrollment." },
+                    { "type": "p", "text": "1.4. Free course means a Course to which access is granted without payment." },
+                    { "type": "p", "text": "1.5. Paid course means a Course to which access is granted after payment of the price shown in the Service interface before checkout." },
+                    { "type": "p", "text": "1.6. Promo code means an optional code that, when applied, may reduce the price of a Paid course within the terms shown in the interface." },
+                    { "type": "p", "text": "1.7. Course price means the cost of access to a Paid course in Russian rubles, displayed in the Service interface before payment, including a valid promo code if one is applied." },
+                    { "type": "p", "text": "1.8. NPD payer / self-employed person means an individual applying the special \"Professional income tax\" regime and not registered as an individual entrepreneur, unless the Provider's current details expressly state otherwise." }
+                ]
+            },
+            {
+                "heading": "2. Acceptance of the Offer",
+                "blocks": [
+                    { "type": "p", "text": "2.1. This Offer is public within the meaning of Article 437 of the Civil Code of the Russian Federation." },
+                    { "type": "p", "text": "2.2. Any of the following is acceptance of the Offer:" },
+                    {
+                        "type": "ul",
+                        "items": [
+                            "registering and/or signing in to the Service, including via PMI Club or Google;",
+                            "ticking a checkbox agreeing to the Offer, if the interface provides one;",
+                            "enrolling in a Free course;",
+                            "paying for a Paid course;",
+                            "actually using paid access after payment."
+                        ]
+                    },
+                    { "type": "p", "text": "2.3. Acceptance means the User's full and unconditional agreement to the Offer and to other mandatory documents of the Service published on the website, including the personal data processing policy if published." }
+                ]
+            },
+            {
+                "heading": "3. Subject of the agreement",
+                "blocks": [
+                    { "type": "p", "text": "3.1. The Provider grants the User digital access to Courses and Service features. The User pays for access to Paid courses." },
+                    { "type": "p", "text": "3.2. The services are informational and consultative in nature and consist of providing access to digital learning materials. The Provider does not carry out licensed educational activity within the meaning of the Federal Law \"On Education in the Russian Federation\", is not an educational organisation, and does not issue state-recognised education or qualification documents. The Service does not guarantee employment, passing of external exams, PMI certification or any other professional status." },
+                    { "type": "p", "text": "3.3. The Provider does not provide medical, psychological, psychotherapeutic, legal, audit, financial or other licensed professional services." },
+                    { "type": "p", "text": "3.4. The Service is provided \"as is\" within the limits of technical availability." }
+                ]
+            },
+            {
+                "heading": "4. Features",
+                "blocks": [
+                    { "type": "p", "text": "4.1. Service features may include:" },
+                    {
+                        "type": "ul",
+                        "items": [
+                            "a course catalogue and course description pages;",
+                            "enrollment in a Course — by the User or by invitation from the Provider;",
+                            "chapters and lessons with text, images, video, audio and files;",
+                            "quizzes and progress tracking;",
+                            "the User profile;",
+                            "applying a promo code to the Course price;",
+                            "other features available in the interface."
+                        ]
+                    },
+                    { "type": "p", "text": "4.2. The exact features, price, promo code and enrollment method are determined by the Service interface at the time of acceptance or payment." },
+                    { "type": "p", "text": "4.3. The Provider may change, add, limit or remove individual features where needed for security, legal compliance, technical stability, abuse prevention or the economic sustainability of the Service. Updating materials of an already paid Course is not, by itself, a defect in the service." },
+                    { "type": "p", "text": "4.4. For an already paid Course, the Provider will, where reasonably possible, preserve the substantial scope of paid access while the Course remains published and the User's account is not blocked, unless a different term was shown on the Course page before payment. If a substantial paid feature or a paid Course becomes unavailable through the Provider's fault for a significant period, the User may request a recalculation or refund under section 8." },
+                    { "type": "p", "text": "4.5. The Provider may temporarily disable new enrollment in Courses. This does not revoke already granted paid access." }
+                ]
+            },
+            {
+                "heading": "5. Restrictions",
+                "blocks": [
+                    { "type": "p", "text": "5.1. The Service is intended for the User's personal use." },
+                    { "type": "p", "text": "5.2. It is prohibited to:" },
+                    {
+                        "type": "ul",
+                        "items": [
+                            "transfer the account to third parties;",
+                            "circumvent payment, limits or technical access restrictions;",
+                            "automate requests, copy or export Course materials without the Provider's permission;",
+                            "distribute Course materials outside the Service;",
+                            "use the Service for unlawful purposes;",
+                            "publish prohibited content or information that can identify third parties without a lawful basis."
+                        ]
+                    },
+                    { "type": "p", "text": "5.3. In case of a breach, the Provider may restrict access to features, remove content, suspend or block the account." }
+                ]
+            },
+            {
+                "heading": "6. Price and payment",
+                "blocks": [
+                    { "type": "p", "text": "6.1. The price is set separately for each Paid course and is shown in the interface before payment. There is no subscription with automatic renewal and no calendar \"per month\" tariff." },
+                    { "type": "p", "text": "6.2. Access to a Free course is granted without payment." },
+                    { "type": "p", "text": "6.3. The User may apply a valid promo code. The final Course price after the promo code is shown before payment is confirmed." },
+                    { "type": "p", "text": "6.4. Payment is made through Robokassa or another method expressly shown in the interface before payment." },
+                    { "type": "p", "text": "6.5. When paying through Robokassa, payment details are processed by Robokassa LLC (INN 5047063929, OGRN 1055009302215) and the settlement participants. Robokassa is a payment provider and does not become the seller, provider or a party to this agreement. The Provider does not store full bank card data." },
+                    { "type": "p", "text": "6.6. As an NPD payer, the Provider issues and sends the User a receipt as required by the \"Professional income tax\" regime, via the \"My Tax\" app, a connected payment partner, or another method provided by law. A Robokassa payment confirmation does not by itself replace an NPD receipt; automatic receipt generation by Robokassa applies only if that function is connected and correctly configured." },
+                    { "type": "p", "text": "6.7. Payment for a Paid course is a one-off: the User pays for access to the selected Course, not a recurring charge. Automatic renewal is not used." },
+                    { "type": "p", "text": "6.8. The price of already paid access is fixed at the time of payment and does not change for that enrollment." },
+                    { "type": "p", "text": "6.9. The Provider may change the price of future purchases, including because of changes to a Course, infrastructure, taxes or payment fees. This does not authorise an extra charge against an already paid enrollment." },
+                    { "type": "p", "text": "6.10. Before confirming payment, the User sees the Course title, the final price and whether a promo code has been applied. The User may abandon the purchase before paying." }
+                ]
+            },
+            {
+                "heading": "7. Start of the services",
+                "blocks": [
+                    { "type": "p", "text": "7.1. Access to a Paid course is granted after the payment provider confirms the payment. A browser redirect to a \"payment success\" page does not by itself activate access." },
+                    { "type": "p", "text": "7.2. The service of providing digital access starts when enrollment in the Course is activated." },
+                    { "type": "p", "text": "7.3. The User understands that after access is activated the Provider may incur costs for infrastructure, storing materials, payment fees and account maintenance." }
+                ]
+            },
+            {
+                "heading": "8. Cancellation and refunds",
+                "blocks": [
+                    { "type": "p", "text": "8.1. The User may withdraw from the agreement at any time under Article 32 of the Russian Federation Law \"On Protection of Consumer Rights\" and Article 782 of the Civil Code of the Russian Federation, subject to paying the Provider the expenses actually incurred in performing the agreement." },
+                    { "type": "p", "text": "8.2. A refund for a paid Course may be made on the User's request, taking into account:" },
+                    {
+                        "type": "ul",
+                        "items": [
+                            "access actually granted and used;",
+                            "expenses actually incurred by the Provider, including payment-system fees and infrastructure, where they are documented or technically confirmed;",
+                            "the payment provider's rules."
+                        ]
+                    },
+                    { "type": "p", "text": "8.3. A term that \"a refund is never available after first use\" does not apply to the extent it conflicts with mandatory consumer rights. A recalculation is used instead, withholding actually incurred expenses and the cost of the part of the service actually provided." },
+                    { "type": "p", "text": "8.4. If access to a paid Course was not granted through the Provider's fault, or if a payment was made in error, the User may request a refund or recalculation." },
+                    { "type": "p", "text": "8.5. No refund is made for a period during which access was granted and used, except where the law requires otherwise." },
+                    { "type": "p", "text": "8.6. A block for breach of the Offer, removal of prohibited content, or refusal of invitation-only enrollment is not by itself a ground for a refund, unless the law provides otherwise." },
+                    { "type": "p", "text": "8.7. A refund shall not exceed the amount actually paid by the User, taking into account any applied promo code." },
+                    { "type": "p", "text": "8.8. A refund request is sent to the email address stated in section 14." }
+                ]
+            },
+            {
+                "heading": "9. Intellectual property",
+                "blocks": [
+                    { "type": "p", "text": "9.1. Exclusive rights in the Service, design, software, interface copy, brand, Course materials and other objects belong to the Provider or the right holders." },
+                    { "type": "p", "text": "9.2. The User retains rights in their user content, including profile information and quiz answers." },
+                    { "type": "p", "text": "9.3. The User grants the Provider a non-exclusive licence to use user content to the extent needed to operate the Service, store data, display progress, moderate, back up and protect rights." },
+                    { "type": "p", "text": "9.4. Access to a Course does not transfer exclusive rights in the materials to the User. Copying, screen-recording for distribution, publishing and reselling Course materials are prohibited." }
+                ]
+            },
+            {
+                "heading": "10. Personal data",
+                "blocks": [
+                    { "type": "p", "text": "10.1. Personal data is processed in accordance with the personal data processing policy, if published on the Service, and the laws of the Russian Federation." },
+                    { "type": "p", "text": "10.2. Sign-in uses third-party identity providers — PMI Club and Google. Those providers process data under their own rules." },
+                    { "type": "p", "text": "10.3. For Paid course payments, personal data needed for the payment is transferred to the payment provider to the extent required to complete the settlement." }
+                ]
+            },
+            {
+                "heading": "11. Liability",
+                "blocks": [
+                    { "type": "p", "text": "11.1. The Provider is liable within the limits provided by the laws of the Russian Federation." },
+                    { "type": "p", "text": "11.2. The Provider is not liable for:" },
+                    {
+                        "type": "ul",
+                        "items": [
+                            "learning outcomes, career decisions and the User's application of Course materials;",
+                            "inability to use the Service because of actions of telecom providers, payment systems, sign-in providers and other third parties;",
+                            "temporary outages and maintenance;",
+                            "loss of data for reasons beyond the Provider's reasonable control, if the Provider took necessary protective measures;",
+                            "user content and the actions of other users."
+                        ]
+                    },
+                    { "type": "p", "text": "11.3. A limitation of liability does not apply where such a limitation is prohibited by consumer-protection law or other mandatory rules." }
+                ]
+            },
+            {
+                "heading": "12. Blocking and termination",
+                "blocks": [
+                    { "type": "p", "text": "12.1. The User may stop using the Service and/or delete the account." },
+                    { "type": "p", "text": "12.2. The Provider may restrict or terminate the User's access for breach of the Offer, the law, an attempt to circumvent payment, abuse of the Service, spam, publication of prohibited content, or a threat to the security of the Service." },
+                    { "type": "p", "text": "12.3. If the account is blocked for a breach, any refund is decided in light of the law, services actually provided and expenses actually incurred." }
+                ]
+            },
+            {
+                "heading": "13. Changes to the Offer",
+                "blocks": [
+                    { "type": "p", "text": "13.1. The Provider may publish a new edition of the Offer. It applies to new purchases and new enrollment after publication and does not change, with retroactive effect, the price or scope of already paid access." },
+                    { "type": "p", "text": "13.2. If the User does not accept the new terms, the User may stop using the Service; the User's mandatory rights remain." }
+                ]
+            },
+            {
+                "heading": "14. Governing law and disputes",
+                "blocks": [
+                    { "type": "p", "text": "14.1. The relations of the parties are governed by the law of the Russian Federation." },
+                    { "type": "p", "text": "14.2. Claims are sent to email: support{'@'}pmi.moscow. An additional contact channel is Telegram, as stated on the Contacts page." },
+                    { "type": "p", "text": "14.3. Disputes are resolved as provided by Russian consumer-protection law and procedural law." }
+                ]
+            }
+        ]
     }
 }

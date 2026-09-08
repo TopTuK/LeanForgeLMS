@@ -14,7 +14,8 @@ import GeometricBackdrop from '@/components/layout/GeometricBackdrop.vue';
 import authorPortrait from '@/assets/author-portrait.jpg';
 import authorSecondary from '@/assets/author-secondary.jpg';
 import ctaWorkspace from '@/assets/home/cta-workspace.jpg';
-import heroPractice from '@/assets/home/hero-practice.jpg';
+import heroTechnologyMain from '@/assets/home/hero-technology-main.jpg';
+import heroTechnologyDetail from '@/assets/home/hero-technology-detail.jpg';
 import learningWorkflow from '@/assets/home/learning-workflow.jpg';
 
 const { tm } = useI18n();
@@ -42,6 +43,11 @@ function reveal(delay = 0) {
 
 const disciplines = computed(() => {
   const items = tm('home.disciplines.items');
+  return Array.isArray(items) ? items : [];
+});
+
+const heroBenefits = computed(() => {
+  const items = tm('home.hero.benefits');
   return Array.isArray(items) ? items : [];
 });
 
@@ -77,27 +83,26 @@ function index(n) {
           </p>
           <h1
             id="hero-title"
-            class="landing-hero__title font-display"
+            class="landing-hero__title"
           >
             {{ $t('home.hero.headline') }}
           </h1>
+          <p class="mono-label landing-hero__quote-source">
+            — {{ $t('home.hero.quote_author') }}
+          </p>
           <p class="landing-hero__subtitle">
             {{ $t('home.hero.subheadline') }}
           </p>
 
-          <a
-            :href="$t('home.author.url')"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="landing-hero__byline"
-          >
-            <img
-              :src="authorSecondary"
-              :alt="$t('home.author.name')"
-              class="landing-hero__byline-photo"
+          <ul class="landing-hero__benefits">
+            <li
+              v-for="benefit in heroBenefits"
+              :key="benefit"
             >
-            <span>{{ $t('home.hero.byline', { name: $t('home.author.name') }) }}</span>
-          </a>
+              <span aria-hidden="true">↗</span>
+              {{ benefit }}
+            </li>
+          </ul>
 
           <div class="landing-hero__actions">
             <a
@@ -115,6 +120,20 @@ function index(n) {
             </router-link>
           </div>
 
+          <a
+            :href="$t('home.author.url')"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="landing-hero__byline"
+          >
+            <img
+              :src="authorSecondary"
+              :alt="$t('home.author.name')"
+              class="landing-hero__byline-photo"
+            >
+            <span>{{ $t('home.hero.byline', { name: $t('home.author.name') }) }}</span>
+          </a>
+
           <p class="mono-label landing-hero__note">
             {{ $t('home.hero.note') }}
           </p>
@@ -126,8 +145,10 @@ function index(n) {
         >
           <HeroDiagram
             :labels="disciplines"
-            :image-src="heroPractice"
-            :image-alt="$t('home.images.hero_alt')"
+            :image-src="heroTechnologyMain"
+            :image-alt="$t('home.images.hero_main_alt')"
+            :detail-image-src="heroTechnologyDetail"
+            :detail-image-alt="$t('home.images.hero_detail_alt')"
           />
         </div>
       </div>
@@ -380,18 +401,46 @@ function index(n) {
 
 .landing-hero__title {
   margin: 0;
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1.03;
+  max-width: 17ch;
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.landing-hero__quote-source {
+  margin: 1rem 0 0;
+  color: var(--band-accent);
 }
 
 .landing-hero__subtitle {
   margin: 1.5rem 0 0;
-  max-width: 34rem;
+  max-width: 38rem;
   color: var(--band-ink-muted);
   font-size: clamp(1.02rem, 2vw, 1.2rem);
   line-height: 1.6;
+}
+
+.landing-hero__benefits {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  color: var(--band-ink);
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.landing-hero__benefits li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.landing-hero__benefits span {
+  color: var(--band-accent);
+  font-family: var(--font-mono);
 }
 
 .landing-hero__actions {
@@ -433,7 +482,7 @@ function index(n) {
 }
 
 .landing-hero__note {
-  margin: 1.75rem 0 0;
+  margin: 0.9rem 0 0;
   color: var(--band-ink-muted);
 }
 
@@ -441,7 +490,7 @@ function index(n) {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  margin-top: 1.5rem;
+  margin-top: 1.35rem;
   color: var(--band-ink-muted);
   font-size: 0.85rem;
   font-weight: 500;
@@ -462,7 +511,9 @@ function index(n) {
 }
 
 .landing-hero__diagram {
-  display: none;
+  display: block;
+  width: min(100%, 34rem);
+  margin-inline: auto;
 }
 
 .landing-strip {
@@ -593,11 +644,12 @@ function index(n) {
 
 @media (min-width: 1024px) {
   .landing-hero__inner {
-    grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.92fr);
   }
 
   .landing-hero__diagram {
-    display: block;
+    width: 100%;
+    margin-left: auto;
   }
 
   .landing-grid--outcomes {

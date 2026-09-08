@@ -9,7 +9,11 @@ const navLinks = [
   { href: '#faq', labelKey: 'nav.faq' },
 ];
 
-const legalLinks = ['footer.privacy', 'footer.offer', 'footer.cookies'];
+const legalLinks = [
+  { key: 'footer.privacy' },
+  { key: 'footer.offer', to: { name: 'Offer' } },
+  { key: 'footer.cookies', to: { name: 'Cookies' } },
+];
 </script>
 
 <template>
@@ -55,6 +59,9 @@ const legalLinks = ['footer.privacy', 'footer.offer', 'footer.cookies'];
           target="_blank"
           rel="noopener noreferrer"
         >s-sidorov.ru</a>
+        <router-link :to="{ name: 'Contact' }">
+          {{ $t('nav.contacts') }}
+        </router-link>
       </div>
 
       <div class="public-footer__col">
@@ -75,13 +82,25 @@ const legalLinks = ['footer.privacy', 'footer.offer', 'footer.cookies'];
         <span>{{ $t('common.author_name') }}</span>
         <span class="public-footer__dot">·</span>
         <span>&copy; {{ $t('common.created_date') }}</span>
+        <span class="public-footer__dot">·</span>
+        <span>{{ $t('common.inn_label') }} {{ $t('common.inn_value') }}</span>
       </p>
       <nav class="public-footer__legal">
-        <a
-          v-for="key in legalLinks"
-          :key="key"
-          href="#start"
-        >{{ $t(key) }}</a>
+        <template
+          v-for="link in legalLinks"
+          :key="link.key"
+        >
+          <router-link
+            v-if="link.to"
+            :to="link.to"
+          >
+            {{ $t(link.key) }}
+          </router-link>
+          <a
+            v-else
+            href="#start"
+          >{{ $t(link.key) }}</a>
+        </template>
       </nav>
     </div>
   </footer>

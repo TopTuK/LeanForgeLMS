@@ -1,0 +1,159 @@
+name: leanforgelms
+
+# Production topology — identical to docker-compose.yml except the four LF services
+# run from images published to GHCR by the "Manual deploy production" workflow instead
+# of building from source on the server. `.env` (secrets + WEBAPI_HOST_PORT) is managed
+# manually on the host, next to this file.
+
+networks:
+  leanforge-public:
+    driver: bridge
+  leanforge-internal:
+    driver: bridge
+    internal: true
+  # Shared reverse-proxy network. An nginx-proxy container (+ its cert/ACME setup)
+  # already runs on this network on the PROD host and terminates TLS for
+  # *.s-sidorov.ru; lf-webapi joins it and is routed by the VIRTUAL_* vars below.
+  pmi_network:
+    name: pmi_network
+    external: true
+
+volumes:
+  leanforge-postgres-data:
+  leanforge-minio-data:
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks:
+      - leanforge-internal
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leanforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-leanforge}
+    volumes:
+      - leanforge-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leanforge} -d ${POSTGRES_DB:-leanforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No ports: — internal-only, not host-exposed.
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-internal
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - leanforge-minio-data:/data
+    command: server /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # No ports: — internal-only; avatar bytes are proxied through lf-webapi.
+
+  lf-identityservice:
+    image: ghcr.io/toptuk/leanforgelms/identityservice:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — no egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    # No ports: — not reachable from the host.
+
+  lf-courseservice:
+    image: ghcr.io/toptuk/leanforgelms/courseservice:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — no egress
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # LF.IdentityService is the sole schema owner/migrator for the shared AppDbContext
+      # (including the Course tables) — it must have applied migrations before this starts.
+      lf-identityservice:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    # No ports: — not reachable from the host.
+
+  lf-paymentservice:
+    image: ghcr.io/toptuk/leanforgelms/paymentservice:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-internal   # ONLY this network — Robokassa's classic flow needs no egress
+                             # (URL is built locally, confirmation arrives via lf-webapi's webhook)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # LF.IdentityService is the sole schema owner/migrator for the shared AppDbContext
+      # (including LFPaymentOrders) — it must have applied migrations before this starts.
+      lf-identityservice:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    env_file:
+      - .env   # Robokassa__MerchantLogin/Password1/Password2/HashAlgorithm/IsTest/SuccessUrl/FailUrl
+    # No ports: — not reachable from the host.
+
+  lf-webapi:
+    image: ghcr.io/toptuk/leanforgelms/webapi:latest
+    restart: unless-stopped
+    networks:
+      - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
+      - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
+      - pmi_network          # reachable by the shared nginx-proxy (TLS terminates there)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      lf-identityservice:
+        condition: service_started
+      lf-courseservice:
+        condition: service_started
+      lf-paymentservice:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    expose:
+      - "8080"   # no host publish — nginx-proxy routes to this port over pmi_network
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Consumed by the shared nginx-proxy: it terminates TLS for this host and
+      # forwards plain HTTP to container port 8080.
+      VIRTUAL_HOST: ${WEBAPI_VIRTUAL_HOST:-lms.s-sidorov.ru}
+      VIRTUAL_PORT: "8080"
+      VIRTUAL_PROTO: http
+      DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
+      # Microsoft.Extensions.ServiceDiscovery resolves "https+http://lf-identityservice"
+      # by falling back to this "http" scheme entry (Services:<name>:<scheme>:<index> = "host:port").
+      Services__lf-identityservice__http__0: "lf-identityservice:8080"
+      Services__lf-courseservice__http__0: "lf-courseservice:8080"
+      Services__lf-paymentservice__http__0: "lf-paymentservice:8080"
+      ConnectionStrings__minio: "Endpoint=http://minio:9000/;AccessKey=${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env};SecretKey=${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}"
+      # Needed for IStorageService/IStorageRepository (StorageObject metadata) — lf-webapi is the
+      # only container with both MinIO and DB access, since an upload needs both in one call.
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+    env_file:
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret

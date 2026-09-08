@@ -66,6 +66,22 @@ cd lf.webapp && npm run lint && npm test
 
 ## Production deployment
 
+Production deploys via the **Manual deploy production** GitHub Actions workflow
+([`.github/workflows/deploy-production.yml`](./.github/workflows/deploy-production.yml)):
+Actions tab → *Manual deploy production* → *Run workflow*. It runs the test suites, builds
+and pushes the four service images to GHCR (`ghcr.io/toptuk/leanforgelms/{webapi,identityservice,courseservice,paymentservice}`),
+then SSHs to the PROD server, copies `docker-compose.production.yml`, and runs
+`docker compose pull && up -d`.
+
+Required repo secrets: `TOKEN` (GHCR PAT with `write:packages`), `PRODUCTION_SSH_HOST`,
+`PRODUCTION_SSH_USERNAME`, `PRODUCTION_SSH_KEY`. One-time server prep: create
+`/home/toptuk/leanforgelms/` and place a filled `.env` there (from `.env.example`). TLS and
+routing are handled by the shared `nginx-proxy` on the external `pmi_network` — `lf-webapi`
+joins that network and advertises itself via `VIRTUAL_HOST` (default `lms.s-sidorov.ru`,
+override with `WEBAPI_VIRTUAL_HOST` in `.env`); no host port is published in production.
+
+First-time server setup or manual fallback (builds images on the server):
+
 ```bash
 cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
                        # PmiAuth__*, GoogleAuth__*, Robokassa__* — SENTRY_DSN is optional

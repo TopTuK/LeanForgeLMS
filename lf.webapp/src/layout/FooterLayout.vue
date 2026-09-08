@@ -7,12 +7,21 @@
           <span class="app-footer__dot">·</span>
           <span class="app-footer__author">{{ $t('common.author_name') }}</span>
           <span class="app-footer__year">&copy; {{ $t('common.created_date') }}</span>
+          <span class="app-footer__dot">·</span>
+          <span class="app-footer__inn">{{ $t('common.inn_label') }} {{ $t('common.inn_value') }}</span>
         </p>
 
         <nav class="app-footer__links">
+          <router-link :to="{ name: 'Contact' }">
+            {{ $t('nav.contacts') }}
+          </router-link>
           <a href="#contacts">{{ $t('footer.privacy') }}</a>
-          <a href="#contacts">{{ $t('footer.offer') }}</a>
-          <a href="#contacts">{{ $t('footer.cookies') }}</a>
+          <router-link :to="{ name: 'Offer' }">
+            {{ $t('footer.offer') }}
+          </router-link>
+          <router-link :to="{ name: 'Cookies' }">
+            {{ $t('footer.cookies') }}
+          </router-link>
         </nav>
       </div>
     </div>
