@@ -142,6 +142,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
+      # nginx-proxy terminates TLS and forwards plain HTTP with X-Forwarded-Proto: https.
+      # This makes ASP.NET Core trust that header (and X-Forwarded-For) so Request.Scheme
+      # is "https" — without it the OIDC handler builds an http:// redirect_uri that PMI
+      # rejects. Clears the default loopback-only KnownProxies/KnownNetworks restriction.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       # Consumed by the shared nginx-proxy: it terminates TLS for this host and
       # forwards plain HTTP to container port 8080.
       VIRTUAL_HOST: ${WEBAPI_VIRTUAL_HOST:-lms.s-sidorov.ru}
