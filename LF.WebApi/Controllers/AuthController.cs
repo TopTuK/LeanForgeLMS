@@ -16,6 +16,7 @@ namespace LF.WebApi.Controllers
         IOptionsSnapshot<DefaultAuthOptions> authOptions,
         IOptionsSnapshot<PmiAuthOptions> pmiAuthOptions,
         IOptionsSnapshot<GoogleAuthOptions> googleAuthOptions,
+        IOptionsSnapshot<YandexAuthOptions> yandexAuthOptions,
         IWebHostEnvironment environment,
         LFAppAuth.IAuthenticationService authenticationService,
         LFAppAuth.ITokenService tokenService) : ControllerBase
@@ -26,6 +27,7 @@ namespace LF.WebApi.Controllers
         private readonly DefaultAuthOptions _authOptions = authOptions.Value;
         private readonly PmiAuthOptions _pmiAuthOptions = pmiAuthOptions.Value;
         private readonly GoogleAuthOptions _googleAuthOptions = googleAuthOptions.Value;
+        private readonly YandexAuthOptions _yandexAuthOptions = yandexAuthOptions.Value;
 
         private readonly LFAppAuth.IAuthenticationService _authenticationService = authenticationService;
         private readonly LFAppAuth.ITokenService _tokenService = tokenService;
@@ -83,6 +85,33 @@ namespace LF.WebApi.Controllers
             => await HandleExternalSignInCallbackAsync(
                 "SignInGoogleCallback",
                 _authenticationService.AuthenticateGoogleUserAsync);
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult SignInYandex()
+        {
+            _logger.LogInformation("AuthController::SignInYandex: Start Yandex authentication");
+
+            var schemeName = _yandexAuthOptions.SchemeName;
+            var props = new AuthenticationProperties
+            {
+                RedirectUri = new PathString(_yandexAuthOptions.RedirectUri),
+                Items =
+                {
+                    { "scheme", schemeName }
+                }
+            };
+
+            _logger.LogInformation("AuthController::SignInYandex: Start OAuth challenge with scheme name {schemeName}", schemeName);
+            return Challenge(props, schemeName);
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> SignInYandexCallback()
+            => await HandleExternalSignInCallbackAsync(
+                "SignInYandexCallback",
+                _authenticationService.AuthenticateYandexUserAsync);
 
         [HttpGet]
         [Authorize]

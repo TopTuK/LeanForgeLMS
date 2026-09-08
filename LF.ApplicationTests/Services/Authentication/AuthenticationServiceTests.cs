@@ -47,6 +47,24 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task AuthenticateYandexUserAsync_DelegatesToIdentityService()
+    {
+        // Arrange
+        var request = new UserAuthentificationDto { Email = "yandex@x.com", FirstName = "Y", LastName = "X" };
+        var expected = new UserDto { Id = 8, Email = request.Email, FirstName = "Y", LastName = "X" };
+        var identityMock = new Mock<IGrpcIdentityService>();
+        identityMock.Setup(s => s.GetOrCreateUserAsync(request)).ReturnsAsync(expected);
+        var service = new AuthenticationService(NullLogger<AuthenticationService>.Instance, identityMock.Object);
+
+        // Act
+        var result = await service.AuthenticateYandexUserAsync(request);
+
+        // Assert
+        Assert.Same(expected, result);
+        identityMock.Verify(s => s.GetOrCreateUserAsync(request), Times.Once);
+    }
+
+    [Fact]
     public async Task AuthenticateDevUserAsync_DelegatesToIdentityService()
     {
         // Arrange

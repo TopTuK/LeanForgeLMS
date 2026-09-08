@@ -48,6 +48,7 @@ graph LR
     Browser["Browser<br/>(Vue 3 SPA)"]
     PMI["PMI Club<br/>(OpenID Connect provider)"]
     Google["Google<br/>(OAuth 2.0 provider)"]
+    Yandex["Yandex<br/>(OAuth 2.0 provider)"]
     Robokassa["Robokassa<br/>(hosted checkout + ResultURL webhook)"]
 
     subgraph Public["Public network"]
@@ -67,6 +68,7 @@ graph LR
     Robokassa -- "ResultURL webhook (signed)" --> WebApi
     WebApi -- "OIDC redirect" --> PMI
     WebApi -- "OAuth redirect" --> Google
+    WebApi -- "OAuth redirect" --> Yandex
     WebApi -- "gRPC: user_service.proto" --> IdentitySvc
     WebApi -- "gRPC: course_service.proto" --> CourseSvc
     WebApi -- "gRPC: payment_service.proto" --> PaymentSvc
@@ -203,9 +205,9 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
 
 ## Authentication
 
-The Login page offers two external identity providers — **PMI Club** and **Google** — both
-funneling into the same temp-cookie handshake and the same JWT-minting step, wired up with
-different ASP.NET Core handlers:
+The Login page offers three external identity providers — **PMI Club**, **Google** and
+**Yandex** — all funneling into the same temp-cookie handshake and the same JWT-minting step,
+wired up with different ASP.NET Core handlers:
 
 - **PMI Club** uses a generic `AddOpenIdConnect` scheme, because PMI is a custom OIDC
   provider with no dedicated ASP.NET Core package. The code exchange is done manually in an
@@ -217,19 +219,24 @@ different ASP.NET Core handlers:
   + userinfo lookup internally — no manual code exchange. Its default `ClaimActions` are
   remapped so `sub` / `email` / `name` arrive as the same short claim types PMI produces,
   and `AuthController` doesn't special-case either provider.
+- **Yandex** uses the `AddYandex` handler from `AspNet.Security.OAuth.Yandex` (aspnet-contrib
+  / .NET Foundation) — same internal PKCE + token + userinfo shape as `AddGoogle`. It requests
+  the `login:email` / `login:info` scopes and its `ClaimActions` are remapped the same way
+  (`id` → `sub`, `default_email` → `email`, `real_name` / `display_name` → `name`).
 
 **Login flow:**
 
-1. Browser hits `GET /api/Auth/SignInPmi` or `GET /api/Auth/SignInGoogle` → `LF.WebApi`
-   issues a `Challenge` against the corresponding provider, using a **temporary cookie
-   sign-in scheme** to hold the handshake state.
-2. The provider redirects back to `GET /api/Auth/SingInPmiCallback` or
-   `GET /api/Auth/SignInGoogleCallback`. `AuthController` reads the temp-cookie principal,
-   extracts `sub` / `email` / `name`, and calls `AuthenticationService.AuthenticatePmiUserAsync`
-   / `AuthenticateGoogleUserAsync` — both thin wrappers, since the work is provider-agnostic.
+1. Browser hits `GET /api/Auth/SignInPmi`, `GET /api/Auth/SignInGoogle` or
+   `GET /api/Auth/SignInYandex` → `LF.WebApi` issues a `Challenge` against the corresponding
+   provider, using a **temporary cookie sign-in scheme** to hold the handshake state.
+2. The provider redirects back to `GET /api/Auth/SingInPmiCallback`,
+   `GET /api/Auth/SignInGoogleCallback` or `GET /api/Auth/SignInYandexCallback`. `AuthController`
+   reads the temp-cookie principal, extracts `sub` / `email` / `name`, and calls
+   `AuthenticationService.AuthenticatePmiUserAsync` / `AuthenticateGoogleUserAsync` /
+   `AuthenticateYandexUserAsync` — all thin wrappers, since the work is provider-agnostic.
 3. That call goes over gRPC to `LF.IdentityService` (`GetOrCreateUser`), which looks up or
    creates the `DbUser` row — matched by the claims alone, with no separate "provider" field,
-   so PMI and Google sign-ins with the same email are the same account. **New users get
+   so PMI, Google and Yandex sign-ins with the same email are the same account. **New users get
    `Role = Student`.**
 4. `LF.WebApi` mints its **own JWT** (`TokenService.CreateWebJwtToken`, HMAC-SHA256) with
    `NameIdentifier`, `email`, and `role` claims, and writes it into an **`HttpOnly`,
@@ -566,7 +573,7 @@ docker-compose.yml               # Production deployment (6 services)
 | Database | PostgreSQL via `Npgsql.EntityFrameworkCore.PostgreSQL`, one shared `leanforge` database, table-per-owner |
 | Object storage | MinIO (`CommunityToolkit.Aspire.Hosting.Minio` + `.Minio.Client`), owned by `LF.WebApi` — `avatars` + `storage` buckets |
 | Payments | Robokassa classic hosted checkout, owned by `LF.PaymentService` — raw signature hashing, no SDK, optional 54-FZ `Receipt` |
-| Authentication | JWT Bearer (primary, delivered in an HttpOnly cookie) + temp Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google |
+| Authentication | JWT Bearer (primary, delivered in an HttpOnly cookie) + temp Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google + OAuth 2.0 (`AspNet.Security.OAuth.Yandex`) against Yandex |
 | Object mapping | Mapster |
 | Validation | FluentValidation (`LF.WebApi` only, instantiated inline) |
 | HTML sanitization | `HtmlSanitizer` (Ganss) behind `IHtmlSanitizer`, in `LF.CourseService` |
@@ -593,7 +600,7 @@ docker-compose.yml               # Production deployment (6 services)
 | `lf-webapi` | `leanforge-public` + `leanforge-internal` | Yes (`${WEBAPI_HOST_PORT:-8081}` → `8080`) |
 
 `lf-webapi` is the only container with a published port and the only one on the public
-network — it needs outbound internet for the PMI OIDC / Google OAuth handshakes and it
+network — it needs outbound internet for the PMI OIDC / Google + Yandex OAuth handshakes and it
 receives Robokassa's ResultURL webhook. Everything else is internal-only and unreachable
 from the host or the internet. `lf-webapi` gets its own `ConnectionStrings__leanforge` for
 the `StorageObjects` / `PlatformSettings` / `CoursePayments` access described above.
@@ -606,7 +613,7 @@ to the Vite dev server.
 
 ```bash
 cp .env.example .env   # POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
-                       # PmiAuth__*, GoogleAuth__*, Robokassa__* (+ SuccessUrl/FailUrl).
+                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__* (+ SuccessUrl/FailUrl).
                        # SENTRY_DSN is optional — blank disables Sentry.
 docker compose up --build
 ```
@@ -665,7 +672,7 @@ dotnet run --project LeanForgeLMS.AppHost --launch-profile payment-check
 dotnet run --project LF.IdentityService --no-launch-profile     # sole migrator; needs ConnectionStrings__leanforge
 dotnet run --project LF.CourseService  --no-launch-profile      # same "leanforge" database
 dotnet run --project LF.PaymentService --no-launch-profile      # + Robokassa__MerchantLogin/Password1/Password2
-dotnet run --project LF.WebApi         --no-launch-profile      # + PmiAuth/GoogleAuth/DefaultAuth config,
+dotnet run --project LF.WebApi         --no-launch-profile      # + PmiAuth/GoogleAuth/YandexAuth/DefaultAuth config,
                                                                 #   Services__lf-*service__http__0 addresses,
                                                                 #   DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT=1
 cd lf.webapp && npm run dev                                     # proxied by LF.WebApi in Development

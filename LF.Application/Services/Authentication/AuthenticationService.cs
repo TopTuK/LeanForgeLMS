@@ -35,6 +35,18 @@ internal sealed class AuthenticationService(ILogger<AuthenticationService> logge
         return userDto;
     }
 
+    public async Task<UserDto> AuthenticateYandexUserAsync(UserAuthentificationDto userAuthentification)
+    {
+        _logger.LogInformation("AuthenticationService::AuthenticateYandexUserAsync:Authenticating Yandex user with email: {Email}",
+            userAuthentification.Email);
+
+        var userDto = await _identityService.GetOrCreateUserAsync(userAuthentification);
+        _logger.LogInformation("AuthenticationService::AuthenticateYandexUserAsync:Successfully authenticated Yandex user with email: {Email}",
+            userAuthentification.Email);
+
+        return userDto;
+    }
+
     public async Task<UserDto> AuthenticateDevUserAsync(EnsureUserWithRoleDto userRequestDto)
     {
         _logger.LogInformation(

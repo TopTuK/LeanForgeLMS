@@ -117,7 +117,7 @@ services:
       dockerfile: LF.WebApi/Dockerfile
     restart: unless-stopped
     networks:
-      - leanforge-public     # internet access for PmiAuth/GoogleAuth OIDC
+      - leanforge-public     # internet access for PmiAuth/GoogleAuth/YandexAuth OIDC
       - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
     depends_on:
       postgres:
@@ -147,4 +147,4 @@ services:
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
     env_file:
-      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret
