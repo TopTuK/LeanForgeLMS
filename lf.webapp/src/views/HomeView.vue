@@ -26,7 +26,11 @@ const AUDIENCE = [
   { key: 'product', icon: 'product' },
   { key: 'team', icon: 'team' },
 ];
-const APPROACH_STEPS = ['1', '2', '3'];
+const APPROACH_STEPS = [
+  { key: '1', icon: 'lessons' },
+  { key: '2', icon: 'progress' },
+  { key: '3', icon: 'practice' },
+];
 const FAQ_KEYS = ['1', '2', '3', '4', '5', '6', '7'];
 
 const reduceMotion = typeof window !== 'undefined'
@@ -228,7 +232,7 @@ function index(n) {
       aria-labelledby="approach-title"
     >
       <GeometricBackdrop dense />
-      <div class="layout-max landing-section__inner landing-approach">
+      <div class="layout-max landing-section__inner">
         <SectionHeading
           v-motion="reveal()"
           :index="index(3)"
@@ -238,36 +242,32 @@ function index(n) {
           heading-id="approach-title"
         />
 
-        <div class="landing-approach__grid">
-          <ol
-            v-motion="reveal(60)"
-            class="landing-approach__steps"
+        <figure
+          v-motion="reveal(60)"
+          class="landing-approach__visual"
+        >
+          <img
+            :src="learningWorkflow"
+            :alt="$t('home.images.approach_alt')"
+            loading="lazy"
+            decoding="async"
           >
-            <ProcessStep
-              v-for="(step, i) in APPROACH_STEPS"
-              :key="step"
-              :step="step"
-              :title="$t(`home.approach.steps.${step}.title`)"
-              :description="$t(`home.approach.steps.${step}.description`)"
-              :last="i === APPROACH_STEPS.length - 1"
-            />
-          </ol>
+          <figcaption class="mono-label">
+            {{ $t('home.images.approach_caption') }}
+          </figcaption>
+        </figure>
 
-          <figure
-            v-motion="reveal(120)"
-            class="landing-approach__visual"
-          >
-            <img
-              :src="learningWorkflow"
-              :alt="$t('home.images.approach_alt')"
-              loading="lazy"
-              decoding="async"
-            >
-            <figcaption class="mono-label">
-              {{ $t('home.images.approach_caption') }}
-            </figcaption>
-          </figure>
-        </div>
+        <ol class="landing-grid landing-grid--approach">
+          <ProcessStep
+            v-for="(step, i) in APPROACH_STEPS"
+            :key="step.key"
+            v-motion="reveal(i * 90)"
+            :index="index(i + 1)"
+            :icon="step.icon"
+            :title="$t(`home.approach.steps.${step.key}.title`)"
+            :description="$t(`home.approach.steps.${step.key}.description`)"
+          />
+        </ol>
       </div>
     </section>
 
@@ -557,25 +557,19 @@ function index(n) {
   grid-template-columns: 1fr;
 }
 
-.landing-grid--audience {
+.landing-grid--audience,
+.landing-grid--approach {
   grid-template-columns: 1fr;
+}
+
+.landing-grid--audience {
   max-width: 52rem;
 }
 
-.landing-approach__steps,
-.landing-faq__list {
-  margin: 2.75rem 0 0;
+.landing-grid--approach {
+  margin-top: 1.25rem;
   padding: 0;
   list-style: none;
-}
-
-.landing-approach {
-  max-width: none;
-}
-
-.landing-approach__grid {
-  display: grid;
-  gap: clamp(2rem, 5vw, 4rem);
 }
 
 .landing-approach__visual {
@@ -583,7 +577,6 @@ function index(n) {
   min-width: 0;
   margin: 2.75rem 0 0;
   overflow: hidden;
-  align-self: start;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-card);
   background: var(--industrial-panel);
@@ -592,8 +585,9 @@ function index(n) {
 .landing-approach__visual img {
   display: block;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: clamp(12rem, 32vw, 20rem);
   object-fit: cover;
+  object-position: 62% 42%;
 }
 
 .landing-approach__visual figcaption {
@@ -607,6 +601,9 @@ function index(n) {
 }
 
 .landing-faq__list {
+  margin: 2.75rem 0 0;
+  padding: 0;
+  list-style: none;
   border-top: 1px solid var(--color-border-subtle);
 }
 
@@ -636,7 +633,8 @@ function index(n) {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .landing-grid--audience {
+  .landing-grid--audience,
+  .landing-grid--approach {
     grid-template-columns: repeat(3, 1fr);
     max-width: none;
   }
@@ -654,10 +652,6 @@ function index(n) {
 
   .landing-grid--outcomes {
     grid-template-columns: repeat(4, 1fr);
-  }
-
-  .landing-approach__grid {
-    grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.9fr);
   }
 }
 </style>

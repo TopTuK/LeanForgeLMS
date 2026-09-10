@@ -35,6 +35,14 @@ describe('HomeView', () => {
     expect(siteLinks[0]).toHaveAttribute('href', 'https://s-sidorov.ru');
   });
 
+  it('renders the self-paced learning steps', () => {
+    const { getByRole } = renderComponent(HomeView);
+
+    expect(getByRole('heading', { name: /work through chapters and lessons/i })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /track progress as you go/i })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /practise on real work/i })).toBeInTheDocument();
+  });
+
   it('renders the audience cards for the roles this platform serves', () => {
     const { getByRole } = renderComponent(HomeView);
 
