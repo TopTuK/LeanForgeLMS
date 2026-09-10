@@ -138,7 +138,9 @@ jobs:
 
       - name: Back up current .env and upload the new one
         run: |
-          SSH_OPTS="-p ${{ env.SSH_PORT }} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ${{ env.SSH_KEY_PATH }}"
+          # -o Port= (not -p) so the same option string works for both ssh and scp;
+          # scp's -p means "preserve timestamps" and would swallow the port as a source path.
+          SSH_OPTS="-o Port=${{ env.SSH_PORT }} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ${{ env.SSH_KEY_PATH }}"
           TARGET="${{ secrets.PRODUCTION_SSH_USERNAME }}@${{ secrets.PRODUCTION_SSH_HOST }}"
 
           ssh $SSH_OPTS "$TARGET" "mkdir -p ${{ env.DEPLOY_DIR }} && \
@@ -154,7 +156,7 @@ jobs:
 
       - name: Validate compose can resolve .env
         run: |
-          SSH_OPTS="-p ${{ env.SSH_PORT }} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ${{ env.SSH_KEY_PATH }}"
+          SSH_OPTS="-o Port=${{ env.SSH_PORT }} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i ${{ env.SSH_KEY_PATH }}"
           TARGET="${{ secrets.PRODUCTION_SSH_USERNAME }}@${{ secrets.PRODUCTION_SSH_HOST }}"
 
           ssh $SSH_OPTS "$TARGET" "cd ${{ env.DEPLOY_DIR }} && \
