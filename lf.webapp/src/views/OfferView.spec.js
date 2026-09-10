@@ -3,37 +3,35 @@ import OfferView from '@/views/OfferView.vue';
 import { renderComponent } from '@/test/renderComponent';
 
 describe('OfferView', () => {
-  it('renders a single document heading and the main articles', () => {
-    const { getAllByRole, getByRole } = renderComponent(OfferView);
+  it('renders the Russian public offer with a single document heading', () => {
+    const { getAllByRole } = renderComponent(OfferView);
 
     const h1s = getAllByRole('heading', { level: 1 });
     expect(h1s).toHaveLength(1);
-    expect(h1s[0]).toHaveTextContent(/public offer/i);
-
-    expect(getByRole('heading', { name: /definitions/i })).toBeInTheDocument();
-    expect(getByRole('heading', { name: /price and payment/i })).toBeInTheDocument();
-    expect(getByRole('heading', { name: /cancellation and refunds/i })).toBeInTheDocument();
+    expect(h1s[0]).toHaveTextContent(/Публичная оферта/i);
   });
 
-  it('identifies the school, the provider and the payment method', () => {
-    const { getByText, getAllByText } = renderComponent(OfferView);
+  it('renders the main sections of the offer', () => {
+    const { getByRole } = renderComponent(OfferView);
 
-    expect(getByText(/Sergey Sidorov/i)).toBeInTheDocument();
-    expect(getAllByText(/High Managers School/).length).toBeGreaterThan(0);
-    expect(getByText(/lms\.s-sidorov\.ru/)).toBeInTheDocument();
-    expect(getAllByText(/Robokassa/).length).toBeGreaterThan(0);
+    expect(getByRole('heading', { name: /Общие положения/ })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /Предмет Договора/ })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /Цена и порядок расчётов/ })).toBeInTheDocument();
+    expect(getByRole('heading', { name: /Реквизиты Исполнителя/ })).toBeInTheDocument();
   });
 
-  it('states that this is not licensed education and that Russian text prevails', () => {
+  it('identifies the provider, the site and the contact details', () => {
     const { getByText } = renderComponent(OfferView);
 
-    expect(getByText(/does not carry out licensed educational activity/i)).toBeInTheDocument();
-    expect(getByText(/russian-language text is legally binding/i)).toBeInTheDocument();
+    expect(getByText(/Школа Сильных Менеджеров/)).toBeInTheDocument();
+    expect(getByText(/Сидоров Сергей Александрович/)).toBeInTheDocument();
+    expect(getByText(/773371597190/)).toBeInTheDocument();
+    expect(getByText(/sergey\.sidorov@pmi\.moscow/)).toBeInTheDocument();
   });
 
-  it('points claims to the support email', () => {
-    const { getByText } = renderComponent(OfferView);
+  it('states that Russian law governs the agreement', () => {
+    const { getAllByText } = renderComponent(OfferView);
 
-    expect(getByText(/support@pmi\.moscow/)).toBeInTheDocument();
+    expect(getAllByText(/законодательством Российской Федерации/).length).toBeGreaterThan(0);
   });
 });

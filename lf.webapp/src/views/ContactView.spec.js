@@ -16,10 +16,10 @@ describe('ContactView', () => {
     expect(telegram).toHaveAttribute('target', '_blank');
   });
 
-  it('renders the INN placeholder and tax status note', () => {
+  it('renders the INN and tax status note', () => {
     const { getByText } = renderComponent(ContactView);
 
-    expect(getByText('0000000000')).toBeInTheDocument();
+    expect(getByText('773371597190')).toBeInTheDocument();
     expect(getByText(/Professional income tax/i)).toBeInTheDocument();
   });
 

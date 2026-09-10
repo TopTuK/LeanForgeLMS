@@ -12,6 +12,29 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Typography from '@tiptap/extension-typography';
 import { useI18n } from 'vue-i18n';
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Baseline,
+  Bold,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  Highlighter,
+  Image as ImageIcon,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Quote,
+  Redo2,
+  RemoveFormatting,
+  Strikethrough,
+  Underline as UnderlineIcon,
+  Undo2,
+} from 'lucide-vue-next';
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -46,6 +69,8 @@ const editor = useEditor({
   extensions: [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
+      link: false,
+      underline: false,
     }),
     Underline,
     TextStyle,
@@ -195,27 +220,33 @@ function toggleColorMenu() {
   colorMenuOpen.value = !colorMenuOpen.value;
 }
 
+const ICON_SIZE = 15;
+
 const tools = [
   {
     id: 'bold',
+    icon: Bold,
     labelKey: 'courses.lessonEditor.toolbar.bold',
     mark: 'bold',
     action: (chain) => chain.toggleBold(),
   },
   {
     id: 'italic',
+    icon: Italic,
     labelKey: 'courses.lessonEditor.toolbar.italic',
     mark: 'italic',
     action: (chain) => chain.toggleItalic(),
   },
   {
     id: 'underline',
+    icon: UnderlineIcon,
     labelKey: 'courses.lessonEditor.toolbar.underline',
     mark: 'underline',
     action: (chain) => chain.toggleUnderline(),
   },
   {
     id: 'strike',
+    icon: Strikethrough,
     labelKey: 'courses.lessonEditor.toolbar.strike',
     mark: 'strike',
     action: (chain) => chain.toggleStrike(),
@@ -243,12 +274,17 @@ const tools = [
           type="button"
           class="rich-editor__btn"
           :class="{ 'is-active': isActive(tool.mark) }"
+          :aria-pressed="isActive(tool.mark)"
           :disabled="disabled || !editor"
           :aria-label="$t(tool.labelKey)"
           :title="$t(tool.labelKey)"
           @click="run(tool.action)"
         >
-          {{ tool.id.slice(0, 1).toUpperCase() }}
+          <component
+            :is="tool.icon"
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -260,36 +296,45 @@ const tools = [
       <div class="rich-editor__group">
         <button
           type="button"
-          class="rich-editor__btn rich-editor__heading"
+          class="rich-editor__btn"
           :class="{ 'is-active': isActive('heading', { level: 1 }) }"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.h1')"
           :title="$t('courses.lessonEditor.toolbar.h1')"
           @click="run((chain) => chain.toggleHeading({ level: 1 }))"
         >
-          {{ $t('courses.lessonEditor.toolbar.h1') }}
+          <Heading1
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
-          class="rich-editor__btn rich-editor__heading"
+          class="rich-editor__btn"
           :class="{ 'is-active': isActive('heading', { level: 2 }) }"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.h2')"
           :title="$t('courses.lessonEditor.toolbar.h2')"
           @click="run((chain) => chain.toggleHeading({ level: 2 }))"
         >
-          {{ $t('courses.lessonEditor.toolbar.h2') }}
+          <Heading2
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
-          class="rich-editor__btn rich-editor__heading"
+          class="rich-editor__btn"
           :class="{ 'is-active': isActive('heading', { level: 3 }) }"
           :disabled="disabled || !editor"
           :aria-label="$t('courses.lessonEditor.toolbar.h3')"
           :title="$t('courses.lessonEditor.toolbar.h3')"
           @click="run((chain) => chain.toggleHeading({ level: 3 }))"
         >
-          {{ $t('courses.lessonEditor.toolbar.h3') }}
+          <Heading3
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -308,7 +353,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.align_left')"
           @click="run((chain) => chain.setTextAlign('left'))"
         >
-          L
+          <AlignLeft
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -319,7 +367,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.align_center')"
           @click="run((chain) => chain.setTextAlign('center'))"
         >
-          C
+          <AlignCenter
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -330,7 +381,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.align_right')"
           @click="run((chain) => chain.setTextAlign('right'))"
         >
-          R
+          <AlignRight
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -349,7 +403,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.bullet_list')"
           @click="run((chain) => chain.toggleBulletList())"
         >
-          •
+          <List
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -360,7 +417,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.ordered_list')"
           @click="run((chain) => chain.toggleOrderedList())"
         >
-          1.
+          <ListOrdered
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -371,7 +431,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.blockquote')"
           @click="run((chain) => chain.toggleBlockquote())"
         >
-          “
+          <Quote
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -382,7 +445,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.code')"
           @click="run((chain) => chain.toggleCode())"
         >
-          &lt;/&gt;
+          <Code
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -401,7 +467,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.highlight')"
           @click="run((chain) => chain.toggleHighlight())"
         >
-          ▮
+          <Highlighter
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
 
         <div class="rich-editor__menu-wrap">
@@ -415,7 +484,10 @@ const tools = [
             :aria-expanded="colorMenuOpen"
             @click="toggleColorMenu"
           >
-            A
+            <Baseline
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
             <span
               class="rich-editor__color-bar"
               :style="{ background: currentColor || 'var(--color-ink)' }"
@@ -452,7 +524,10 @@ const tools = [
             :aria-expanded="linkPopoverOpen"
             @click="openLinkPopover"
           >
-            ↗
+            <LinkIcon
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
           </button>
           <div
             v-if="linkPopoverOpen"
@@ -497,7 +572,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.image')"
           @click="setImage"
         >
-          ▣
+          <ImageIcon
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -515,7 +593,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.undo')"
           @click="run((chain) => chain.undo())"
         >
-          ↺
+          <Undo2
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -525,7 +606,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.redo')"
           @click="run((chain) => chain.redo())"
         >
-          ↻
+          <Redo2
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
         <button
           type="button"
@@ -535,7 +619,10 @@ const tools = [
           :title="$t('courses.lessonEditor.toolbar.clear')"
           @click="clearFormatting"
         >
-          ×
+          <RemoveFormatting
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
         </button>
       </div>
     </div>
@@ -564,9 +651,6 @@ const tools = [
 
 .rich-editor--compact {
   min-height: 0;
-  border: 0;
-  border-radius: 0.55rem;
-  background: transparent;
   overflow: visible;
 }
 
@@ -574,20 +658,8 @@ const tools = [
   position: sticky;
   top: 3.5rem;
   z-index: 4;
-  margin: 0 0 0.15rem;
-  padding: 0.3rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.55rem;
-  background: var(--color-surface-950);
-  box-shadow: 0 8px 20px -16px rgb(15 23 42 / 0.35);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
-}
-
-.rich-editor--compact:focus-within .rich-editor__toolbar {
-  opacity: 1;
-  pointer-events: auto;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.65rem 0.65rem 0 0;
 }
 
 .rich-editor--compact .rich-editor__surface,
@@ -732,16 +804,15 @@ const tools = [
 
 .rich-editor__btn {
   position: relative;
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.4rem;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
   border: 0;
   border-radius: 0.35rem;
   background: transparent;
   color: var(--color-ink-muted);
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
   cursor: pointer;
 }
 
@@ -761,23 +832,18 @@ const tools = [
 }
 
 .rich-editor__btn--color {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  line-height: 1;
+  padding-bottom: 0.28rem;
 }
 
 .rich-editor__color-bar {
+  position: absolute;
+  bottom: 0.22rem;
+  left: 50%;
   display: block;
   width: 0.85rem;
-  height: 0.18rem;
+  height: 0.16rem;
   border-radius: 999px;
-}
-
-.rich-editor__heading {
-  min-width: 2.1rem;
+  transform: translateX(-50%);
 }
 
 .rich-editor__menu-wrap {

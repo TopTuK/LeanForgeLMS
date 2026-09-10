@@ -1,14 +1,14 @@
 <script setup>
-import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import MarkdownIt from 'markdown-it';
 import { ArrowLeft } from 'lucide-vue-next';
 
-const { tm, rt } = useI18n();
+import offerSource from '@/content/offer.ru.md?raw';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
-const sections = computed(() => {
-  const items = tm('offer.sections');
-  return Array.isArray(items) ? items : [];
-});
+// The offer is a Russian-only legal document. It is authored in
+// src/content/offer.ru.md and rendered here — it is not part of the i18n bundle.
+const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
+const offerHtml = sanitizeHtml(md.render(offerSource));
 </script>
 
 <template>
@@ -27,60 +27,17 @@ const sections = computed(() => {
           class="size-4"
           aria-hidden="true"
         />
-        {{ $t('offer.back') }}
+        На главную
       </router-link>
 
       <p class="mono-label offer-page__eyebrow">
-        {{ $t('offer.eyebrow') }}
-      </p>
-      <h1 class="offer-page__title font-display">
-        {{ $t('offer.title') }}
-      </h1>
-      <p class="offer-page__meta">
-        {{ $t('offer.updated') }}
-      </p>
-      <p class="offer-page__binding">
-        {{ $t('offer.binding') }}
+        Правовая информация
       </p>
 
-      <p class="offer-page__preamble">
-        {{ $t('offer.preamble') }}
-      </p>
-      <p class="offer-page__preamble">
-        {{ $t('offer.requisites') }}
-      </p>
-
-      <section
-        v-for="(section, index) in sections"
-        :key="section.heading || index"
-        class="offer-section"
-      >
-        <h2 class="offer-section__heading font-display">
-          {{ rt(section.heading) }}
-        </h2>
-        <template
-          v-for="(block, blockIndex) in section.blocks"
-          :key="blockIndex"
-        >
-          <p
-            v-if="block.type === 'p'"
-            class="offer-section__p"
-          >
-            {{ rt(block.text) }}
-          </p>
-          <ul
-            v-else-if="block.type === 'ul'"
-            class="offer-section__list"
-          >
-            <li
-              v-for="item in block.items"
-              :key="item"
-            >
-              {{ rt(item) }}
-            </li>
-          </ul>
-        </template>
-      </section>
+      <div
+        v-safe-html="offerHtml"
+        class="offer-doc"
+      />
     </div>
   </article>
 </template>
@@ -119,54 +76,44 @@ const sections = computed(() => {
 }
 
 .offer-page__eyebrow {
-  margin: 2rem 0 1rem;
+  margin: 2rem 0 1.5rem;
   color: var(--color-accent-coral);
 }
 
-.offer-page__title {
-  margin: 0;
-  font-size: clamp(2rem, 5vw, 2.9rem);
+.offer-doc :deep(h1) {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.9rem, 4.5vw, 2.6rem);
   font-weight: 600;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.15;
   color: var(--color-ink);
 }
 
-.offer-page__meta,
-.offer-page__binding {
-  margin: 0.75rem 0 0;
-  color: var(--color-ink-faint);
-  font-size: 0.85rem;
-  line-height: 1.5;
-}
-
-.offer-page__preamble {
-  margin: 1.25rem 0 0;
-  color: var(--color-ink);
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.offer-section {
-  margin-top: 2.25rem;
-}
-
-.offer-section__heading {
-  margin: 0 0 0.85rem;
+.offer-doc :deep(h2) {
+  margin: 2.25rem 0 0.85rem;
+  font-family: var(--font-display, inherit);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--color-ink);
 }
 
-.offer-section__p {
+.offer-doc :deep(h3) {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.offer-doc :deep(p) {
   margin: 0 0 0.75rem;
   color: var(--color-ink);
   font-size: 0.95rem;
   line-height: 1.7;
 }
 
-.offer-section__list {
+.offer-doc :deep(ul) {
   margin: 0 0 0.85rem;
   padding-left: 1.25rem;
   color: var(--color-ink);
@@ -174,7 +121,12 @@ const sections = computed(() => {
   line-height: 1.7;
 }
 
-.offer-section__list li + li {
+.offer-doc :deep(li + li) {
   margin-top: 0.35rem;
+}
+
+.offer-doc :deep(a) {
+  color: var(--color-accent-coral);
+  overflow-wrap: anywhere;
 }
 </style>
