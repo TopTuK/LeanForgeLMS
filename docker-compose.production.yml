@@ -2,8 +2,9 @@ name: leanforgelms
 
 # Production topology — identical to docker-compose.yml except the four LF services
 # run from images published to GHCR by the "Manual deploy production" workflow instead
-# of building from source on the server. `.env` (secrets + WEBAPI_HOST_PORT) is managed
-# manually on the host, next to this file.
+# of building from source on the server. `.env` (secrets + WEBAPI_HOST_PORT) lives on the
+# host next to this file — rendered from GitHub Actions secrets by the "Manual sync
+# production .env" workflow, or hand-edited for a one-off. See DeploymentGuide.md section 3.
 
 networks:
   leanforge-public:

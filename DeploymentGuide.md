@@ -74,8 +74,16 @@ Postgres and MinIO are containers in the compose file — nothing to provision s
 ## 3. Environment variables
 
 All secrets live in a single `.env` file **next to `docker-compose.production.yml` on the
-server**. It is gitignored and **maintained manually** — the deploy workflow never writes it.
-Start from [`.env.example`](./.env.example).
+server**. It is gitignored and has two maintenance paths:
+
+- **Preferred — the [`Manual sync production .env`](./.github/workflows/sync-production-env.yml)
+  workflow.** GitHub Actions secrets/variables are the source of truth; the workflow renders
+  `.env` from them and ships it to the server (previous file backed up). See
+  [§3.1](#31-syncing-env-from-github-actions).
+- **Fallback — hand-edit `.env` on the server** for a one-off tweak. The next workflow run
+  overwrites it, so fold any manual change back into the GitHub secrets.
+
+[`.env.example`](./.env.example) is the field reference either way.
 
 Values reach the apps through ASP.NET Core's double-underscore convention
 (`Robokassa__Password1` → `Robokassa:Password1`).
@@ -112,6 +120,60 @@ DefaultAdmins__0__FirstName: "Some"
 DefaultAdmins__0__LastName: "One"
 ```
 
+### 3.1 Syncing `.env` from GitHub Actions
+
+[`.github/workflows/sync-production-env.yml`](./.github/workflows/sync-production-env.yml)
+(**`Manual sync production .env`**, `workflow_dispatch` only) rebuilds the server's `.env`
+from repository secrets/variables. One run:
+
+1. renders `KEY=value` lines from the secrets/variables below (fails fast if a **required**
+   one is empty),
+2. SSHes to the PROD host (reusing `PRODUCTION_SSH_HOST` / `PRODUCTION_SSH_USERNAME` /
+   `PRODUCTION_SSH_KEY` — the same secrets the deploy workflow uses),
+3. copies the current `.env` to `.env.bak.<UTC timestamp>` in the deploy directory,
+4. uploads the new `.env` (`chmod 600`),
+5. runs `docker compose -f docker-compose.production.yml config -q` on the server to confirm
+   every `${VAR:?…}` guard resolves.
+
+**It does not restart anything.** The new values take effect on the next
+[`Manual deploy production`](#6-deploying) run, or immediately if you SSH in and run
+`docker compose -f docker-compose.production.yml up -d`.
+
+**Run it:** GitHub → Actions → *Manual sync production .env* → *Run workflow*.
+
+**Required secrets** (repository → Settings → Secrets and variables → Actions → *Secrets*).
+Name each secret **exactly** as the `.env` key (names are case-insensitive):
+
+| Secret | `.env` key it fills |
+|---|---|
+| `POSTGRES_PASSWORD` | `POSTGRES_PASSWORD` |
+| `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | same |
+| `DefaultAuth__JwtKey` | `DefaultAuth__JwtKey` |
+| `PmiAuth__ClientId` / `PmiAuth__ClientSecret` / `PmiAuth__OpenIdConfigurationUrl` | same |
+| `GoogleAuth__ClientId` / `GoogleAuth__ClientSecret` | same |
+| `YandexAuth__ClientId` / `YandexAuth__ClientSecret` | same |
+| `Robokassa__MerchantLogin` / `Robokassa__Password1` / `Robokassa__Password2` | same |
+
+**Optional secrets** — may be unset/blank: `Unleash__ApiKey` (blank ⇒ all flags off ⇒
+self-enrollment disabled), `SENTRY_DSN` (blank ⇒ Sentry off).
+
+**Variables** (same screen → *Variables* tab) — non-secret knobs, each with a built-in
+default, so you only set the ones you want to override:
+
+| Variable | Default |
+|---|---|
+| `POSTGRES_USER` / `POSTGRES_DB` | `leanforge` |
+| `WEBAPI_VIRTUAL_HOST` | `lms.s-sidorov.ru` |
+| `WEBAPI_HOST_PORT` | `8085` |
+| `UNLEASH_API_URL` | `https://features.s-sidorov.ru/api/` |
+| `Robokassa__HashAlgorithm` | `SHA256` |
+| `Robokassa__IsTest` | `false` |
+| `Robokassa__SuccessUrl` / `Robokassa__FailUrl` | `https://lms.s-sidorov.ru/payments/{success,fail}` |
+
+Backups (`.env.bak.*`) accumulate in the deploy directory — prune them by hand
+occasionally. To roll back a bad sync: `cp .env.bak.<ts> .env` on the server, then
+`docker compose … up -d`.
+
 ---
 
 ## 4. One-time server preparation
@@ -120,8 +182,11 @@ DefaultAdmins__0__LastName: "One"
 # 1. Deploy directory (must match DEPLOY_DIR in the workflow)
 mkdir -p /home/toptuk/leanforgelms && cd /home/toptuk/leanforgelms
 
-# 2. Create .env from the template in the repo, then fill in every required value
-#    (copy .env.example over by hand — the workflow only ships the compose file)
+# 2. Create .env. Preferred: set the repository secrets/variables (§3.1) and run the
+#    "Manual sync production .env" workflow — it writes /home/toptuk/leanforgelms/.env
+#    for you. It will warn that docker-compose.production.yml is not on the server yet;
+#    that is expected on a first bring-up and the .env is still written.
+#    Fallback: copy .env.example over by hand and fill in every required value.
 vi .env
 chmod 600 .env
 
@@ -196,6 +261,9 @@ A failing test blocks the image build, so a red test suite cannot reach producti
 
 The deploy job validates all three SSH secrets are non-empty before connecting — an empty
 username otherwise surfaces as a confusing `runner@host: Permission denied`.
+
+The `Manual sync production .env` workflow reuses the three `PRODUCTION_SSH_*` secrets and
+needs its own set for the `.env` contents — see [§3.1](#31-syncing-env-from-github-actions).
 
 ### Manual (fallback / first bring-up)
 
@@ -331,7 +399,9 @@ Caveats:
 | Site unreachable but containers healthy | `pmi_network` not joined, or `VIRTUAL_HOST` does not match DNS |
 | Course/enrollment queries fail right after deploy | `lf-identityservice` still migrating; wait and re-check |
 | Avatars/media 404 | MinIO volume lost, or bucket init failed — check `lf-webapi` logs for `MinioBucketInitializer` |
-| Compose exits with `Set X in .env` | A required variable is unset; compose fails fast by design |
+| Compose exits with `Set X in .env` | A required variable is unset; compose fails fast by design. If `.env` is managed by the sync workflow ([§3.1](#31-syncing-env-from-github-actions)), add the missing secret/variable and re-run it |
+| `.env` on the server looks stale after rotating a secret | Re-run `Manual sync production .env`, then `docker compose -f docker-compose.production.yml up -d`. Previous files are kept as `.env.bak.<timestamp>` in the deploy directory |
+| Sync workflow fails at *Render .env* with `required secret … is not set` | That repository secret is missing/empty; the server `.env` is left untouched |
 
 Useful commands:
 
