@@ -27,6 +27,13 @@ var sentryDsn = builder.AddParameter(
     () => builder.Configuration["SENTRY_DSN"] ?? string.Empty,
     secret: true);
 
+// Unleash client API token for the feature flag server. Only lf-webapi needs it — the gRPC
+// services never evaluate flags. Empty when unset, which leaves every flag off.
+var unleashApiKey = builder.AddParameter(
+    "unleash-api-key",
+    () => builder.Configuration["UNLEASH_API_KEY"] ?? string.Empty,
+    secret: true);
+
 var minio = builder.AddMinioContainer("minio", minioUser, minioPassword, port: 9000);
 
 var identityService = builder
@@ -55,6 +62,7 @@ var webApp = builder
 var webApi = builder
     .AddProject<Projects.LF_WebApi>("lf-webapi")
     .WithEnvironment("SENTRY_DSN", sentryDsn)
+    .WithEnvironment("Unleash__ApiKey", unleashApiKey)
     .WithReference(identityService)
     .WithReference(courseService)
     .WithReference(paymentService)

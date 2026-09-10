@@ -16,8 +16,6 @@ import {
   fetchPromoCodes,
   createPromoCode,
   deactivatePromoCode,
-  fetchPlatformSettings,
-  updateStudentEnrollment,
   fetchPayments,
   downloadPaymentsCsv,
 } from '@/services/adminService';
@@ -93,19 +91,6 @@ describe('adminService', () => {
     it('deactivatePromoCode POSTs to the deactivate route', async () => {
       await deactivatePromoCode(7);
       expect(api.post).toHaveBeenCalledWith('/admin/promo-codes/7/deactivate');
-    });
-  });
-
-  describe('platform settings', () => {
-    it('fetchPlatformSettings GETs the platform-settings route', async () => {
-      api.get.mockResolvedValue({ data: { studentEnrollmentEnabled: false } });
-      await fetchPlatformSettings();
-      expect(api.get).toHaveBeenCalledWith('/admin/platform-settings');
-    });
-
-    it('updateStudentEnrollment PUTs the flag wrapped in an object', async () => {
-      await updateStudentEnrollment(true);
-      expect(api.put).toHaveBeenCalledWith('/admin/platform-settings/student-enrollment', { enabled: true });
     });
   });
 

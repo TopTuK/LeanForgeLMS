@@ -9,14 +9,15 @@ Lean Forge LMS is a **Learning Management System for an online school for develo
 lets instructors author courses — chapters and lessons built from ordered rich-text, image,
 video, audio, quiz and file blocks, with cover art and a publish workflow — and lets students
 browse a catalog, enroll (free or paid), work through lessons, pass quizzes, and track their
-progress. An admin area manages users, categories, promo codes, payment reporting, and a
-runtime switch that turns student self-enrollment on or off without a redeploy.
+progress. An admin area manages users, categories, promo codes, and payment reporting, while
+a runtime **feature flag** turns student self-enrollment on or off without a redeploy.
 
 It's a **solo-developer project** built on **.NET 10** and a **Vue 3** SPA. The backend runs
 as four independently deployable processes — one public API/BFF plus three internal gRPC
 services (identity, courses, payments) — sharing one PostgreSQL database and one MinIO object
-store. Paid enrollment goes through **Robokassa** hosted checkout. Local development is
-orchestrated with **.NET Aspire**; production is plain **Docker Compose**.
+store. Paid enrollment goes through **Robokassa** hosted checkout, and runtime feature flags
+come from **Unleash**. Local development is orchestrated with **.NET Aspire**; production is
+plain **Docker Compose**.
 
 ## Author & deployment
 
@@ -43,6 +44,11 @@ with dependencies pointing inward.
 - Node.js 22.18+ (or 24.12+)
 - Docker (for the Aspire-managed Postgres/MinIO containers, or for `docker-compose.yml`)
 
+Feature flags are optional locally: with no Unleash key every flag reads as **off**, which
+means self-enrollment is blocked. To exercise it, set the client API token once —
+`dotnet user-secrets set UNLEASH_API_KEY "<token>" --project LeanForgeLMS.AppHost` (Aspire) or
+`dotnet user-secrets set "Unleash:ApiKey" "<token>" --project LF.WebApi` (standalone).
+
 ### Run everything via Aspire
 
 ```bash
@@ -66,6 +72,10 @@ cd lf.webapp && npm run lint && npm test
 
 ## Production deployment
 
+**Step-by-step instructions — server prep, secrets, feature flags, verification, rollback and
+troubleshooting: [`DeploymentGuide.md`](./DeploymentGuide.md).** The summary below is the
+short version.
+
 Production deploys via the **Manual deploy production** GitHub Actions workflow
 ([`.github/workflows/deploy-production.yml`](./.github/workflows/deploy-production.yml)):
 Actions tab → *Manual deploy production* → *Run workflow*. It runs the test suites, builds
@@ -85,13 +95,14 @@ First-time server setup or manual fallback (builds images on the server):
 
 ```bash
 cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
-                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__* — SENTRY_DSN is optional
+                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__*, Unleash__ApiKey
+                       # — SENTRY_DSN is optional
 docker compose up --build
 ```
 
-The compose topology (six services, two networks, why only `lf-webapi` is exposed) and the
-full list of environment keys are in
-[`Architecture.md`](./Architecture.md#deployment-topology-docker-compose).
+The compose topology (six services, two networks, why only `lf-webapi` is exposed) is in
+[`Architecture.md`](./Architecture.md#deployment-topology-docker-compose); the full
+environment-variable reference is in [`DeploymentGuide.md`](./DeploymentGuide.md#3-environment-variables).
 
 ## Contributing
 

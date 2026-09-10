@@ -8,7 +8,6 @@ using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
-using LF.Application.Services.Platform;
 using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
@@ -37,6 +36,7 @@ public class DependencyInjectionTests
         services.AddScoped(_ => Mock.Of<IGrpcPromoCodeService>());
         services.AddScoped(_ => Mock.Of<IStorageRepository>());
         services.AddScoped(_ => Mock.Of<IAppDbContext>());
+        services.AddScoped(_ => Mock.Of<IFeatureFlagService>());
         services.AddKeyedScoped("storage", (_, _) => Mock.Of<IFileStorageService>());
         services.AddAuthenticationApplication();
 
@@ -53,7 +53,6 @@ public class DependencyInjectionTests
         Assert.IsType<EnrollmentLearningService>(scope.ServiceProvider.GetRequiredService<IEnrollmentLearningService>());
         Assert.IsType<PromoCodeAdminService>(scope.ServiceProvider.GetRequiredService<IPromoCodeAdminService>());
         Assert.IsType<StorageService>(scope.ServiceProvider.GetRequiredService<IStorageService>());
-        Assert.IsType<PlatformSettingsService>(scope.ServiceProvider.GetRequiredService<IPlatformSettingsService>());
         Assert.IsType<PaymentReportService>(scope.ServiceProvider.GetRequiredService<IPaymentReportService>());
     }
 
@@ -91,7 +90,6 @@ public class DependencyInjectionTests
         Assert.IsType<CourseServiceImpl>(scope.ServiceProvider.GetRequiredService<ICourseService>());
         Assert.IsType<EnrollmentService>(scope.ServiceProvider.GetRequiredService<IEnrollmentService>());
         Assert.IsType<PromoCodeService>(scope.ServiceProvider.GetRequiredService<IPromoCodeService>());
-        Assert.IsType<PlatformSettingsService>(scope.ServiceProvider.GetRequiredService<IPlatformSettingsService>());
     }
 
     [Fact]

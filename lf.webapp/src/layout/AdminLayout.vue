@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { BookOpen, PanelLeft, Receipt, Settings, Tags, Ticket, Users } from 'lucide-vue-next';
+import { BookOpen, PanelLeft, Receipt, Tags, Ticket, Users } from 'lucide-vue-next';
 
 const route = useRoute();
 const isMinimized = ref(localStorage.getItem('leanforge-admin-sidebar-minimized') === 'true');
@@ -12,7 +12,6 @@ const links = [
   { name: 'AdminCategories', labelKey: 'admin.sidebar.categories', icon: Tags },
   { name: 'AdminPromoCodes', labelKey: 'admin.sidebar.promo_codes', icon: Ticket },
   { name: 'AdminPayments', labelKey: 'admin.sidebar.payments', icon: Receipt },
-  { name: 'AdminSettings', labelKey: 'admin.sidebar.settings', icon: Settings },
 ];
 
 function toggleSidebar() {

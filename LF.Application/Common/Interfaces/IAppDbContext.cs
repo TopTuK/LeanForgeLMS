@@ -1,6 +1,5 @@
 using LF.AppDomain.Entities.Course;
 using LF.AppDomain.Entities.Payment;
-using LF.AppDomain.Entities.Platform;
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Entities.User;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +15,6 @@ public interface IAppDbContext
     DbSet<PromoCode> PromoCodes { get; }
     DbSet<PaymentOrder> PaymentOrders { get; }
     DbSet<CoursePayment> CoursePayments { get; }
-    DbSet<PlatformSettings> PlatformSettings { get; }
     DbSet<StorageObject> StorageObjects { get; }
     DbSet<QuizAttempt> QuizAttempts { get; }
 

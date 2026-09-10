@@ -163,5 +163,9 @@ services:
       # only container with both MinIO and DB access, since an upload needs both in one call.
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+      # Unleash feature flags (self-enrollment kill-switch). Only lf-webapi evaluates flags — it is
+      # the one container on leanforge-public, so the only one that can reach the server at all.
+      # Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
+      Unleash__ApiUrl: ${UNLEASH_API_URL:-https://features.s-sidorov.ru/api/}
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret
