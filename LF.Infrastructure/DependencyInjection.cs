@@ -5,6 +5,7 @@ using LF.Application.Services.Payment;
 using LF.Application.Services.Promo;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
+using LF.Infrastructure.Services.FeatureFlags;
 using LF.Infrastructure.Services.Payment;
 using LF.IdentityService;
 using LF.Infrastructure.Persistence;
@@ -20,6 +21,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Minio;
+using Unleash;
 
 namespace LF.Infrastructure;
 
@@ -84,6 +86,32 @@ public static class DependencyInjection
     {
         services.Configure<RobokassaOptions>(configuration.GetSection(RobokassaOptions.SectionName));
         services.AddScoped<IPaymentGateway, RobokassaPaymentGateway>();
+
+        return services;
+    }
+
+    // Unleash-backed IFeatureFlagService for LF.WebApi. The three gRPC hosts deliberately do not
+    // call this: they run on an egress-less internal network and cannot reach the Unleash server.
+    public static IServiceCollection AddInfrastructureFeatureFlags(this IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(UnleashOptions.SectionName);
+        services.Configure<UnleashOptions>(section);
+
+        var options = section.Get<UnleashOptions>();
+        if (options?.IsConfigured != true)
+        {
+            // No server configured — every flag reads as off rather than the app failing to start.
+            services.AddSingleton<IFeatureFlagService, DisabledFeatureFlagService>();
+            return services;
+        }
+
+        services.AddSingleton<IUnleash>(sp => UnleashClientBuilder.Build(
+            options,
+            sp.GetRequiredService<IHostEnvironment>().ApplicationName,
+            sp.GetRequiredService<ILogger<IUnleash>>()));
+
+        services.AddSingleton<IFeatureFlagService, UnleashFeatureFlagService>();
+        services.AddHostedService<UnleashInitializer>();
 
         return services;
     }

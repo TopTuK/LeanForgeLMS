@@ -1,3 +1,6 @@
+using LF.Application.Common;
+using LF.Application.Common.Exceptions;
+using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.ModelDto.Promo;
 using LF.Application.Services.Enrollment;
@@ -5,10 +8,14 @@ using Microsoft.Extensions.Logging;
 
 namespace LF.Application.Services.EnrollmentLearning;
 
-internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningService> logger, IGrpcEnrollmentService grpcEnrollmentService) : IEnrollmentLearningService
+internal sealed class EnrollmentLearningService(
+    ILogger<EnrollmentLearningService> logger,
+    IGrpcEnrollmentService grpcEnrollmentService,
+    IFeatureFlagService featureFlags) : IEnrollmentLearningService
 {
     private readonly ILogger<EnrollmentLearningService> _logger = logger;
     private readonly IGrpcEnrollmentService _grpcEnrollmentService = grpcEnrollmentService;
+    private readonly IFeatureFlagService _featureFlags = featureFlags;
 
     public async Task<PagedCourseCatalogDto> BrowseCatalogAsync(int page, int pageSize, int actingUserId)
     {
@@ -21,6 +28,13 @@ internal sealed class EnrollmentLearningService(ILogger<EnrollmentLearningServic
     public async Task<EnrollmentDetailDto> EnrollAsync(int courseId, int actingUserId, string? promoCode = null)
     {
         _logger.LogInformation("EnrollmentLearningService::EnrollAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        // Global self-enrollment kill-switch, owned by Unleash. Enforced here rather than in
+        // LF.CourseService because LF.WebApi is the only host with outbound internet access, and
+        // both entry points (POST /api/enrollments and POST /api/payments/checkout) funnel through
+        // this method. Admin/instructor "managed" enrollment takes a different path and is not gated.
+        if (!await _featureFlags.IsEnabledAsync(FeatureFlags.SelfEnrollment, actingUserId))
+            throw new EnrollmentDisabledException("Student course enrollment is currently disabled.");
 
         return await _grpcEnrollmentService.EnrollAsync(courseId, actingUserId, promoCode);
     }

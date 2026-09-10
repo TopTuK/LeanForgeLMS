@@ -63,19 +63,7 @@
             "categories": "Categories",
             "toggle": "Toggle sidebar",
             "promo_codes": "Promo codes",
-            "payments": "Payments",
-            "settings": "Settings"
-        },
-        "settings": {
-            "title": "Platform settings",
-            "student_enrollment_label": "Allow students to enroll in courses",
-            "student_enrollment_hint": "When off, students can sign in and browse courses but cannot enroll or start checkout.",
-            "updated_at": "Last changed: {date}",
-            "save": "Save",
-            "saving": "Saving…",
-            "saved": "Settings saved.",
-            "load_error": "Could not load platform settings. Please try again.",
-            "save_error": "Could not save platform settings. Please try again."
+            "payments": "Payments"
         },
         "payments": {
             "title": "Course payments",
@@ -708,7 +696,6 @@
     },
     "admin_promo_codes_view_title": "Promo codes - Admin",
     "admin_payments_view_title": "Course payments - Admin",
-    "admin_settings_view_title": "Platform settings - Admin",
     "payment_result_view_title": "Payment",
     "payments": {
         "success": {

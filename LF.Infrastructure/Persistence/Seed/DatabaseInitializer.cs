@@ -1,6 +1,5 @@
 using LF.AppDomain.Entities.Course;
 using LF.AppDomain.Entities.Payment;
-using LF.AppDomain.Entities.Platform;
 using LF.AppDomain.Entities.User;
 using LF.AppDomain.Models.Payment.Enums;
 using LF.AppDomain.Models.User.Enums;
@@ -58,12 +57,6 @@ public static class DatabaseInitializer
             }
 
             dbContext.Categories.Add(Category.Create(name, isDefault));
-        }
-
-        // Ships with student self-enrollment disabled; an admin flips it on from the Admin panel.
-        if (!await dbContext.PlatformSettings.AnyAsync())
-        {
-            dbContext.PlatformSettings.Add(PlatformSettings.CreateDefault(DateTime.UtcNow));
         }
 
         await dbContext.SaveChangesAsync();

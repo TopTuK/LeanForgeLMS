@@ -8,7 +8,6 @@ using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
-using LF.Application.Services.Platform;
 using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
@@ -36,9 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IPromoCodeAdminService, PromoCodeAdminService>();
         services.AddScoped<IStorageService, StorageService>();
 
-        // PlatformSettingsService / PaymentReportService read and write the shared DB directly and stamp timestamps.
+        // PaymentReportService reads and writes the shared DB directly and stamps timestamps.
         services.TryAddSingleton(TimeProvider.System);
-        services.AddScoped<IPlatformSettingsService, PlatformSettingsService>();
         services.AddScoped<IPaymentReportService, PaymentReportService>();
 
         return services;
@@ -62,7 +60,6 @@ public static class DependencyInjection
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IPromoCodeService, PromoCodeService>();
-        services.AddScoped<IPlatformSettingsService, PlatformSettingsService>();
 
         return services;
     }

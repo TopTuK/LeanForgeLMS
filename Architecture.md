@@ -26,8 +26,8 @@ strictly inward (`Domain ← Application ← Infrastructure ← Api`).
 - **`LF.WebApi`** — hosts the Vue SPA, the JWT/Cookie/OIDC/OAuth authentication pipeline
   (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s, auto-discovered).
   It reaches the three internal services only through their gRPC contracts. In Postgres it
-  touches only three ownerless / orchestration tables directly: `StorageObjects`,
-  `PlatformSettings`, `CoursePayments` (see [Data & persistence](#data--persistence)).
+  touches only two ownerless / orchestration tables directly: `StorageObjects`,
+  `CoursePayments` (see [Data & persistence](#data--persistence)).
 - **`LF.IdentityService`** — internal gRPC service that owns all user identity data
   (`Users`). It is also the **sole schema owner/migrator** for the shared database.
 - **`LF.CourseService`** — internal gRPC service that owns the course domain: courses,
@@ -52,7 +52,7 @@ graph LR
     Robokassa["Robokassa<br/>(hosted checkout + ResultURL webhook)"]
 
     subgraph Public["Public network"]
-        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth<br/>owns StorageObjects, PlatformSettings, CoursePayments"]
+        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth<br/>owns StorageObjects, CoursePayments"]
     end
 
     subgraph Internal["Internal-only network"]
@@ -73,7 +73,7 @@ graph LR
     WebApi -- "gRPC: course_service.proto" --> CourseSvc
     WebApi -- "gRPC: payment_service.proto" --> PaymentSvc
     WebApi -- "S3 API (avatar + media bytes)" --> Minio
-    WebApi -- "StorageObjects / PlatformSettings / CoursePayments" --> Postgres
+    WebApi -- "StorageObjects / CoursePayments" --> Postgres
     IdentitySvc --> Postgres
     CourseSvc --> Postgres
     PaymentSvc --> Postgres
@@ -89,19 +89,17 @@ webhook lands on `LF.WebApi`, which calls `LF.PaymentService` (verify signature,
 order) and then `LF.CourseService` (`ConfirmEnrollmentPayment` — activate the enrollment,
 redeem the promo code); both calls are idempotent, so a webhook retry is safe.
 
-**The direct-DB exceptions.** Three tables are reached from `LF.WebApi` via `IAppDbContext`
+**The direct-DB exceptions.** Two tables are reached from `LF.WebApi` via `IAppDbContext`
 rather than a gRPC round-trip, each for a deliberate reason:
 
 - **`StorageObjects`** (avatar / cover-image / lesson-media metadata) is a generic, ownerless
   table, and `LF.WebApi` is the only process with both a MinIO client and a reason to write
   it — so `IStorageService.UploadMediaAsync` does the MinIO upload and the metadata write in
   one call instead of two hops. `LF.CourseService` only ever *reads* `StorageObjects`.
-- **`PlatformSettings`** (the runtime enrollment kill-switch) and **`CoursePayments`** (the
-  marketing payments ledger) are orchestration state: `LF.WebApi` is the coordinator that
-  already has every join it needs (`Users`, `Courses`, `Enrollments`, `PromoCodes`,
-  `PaymentOrders`) in a single `IAppDbContext`, so the ledger projection and the settings
-  read/write live there. `PlatformSettings` is also read by `LF.CourseService` (to enforce
-  the switch inside `EnrollmentService`).
+- **`CoursePayments`** (the marketing payments ledger) is orchestration state: `LF.WebApi` is
+  the coordinator that already has every join it needs (`Users`, `Courses`, `Enrollments`,
+  `PromoCodes`, `PaymentOrders`) in a single `IAppDbContext`, so the ledger projection lives
+  there.
 
 Ownership is enforced by convention (which host's `Program.cs` / DI wires up which use-case
 services), not by database-level permissions.
@@ -137,9 +135,9 @@ graph BT
 
 | Layer | Project | Responsibility |
 |---|---|---|
-| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `PaymentOrder`, `CoursePayment`, `PlatformSettings`, `StorageObject`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`). Zero project or framework references by design. |
-| Application | `LF.Application` | Use-case services, DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IPaymentGateway`, `IHtmlSanitizer`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcEnrollmentService`, `IGrpcPromoCodeService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
-| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql, one `IEntityTypeConfiguration` per entity), the gRPC clients to the three internal services, the MinIO-backed `IFileStorageService` (two keyed buckets), the Robokassa-backed `IPaymentGateway`, the Ganss-backed `IHtmlSanitizer`, `StorageRepository` (the one deliberate repository), and `DatabaseInitializer` (migrations + seeding + backfill). Split into narrow DI extensions so each host wires only what it needs. |
+| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `PaymentOrder`, `CoursePayment`, `StorageObject`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`). Zero project or framework references by design. |
+| Application | `LF.Application` | Use-case services, DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IFeatureFlagService`, `IPaymentGateway`, `IHtmlSanitizer`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcEnrollmentService`, `IGrpcPromoCodeService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
+| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql, one `IEntityTypeConfiguration` per entity), the gRPC clients to the three internal services, the MinIO-backed `IFileStorageService` (two keyed buckets), the Robokassa-backed `IPaymentGateway`, the Ganss-backed `IHtmlSanitizer`, the Unleash-backed `IFeatureFlagService`, `StorageRepository` (the one deliberate repository), and `DatabaseInitializer` (migrations + seeding + backfill). Split into narrow DI extensions so each host wires only what it needs. |
 | Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (auth controllers) + Minimal API (`IEndpointGroup`, auto-discovered) — the only public-facing process. The other three are bare gRPC hosts, internal-only. |
 
 **Use-case services, per host.** `LF.Application`'s DI is split by host, not one
@@ -148,25 +146,23 @@ umbrella registration would crash whichever host doesn't have all the dependenci
 
 | Extension | Called by | Registers |
 |---|---|---|
-| `AddAuthenticationApplication()` | `LF.WebApi` | `AuthenticationService`, `TokenService`, `ProfileService`, `AdminUserService`, `CourseAuthoringService`, `EnrollmentLearningService`, `PromoCodeAdminService`, `StorageService`, `PlatformSettingsService`, `PaymentReportService`, `TimeProvider.System` |
+| `AddAuthenticationApplication()` | `LF.WebApi` | `AuthenticationService`, `TokenService`, `ProfileService`, `AdminUserService`, `CourseAuthoringService`, `EnrollmentLearningService`, `PromoCodeAdminService`, `StorageService`, `PaymentReportService`, `TimeProvider.System` |
 | `AddUserApplication()` | `LF.IdentityService` | `UserService` |
-| `AddCourseApplication()` | `LF.CourseService` | `CourseService`, `EnrollmentService`, `PromoCodeService`, `PlatformSettingsService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
+| `AddCourseApplication()` | `LF.CourseService` | `CourseService`, `EnrollmentService`, `PromoCodeService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
 | `AddPaymentApplication()` | `LF.PaymentService` | `PaymentOrderService`, `TimeProvider.System` |
 
 `LF.Infrastructure` mirrors the split: `AddInfrastructureDatabase` (`AppDbContext` +
 `IAppDbContext` + `StorageRepository` + `DefaultAdmins` config), `AddInfrastructureGrpcClient`,
 `AddInfrastructureCourseGrpcClient` (course + enrollment + promo gRPC clients),
 `AddInfrastructurePaymentGrpcClient`, `AddInfrastructureRobokassa`,
-`AddInfrastructureFileStorage` (both MinIO buckets + `MinioBucketInitializer`).
+`AddInfrastructureFileStorage` (both MinIO buckets + `MinioBucketInitializer`),
+`AddInfrastructureFeatureFlags` (Unleash client, `LF.WebApi` only).
 
-**Two intentional deviations from textbook Clean Architecture:**
+**One intentional deviation from textbook Clean Architecture:**
 
 - **`AppDbContext` is registered in all four hosts**, but each only touches the tables it
-  owns (`Users` / the course domain / `PaymentOrders` / the three orchestration tables).
+  owns (`Users` / the course domain / `PaymentOrders` / `CoursePayments` + `StorageObjects`).
   Enforced by convention.
-- **`IPlatformSettingsService` is registered in two hosts** (`LF.WebApi` for the admin
-  read/write, `LF.CourseService` for the enrollment guard) — the only use-case service that
-  is.
 
 ## Runtime & cross-cutting concerns
 
@@ -196,6 +192,24 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
 - **Resilience & service discovery.** `ConfigureHttpClientDefaults` adds
   `AddStandardResilienceHandler()` (retry / circuit-breaker / timeout, Polly v8) and service
   discovery to every `HttpClient`, including the gRPC channels.
+- **Feature flags — Unleash** (`LF.WebApi` only, so *not* from `ServiceDefaults`). The
+  `Unleash.Client` SDK lives in `LF.Infrastructure` behind the Application-layer
+  `IFeatureFlagService` abstraction; flag names are constants in `LF.Application`'s
+  `FeatureFlags`. `AddInfrastructureFeatureFlags(configuration)` binds the `Unleash` config
+  section (`ApiUrl` — note the `/api/` suffix the SDK appends `client/features` to — `ApiKey`,
+  `FetchTogglesIntervalSeconds`) and registers a singleton client that polls toggles in the
+  background, so `IsEnabledAsync` is an in-memory lookup with no per-call I/O.
+  `UnleashInitializer` (an `IHostedService`) resolves the client during startup because
+  construction performs a blocking first fetch — that cost belongs to startup, not to the first
+  user request. That synchronous fetch **throws** if it fails (`TaskCanceledException` when the
+  server is unreachable, `UnleashException` when the API key is rejected), so
+  `UnleashClientBuilder` catches those and falls back to a background-polling client: a bad key
+  or a down Unleash can never stop `LF.WebApi` from booting, flags just stay off until a later
+  poll succeeds. When `ApiUrl`/`ApiKey` are missing or still the `"CHANGE_ME"`
+  placeholder, a `DisabledFeatureFlagService` is registered instead and **every flag reads as
+  off** — the DI graph still validates and the app still starts. The API key is never
+  committed: `dotnet user-secrets` in dev, `Unleash__ApiKey` from `.env` in Docker, and an
+  Aspire secret parameter (`unleash-api-key`, sourced from `UNLEASH_API_KEY`) for AppHost runs.
 - **Security headers (prod only).** `LF.WebApi/Program.cs` applies
   `NetEscapades.AspNetCore.SecurityHeaders` outside Development: default security headers
   plus a Content-Security-Policy (`script-src 'self'`, `style-src 'self' 'unsafe-inline'`
@@ -337,26 +351,30 @@ settles. `PromoCode`s (admin-managed, percentage or fixed-amount, optional cours
 expiry / redemption cap) are validated at enrollment time and redeemed only once the payment
 is confirmed.
 
-**The global enrollment kill-switch.** `PlatformSettings` is a single-row table
-(`LFPlatformSettings`, fixed `Id = 1`) holding runtime switches an admin can flip without a
-redeploy. Today it holds one: `StudentEnrollmentEnabled`.
+**The global enrollment kill-switch.** Self-enrollment is gated by the **Unleash** flag
+`lf.self_enrollment`, toggled from the Unleash UI without a redeploy or a database write. There
+is no admin settings screen and no settings table — runtime configuration is not application
+state.
 
-- **Ships off.** `DatabaseInitializer` seeds the row with `StudentEnrollmentEnabled = false`
-  (insert-if-missing) — a fresh deployment lets students sign in and browse/preview courses
-  but not enroll.
-- **Admin control.** `Admin → Settings` calls `GET /api/admin/platform-settings` and
-  `PUT /api/admin/platform-settings/student-enrollment` (`AdminOnly`), backed by
-  `PlatformSettingsService` writing `IAppDbContext` directly.
-- **Enforcement — one point.** `EnrollmentService.EnrollAsync` (in `LF.CourseService`)
-  checks `IPlatformSettingsService.IsStudentEnrollmentEnabledAsync()` right after loading the
-  course and throws `EnrollmentDisabledException` when off. That exception extends
-  `InvalidOperationException`, so it rides the existing plumbing — gRPC `FailedPrecondition`
-  → `InvalidOperationException` on the WebApi side → **HTTP 409** with the message — covering
-  both self-enroll (`POST /api/enrollments`) and paid checkout (`POST /api/payments/checkout`).
+- **Fails closed.** `IFeatureFlagService.IsEnabledAsync` reports every flag as off when the
+  Unleash server is unconfigured, unreachable, or has not answered yet, so a fresh or degraded
+  deployment lets students sign in and browse/preview courses but not enroll.
+- **Enforcement — one point.** `EnrollmentLearningService.EnrollAsync` (`LF.Application`,
+  registered only by `AddAuthenticationApplication()`, so it runs inside `LF.WebApi`) checks the
+  flag before the gRPC hop and throws `EnrollmentDisabledException` when off. That exception
+  extends `InvalidOperationException`, so it rides the existing plumbing to **HTTP 409** with
+  the message, covering both self-enroll (`POST /api/enrollments`) and paid checkout
+  (`POST /api/payments/checkout`) — the two paths that funnel through that method.
   Admin/instructor "managed" enrollment (`POST /api/courses/{id}/enrollments`) is a different
   method and is **not** gated.
+- **Why not in `LF.CourseService`.** That is where the guard used to live, but the three gRPC
+  hosts run on the `leanforge-internal` Docker network (`internal: true`, no egress) and cannot
+  reach the Unleash server at all. `LF.WebApi` is the only host on `leanforge-public`, and it is
+  the sole caller of the enrollment RPC, so gating at that boundary loses nothing in practice.
 - **SPA.** `platformStore` reads `GET /api/platform/config` (fail-safe default: disabled) and
-  `CourseDetailView` hides / disables the Enroll CTA when off; the 409 is defence-in-depth.
+  `CourseDetailView` hides / disables the Enroll CTA when off; the 409 is defence-in-depth. The
+  probe evaluates the same flag with the same user id as the guard, so the CTA and the actual
+  outcome cannot disagree.
 
 ## Payments (Robokassa)
 
@@ -475,7 +493,6 @@ reflection in `Program.cs` (`MapEndpointGroups`). Existing auth is MVC (`AuthCon
 | `AdminUserEndpoints` | `/api/admin/users` | `AdminOnly` |
 | `AdminCategoryEndpoints` | `/api/admin/categories` | `AdminOnly` |
 | `AdminPromoCodeEndpoints` | `/api/admin/promo-codes` | `AdminOnly` |
-| `AdminPlatformSettingsEndpoints` | `/api/admin/platform-settings` | `AdminOnly` |
 | `AdminPaymentReportEndpoints` | `/api/admin/payments` | `AdminOnly` |
 | `DevAuthEndpoints` | `/api/dev-auth` | none — Development only, structurally absent otherwise |
 | `AuthController` (MVC) | `/api/Auth/*` | `[AllowAnonymous]` sign-in/callback, `[Authorize]` logout |
@@ -508,10 +525,10 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
 - **One shared PostgreSQL database** (`leanforge`). `AppDbContext` (Npgsql) implements
   `IAppDbContext`; Application-layer services depend on the interface. `DbSet`s:
   `Users`, `Courses`, `Categories`, `Enrollments`, `PromoCodes`, `PaymentOrders`,
-  `CoursePayments`, `PlatformSettings`, `StorageObjects`, `QuizAttempts` (other course
+  `CoursePayments`, `StorageObjects`, `QuizAttempts` (other course
   entities are mapped and reached through navigations).
 - **Table-per-owner.** Table names are `"LF" + PascalPlural` (`LFUsers`, `LFCourses`,
-  `LFPaymentOrders`, `LFCoursePayments`, `LFPlatformSettings`, …). Money is `numeric(12,2)`;
+  `LFPaymentOrders`, `LFCoursePayments`, …). Money is `numeric(12,2)`;
   enums are stored as `int`.
 - **Cross-context references are bare indexed `int` columns, never real FKs** — a
   `PaymentOrder.EnrollmentId` or a `CoursePayment.CourseId` points across an ownership
@@ -519,11 +536,11 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
   owner's own tables (e.g. `Course` → `Chapter` → `Lesson`).
 - **Entity configuration** is one `internal sealed IEntityTypeConfiguration<T>` per entity,
   auto-applied via `ApplyConfigurationsFromAssembly`.
-- **Migrations** (`LF.Infrastructure/Migrations/`) — 13 to date, latest
-  `20260905214400_AddPlatformSettingsAndCoursePayments`. Only `LF.IdentityService` applies
+- **Migrations** (`LF.Infrastructure/Migrations/`) — 14 to date, latest
+  `20260910093041_DropPlatformSettings` (the enrollment kill-switch moved to Unleash, so the
+  single-row settings table was dropped). Only `LF.IdentityService` applies
   them at runtime (`DatabaseInitializer.InitializeDatabaseAsync` → `Database.MigrateAsync()`),
-  and it also seeds `DefaultAdmins`, the starter categories, the default `PlatformSettings`
-  row, and backfills `CoursePayments`. `LF.CourseService` / `LF.PaymentService` / `LF.WebApi`
+  and it also seeds `DefaultAdmins` and the starter categories, and backfills `CoursePayments`. `LF.CourseService` / `LF.PaymentService` / `LF.WebApi`
   just connect and assume the schema is current.
 
   ```bash
@@ -580,6 +597,7 @@ docker-compose.yml               # Production deployment (6 services)
 | Logging | Serilog (`Serilog.AspNetCore`), centralized in `ServiceDefaults`, colorized console, two-stage bootstrap, one summary line per request/RPC |
 | Observability | OpenTelemetry traces + metrics via `ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
 | Error monitoring | Sentry (`Sentry.AspNetCore`), wired once in `ServiceDefaults`, enabled only when `SENTRY_DSN` is set |
+| Feature flags | Unleash (`Unleash.Client`) behind `IFeatureFlagService`, registered in `LF.WebApi` only; fails closed when unconfigured |
 | Security headers | `NetEscapades.AspNetCore.SecurityHeaders` — prod-only CSP + default headers on `LF.WebApi` |
 | Backend testing | xUnit v3 + Moq + MockQueryable.Moq (unit tests). Integration testing with Testcontainers / WebApplicationFactory is aspirational — not built. |
 | Frontend | Vue 3 (Composition API, `<script setup>`) + Vite, Pinia, vue-router, vue-i18n (en/ru, default `ru`), Tailwind CSS v4, axios, a local shadcn-style component kit built on **reka-ui** + `class-variance-authority` in `src/components/ui/`, icons from `lucide-vue-next` |
@@ -603,7 +621,8 @@ docker-compose.yml               # Production deployment (6 services)
 network — it needs outbound internet for the PMI OIDC / Google + Yandex OAuth handshakes and it
 receives Robokassa's ResultURL webhook. Everything else is internal-only and unreachable
 from the host or the internet. `lf-webapi` gets its own `ConnectionStrings__leanforge` for
-the `StorageObjects` / `PlatformSettings` / `CoursePayments` access described above.
+the `StorageObjects` / `CoursePayments` access described above. It is also the only container
+that talks to Unleash, which is why the feature flag client is registered there and nowhere else.
 
 **There is no `lf-webapp` container** — `LF.WebApi/Dockerfile` is 3-stage: a `node:22` stage
 builds the SPA into `LF.WebApi/wwwroot`, then the .NET SDK stage publishes it into the image.
@@ -613,10 +632,14 @@ to the Vite dev server.
 
 ```bash
 cp .env.example .env   # POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
-                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__* (+ SuccessUrl/FailUrl).
+                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__* (+ SuccessUrl/FailUrl),
+                       # Unleash__ApiKey (blank = every flag off, so self-enrollment stays closed).
                        # SENTRY_DSN is optional — blank disables Sentry.
 docker compose up --build
 ```
+
+Step-by-step deployment instructions — server prep, GitHub Actions secrets, verification,
+rollback and troubleshooting — are in [`DeploymentGuide.md`](./DeploymentGuide.md).
 
 ## Local development
 
@@ -629,6 +652,17 @@ dotnet run --project LeanForgeLMS.AppHost
 Starts Postgres, MinIO, the Vite dev server, and all four .NET hosts; wires connection
 strings / service discovery automatically; opens the Aspire dashboard (OTEL traces / metrics
 / logs for every resource).
+
+Feature flags are optional locally — without a key every flag reads as off, which means
+self-enrollment is blocked. To exercise it, set the Unleash client API token once:
+
+```bash
+# for `dotnet run --project LF.WebApi` (standalone)
+dotnet user-secrets set "Unleash:ApiKey" "default:development.<secret>" --project LF.WebApi
+
+# for `dotnet run --project LeanForgeLMS.AppHost` (forwarded as Unleash__ApiKey to lf-webapi)
+dotnet user-secrets set UNLEASH_API_KEY "default:development.<secret>" --project LeanForgeLMS.AppHost
+```
 
 > **Known issue.** `LF.IdentityService`, `LF.CourseService` and `LF.PaymentService` all set
 > `Kestrel:EndpointDefaults:Protocols = Http2` (standard gRPC scaffolding), which also makes

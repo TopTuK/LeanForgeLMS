@@ -22,11 +22,6 @@ export const createPromoCode = (payload) => api.post('/admin/promo-codes', paylo
 
 export const deactivatePromoCode = (id) => api.post(`/admin/promo-codes/${id}/deactivate`);
 
-export const fetchPlatformSettings = () => api.get('/admin/platform-settings').then((r) => r.data);
-
-export const updateStudentEnrollment = (enabled) =>
-  api.put('/admin/platform-settings/student-enrollment', { enabled }).then((r) => r.data);
-
 export const fetchPayments = ({ page = 1, pageSize = 20, from, to } = {}) =>
   api
     .get('/admin/payments', { params: { page, pageSize, from: from || undefined, to: to || undefined } })

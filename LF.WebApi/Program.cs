@@ -30,6 +30,9 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     services.AddInfrastructureCourseGrpcClient("http://lf-courseservice");
     services.AddInfrastructurePaymentGrpcClient("http://lf-paymentservice");
     services.AddInfrastructureFileStorage(configuration);
+    // Unleash-backed feature flags. LF.WebApi is the only host that registers these: the gRPC
+    // services run on an egress-less internal network and cannot reach the Unleash server.
+    services.AddInfrastructureFeatureFlags(configuration);
     // Needed for IStorageService/IStorageRepository (StorageObject metadata) — LF.WebApi is the only
     // host with both MinIO and DB access, since a course-cover/lesson-media upload needs both in one call.
     services.AddInfrastructureDatabase(configuration);
