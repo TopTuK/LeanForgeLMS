@@ -74,8 +74,8 @@ jobs:
           umask 077
 
           # Emit "NAME=value". `req` fails the job when the value is empty; `opt` allows it.
-          # Values are read via bash indirect expansion so secret contents never appear as
-          # literal `${{ }}` text in the workflow file or the run log.
+          # Values are read via bash indirect expansion ("${!1}") off the step env block, so
+          # secret contents are never spliced into the script text or echoed to the run log.
           # Note: the brace group below redirects stdout to the rendered file, so the
           # error message and annotation go to stderr to stay visible in the step log.
           req() {
