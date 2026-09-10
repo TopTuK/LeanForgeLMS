@@ -3,6 +3,7 @@ import { render } from '@testing-library/vue';
 import { createTestingPinia } from '@pinia/testing';
 import { MotionPlugin } from '@vueuse/motion';
 import { i18n } from '@/i18n';
+import { vSafeHtml } from '@/directives/vSafeHtml';
 
 i18n.global.locale.value = 'en';
 
@@ -24,6 +25,7 @@ export function renderComponent(component, { props, slots, attrs, pinia = false,
     global: {
       plugins,
       stubs: { RouterLink: true, RouterView: true },
+      directives: { safeHtml: vSafeHtml },
       ...globalOverrides,
     },
     ...rest,
