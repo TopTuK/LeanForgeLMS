@@ -674,6 +674,7 @@ public class EnrollmentServiceTests
         Assert.Equal("Full description", result!.Description);
         Assert.False(result.IsEnrolled);
         Assert.Null(result.EnrollmentId);
+        Assert.Null(result.EnrollmentStatus);
 
         var previewLessonDto = result.Chapters[0].Lessons.Single(l => l.Id == previewLesson.Id);
         Assert.Equal("Lesson body", previewLessonDto.Content);
@@ -699,6 +700,22 @@ public class EnrollmentServiceTests
         Assert.NotNull(result);
         Assert.True(result!.IsEnrolled);
         Assert.Equal(enrollment.Id, result.EnrollmentId);
+        Assert.Equal(EnrollmentStatus.Active, result.EnrollmentStatus);
+    }
+
+    [Fact]
+    public async Task GetCoursePreviewAsync_PendingPaymentEnrollment_ReturnsPendingStatus()
+    {
+        var course = CreatePublishedPaidCourse();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 1000m);
+        var service = CreateService([course], [enrollment], out _);
+
+        var result = await service.GetCoursePreviewAsync(course.Id, actingUserId: 7);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsEnrolled);
+        Assert.Equal(enrollment.Id, result.EnrollmentId);
+        Assert.Equal(EnrollmentStatus.PendingPayment, result.EnrollmentStatus);
     }
 
     [Fact]

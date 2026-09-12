@@ -55,6 +55,7 @@ internal sealed class EnrollmentService(
             LessonCount = c.Chapters.Sum(ch => ch.Lessons.Count),
             PricingType = c.PricingType,
             Price = c.Price,
+            EnrollmentMode = c.EnrollmentMode,
             CoverType = c.CoverType,
             CoverColor = c.CoverColor,
             CoverImageKey = c.CoverImageStorageObject?.ObjectKey,
@@ -387,12 +388,14 @@ internal sealed class EnrollmentService(
             LessonCount = course.Chapters.Sum(ch => ch.Lessons.Count),
             PricingType = course.PricingType,
             Price = course.Price,
+            EnrollmentMode = course.EnrollmentMode,
             CoverType = course.CoverType,
             CoverColor = course.CoverColor,
             CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
             CoverImageContentType = course.CoverImageStorageObject?.ContentType,
             IsEnrolled = enrollment is not null,
             EnrollmentId = enrollment?.Id,
+            EnrollmentStatus = enrollment?.Status,
             Chapters = [.. course.Chapters
                 .OrderBy(ch => ch.SortOrder)
                 .Select(ch => new CoursePreviewChapterDto

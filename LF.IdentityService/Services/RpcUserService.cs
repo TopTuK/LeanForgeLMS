@@ -88,6 +88,18 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
         return reply;
     }
 
+    public override async Task<ListUsersReply> ListUsersByIds(ListUsersByIdsRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcUserService::ListUsersByIds: called with IdCount={IdCount}", request.Ids.Count);
+
+        var users = await _userService.ListUsersByIdsAsync([.. request.Ids]);
+
+        var reply = new ListUsersReply { TotalCount = users.Count };
+        reply.Users.AddRange(users.Adapt<List<GetUserReply>>());
+
+        return reply;
+    }
+
     public override async Task<GetUserReply> UpdateUserRole(UpdateUserRoleRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcUserService::UpdateUserRole: called with Id={usrId} Role={usrRole}", request.Id, request.Role);

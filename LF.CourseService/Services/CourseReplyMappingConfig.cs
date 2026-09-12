@@ -29,7 +29,8 @@ internal sealed class CourseReplyMappingConfig : IRegister
             .Map(dest => dest.PriceRub, src => ToText(src.Price));
 
         config.NewConfig<CoursePreviewDto, CoursePreviewReply>()
-            .Map(dest => dest.PriceRub, src => ToText(src.Price));
+            .Map(dest => dest.PriceRub, src => ToText(src.Price))
+            .Ignore(dest => dest.EnrollmentStatus);
 
         config.NewConfig<EnrollmentDetailDto, EnrollmentDetailReply>()
             .Map(dest => dest.PricePaid, src => src.PricePaid.ToString(CultureInfo.InvariantCulture));

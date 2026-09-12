@@ -9,8 +9,9 @@ Lean Forge LMS is a **Learning Management System for an online school for develo
 lets instructors author courses — chapters and lessons built from ordered rich-text, image,
 video, audio, quiz and file blocks, with cover art and a publish workflow — and lets students
 browse a catalog, enroll (free or paid), work through lessons, pass quizzes, and track their
-progress. An admin area manages users, categories, promo codes, and payment reporting, while
-a runtime **feature flag** turns student self-enrollment on or off without a redeploy.
+progress. An admin area manages users, courses, categories, promo codes, and payment
+reporting, while a runtime **feature flag** turns student self-enrollment on or off without a
+redeploy. Courses can also be marked **private**, in which case only an admin enrolls students.
 
 It's a **solo-developer project** built on **.NET 10** and a **Vue 3** SPA. The backend runs
 as four independently deployable processes — one public API/BFF plus three internal gRPC

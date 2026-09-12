@@ -110,16 +110,6 @@ public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCours
     }
 }
 
-public sealed record EnrollUserRequest(int UserId);
-
-public sealed class EnrollUserRequestValidator : AbstractValidator<EnrollUserRequest>
-{
-    public EnrollUserRequestValidator()
-    {
-        RuleFor(x => x.UserId).GreaterThan(0);
-    }
-}
-
 public sealed record UploadCoverImageResponse(int StorageObjectId);
 
 public static class CourseCoverImageUpload

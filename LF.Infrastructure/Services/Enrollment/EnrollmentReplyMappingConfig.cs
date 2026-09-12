@@ -2,6 +2,7 @@ using LF.Application.ModelDto.Enrollment;
 using LF.CourseService;
 using LF.Infrastructure.Services.Course;
 using Mapster;
+using AppEnrollmentStatus = LF.AppDomain.Models.Course.Enums.EnrollmentStatus;
 
 namespace LF.Infrastructure.Services.Enrollment;
 
@@ -26,6 +27,9 @@ internal sealed class EnrollmentReplyMappingConfig : IRegister
             .Map(dest => dest.Price, src => CourseReplyMappingConfig.ToPrice(src.PriceRub));
 
         config.NewConfig<CoursePreviewReply, CoursePreviewDto>()
-            .Map(dest => dest.Price, src => CourseReplyMappingConfig.ToPrice(src.PriceRub));
+            .Map(dest => dest.Price, src => CourseReplyMappingConfig.ToPrice(src.PriceRub))
+            .Map(dest => dest.EnrollmentStatus, src => src.HasEnrollmentStatus
+                ? (AppEnrollmentStatus)(int)src.EnrollmentStatus
+                : (AppEnrollmentStatus?)null);
     }
 }

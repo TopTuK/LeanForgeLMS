@@ -5,7 +5,6 @@ using LF.AppDomain.Models.User.Enums;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
-using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Storage;
 using LF.WebApi.Common;
@@ -81,34 +80,6 @@ public sealed class CourseEndpoints : IEndpointGroup
                 {
                     ["categoryId"] = ["Category or cover image not found."],
                 });
-            }
-        });
-
-        group.MapPost("/{id:int}/enrollments", async Task<Results<Created<EnrollmentSummaryResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult, Conflict<string>>>
-            (int id, EnrollUserRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
-        {
-            var userId = user.GetUserId();
-            if (userId is null) return TypedResults.Unauthorized();
-
-            var validation = new EnrollUserRequestValidator().Validate(request);
-            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
-
-            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
-
-            try
-            {
-                var enrollment = await courseService.EnrollUserAsync(id, request.UserId, userId.Value, isAdmin);
-                return enrollment is null
-                    ? TypedResults.NotFound()
-                    : TypedResults.Created($"/api/courses/{id}/enrollments", ToStudentEnrollmentResponse(enrollment));
-            }
-            catch (CourseAuthorizationException)
-            {
-                return TypedResults.Forbid();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return TypedResults.Conflict(ex.Message);
             }
         });
 
@@ -524,23 +495,6 @@ public sealed class CourseEndpoints : IEndpointGroup
         course.PricingType.ToString(),
         course.Price,
         course.EnrollmentMode.ToString());
-
-    private static EnrollmentSummaryResponse ToStudentEnrollmentResponse(EnrollmentSummaryDto dto) => new(
-        dto.Id,
-        dto.CourseId,
-        dto.CourseTitle,
-        dto.CourseShortIntroduction,
-        dto.CategoryName,
-        dto.TotalLessonCount,
-        dto.CompletedLessonCount,
-        dto.ProgressPercent,
-        dto.EnrolledAt,
-        dto.CompletedAt,
-        dto.CoverType.ToString(),
-        dto.CoverColor?.ToString(),
-        dto.CoverType == CourseCoverType.Image ? $"/api/courses/{dto.CourseId}/cover/image" : null,
-        dto.Status.ToString(),
-        dto.PricePaid);
 
     private static ChapterResponse ToChapterResponse(int courseId, ChapterDto chapter) => new(
         chapter.Id,

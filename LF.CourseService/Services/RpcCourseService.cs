@@ -1,4 +1,5 @@
 using System.Globalization;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Course;
@@ -307,6 +308,90 @@ public class RpcCourseService(
         }
     }
 
+    public override async Task<DeleteCourseReply> DeleteCourse(DeleteCourseRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::DeleteCourse: called with CourseId={CourseId} ActingUserId={ActingUserId} Force={Force}",
+            request.CourseId, request.ActingUserId, request.Force);
+
+        try
+        {
+            var result = await _courseService.DeleteCourseAsync(request.CourseId, request.ActingUserId, request.Force);
+            if (result is null)
+                return new DeleteCourseReply { Found = false };
+
+            var reply = new DeleteCourseReply
+            {
+                Found = true,
+                RemovedEnrollmentCount = result.RemovedEnrollmentCount,
+                PaidEnrollmentCount = result.PaidEnrollmentCount,
+            };
+            reply.StorageObjectKeys.AddRange(result.StorageObjectKeys);
+
+            return reply;
+        }
+        catch (CourseDeletionBlockedException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+        catch (CourseAuthorizationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+    }
+
+    public override async Task<ListCourseEnrollmentsReply> ListCourseEnrollments(ListCourseEnrollmentsRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::ListCourseEnrollments: called with CourseId={CourseId} ActingUserId={ActingUserId} Page={Page} PageSize={PageSize}",
+            request.CourseId, request.ActingUserId, request.Page, request.PageSize);
+
+        var paged = await _courseService.ListCourseEnrollmentsAsync(request.CourseId, request.ActingUserId, request.Page, request.PageSize)
+            ?? throw new RpcException(new Status(StatusCode.NotFound, "Course not found."));
+
+        var reply = new ListCourseEnrollmentsReply { TotalCount = paged.TotalCount };
+        reply.Items.AddRange(paged.Items.Select(ToCourseEnrollmentReply));
+
+        return reply;
+    }
+
+    public override async Task<RemoveCourseEnrollmentReply> RemoveCourseEnrollment(RemoveCourseEnrollmentRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::RemoveCourseEnrollment: called with CourseId={CourseId} EnrollmentId={EnrollmentId} ActingUserId={ActingUserId}",
+            request.CourseId, request.EnrollmentId, request.ActingUserId);
+
+        var result = await _courseService.RemoveEnrollmentAsync(request.CourseId, request.EnrollmentId, request.ActingUserId);
+        if (result is null)
+            return new RemoveCourseEnrollmentReply { Found = false };
+
+        return new RemoveCourseEnrollmentReply
+        {
+            Found = true,
+            WasPaid = result.WasPaid,
+            PricePaid = result.PricePaid.ToString(CultureInfo.InvariantCulture),
+            UserId = result.UserId,
+        };
+    }
+
+    // Hand-built rather than adapted: Mapster leaves Timestamp at its epoch default when converting
+    // from DateTime, the same trap CourseReplyMappingConfig documents.
+    private static CourseEnrollmentReply ToCourseEnrollmentReply(CourseEnrollmentDto dto)
+    {
+        var reply = new CourseEnrollmentReply
+        {
+            Id = dto.Id,
+            UserId = dto.UserId,
+            Status = (EnrollmentStatus)(int)dto.Status,
+            PricePaid = dto.PricePaid.ToString(CultureInfo.InvariantCulture),
+            EnrolledAt = Timestamp.FromDateTime(DateTime.SpecifyKind(dto.EnrolledAt, DateTimeKind.Utc)),
+            CompletedLessonCount = dto.CompletedLessonCount,
+            TotalLessonCount = dto.TotalLessonCount,
+        };
+
+        if (dto.CompletedAt is { } completedAt)
+            reply.CompletedAt = Timestamp.FromDateTime(DateTime.SpecifyKind(completedAt, DateTimeKind.Utc));
+
+        return reply;
+    }
+
     public override async Task<PromoCodeValidationReply> ValidatePromoCode(ValidatePromoCodeRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::ValidatePromoCode: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
@@ -554,6 +639,11 @@ public class RpcCourseService(
     private static CoursePreviewReply ToCoursePreviewReply(CoursePreviewDto dto)
     {
         var reply = dto.Adapt<CoursePreviewReply>();
+        if (dto.EnrollmentStatus is { } status)
+            reply.EnrollmentStatus = (EnrollmentStatus)(int)status;
+        else
+            reply.ClearEnrollmentStatus();
+
         reply.Chapters.Clear();
 
         foreach (var chapterDto in dto.Chapters)

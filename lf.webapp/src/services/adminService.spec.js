@@ -18,6 +18,11 @@ import {
   deactivatePromoCode,
   fetchPayments,
   downloadPaymentsCsv,
+  fetchAdminCourses,
+  fetchCourseEnrollments,
+  enrollStudent,
+  removeEnrollment,
+  deleteCourse,
 } from '@/services/adminService';
 
 describe('adminService', () => {
@@ -91,6 +96,42 @@ describe('adminService', () => {
     it('deactivatePromoCode POSTs to the deactivate route', async () => {
       await deactivatePromoCode(7);
       expect(api.post).toHaveBeenCalledWith('/admin/promo-codes/7/deactivate');
+    });
+  });
+
+  describe('courses', () => {
+    it('fetchAdminCourses sends default paging', async () => {
+      api.get.mockResolvedValue({ data: { items: [] } });
+      await fetchAdminCourses();
+      expect(api.get).toHaveBeenCalledWith('/admin/courses', { params: { page: 1, pageSize: 20 } });
+    });
+
+    it('fetchCourseEnrollments GETs the course roster route', async () => {
+      api.get.mockResolvedValue({ data: { items: [] } });
+      await fetchCourseEnrollments(5, { page: 2, pageSize: 100 });
+      expect(api.get).toHaveBeenCalledWith('/admin/courses/5/enrollments', {
+        params: { page: 2, pageSize: 100 },
+      });
+    });
+
+    it('enrollStudent POSTs to the admin course route, not the authoring one', async () => {
+      await enrollStudent(5, 9);
+      expect(api.post).toHaveBeenCalledWith('/admin/courses/5/enrollments', { userId: 9 });
+    });
+
+    it('removeEnrollment DELETEs the enrollment route', async () => {
+      await removeEnrollment(5, 10);
+      expect(api.delete).toHaveBeenCalledWith('/admin/courses/5/enrollments/10');
+    });
+
+    it('deleteCourse omits force by default', async () => {
+      await deleteCourse(5);
+      expect(api.delete).toHaveBeenCalledWith('/admin/courses/5', { params: { force: undefined } });
+    });
+
+    it('deleteCourse forwards force when the admin acknowledged paid students', async () => {
+      await deleteCourse(5, { force: true });
+      expect(api.delete).toHaveBeenCalledWith('/admin/courses/5', { params: { force: true } });
     });
   });
 

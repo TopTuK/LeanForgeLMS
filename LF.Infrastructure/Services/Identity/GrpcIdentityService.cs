@@ -112,6 +112,20 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
         return new PagedUsersDto { Items = reply.Users.Adapt<List<UserDto>>(), TotalCount = reply.TotalCount };
     }
 
+    public async Task<IReadOnlyList<UserDto>> ListUsersByIdsAsync(IReadOnlyList<int> ids)
+    {
+        _logger.LogInformation("GrpcIdentityService::ListUsersByIdsAsync: called with IdCount={IdCount}", ids.Count);
+
+        if (ids.Count == 0)
+            return [];
+
+        var request = new ListUsersByIdsRequest();
+        request.Ids.AddRange(ids);
+
+        var reply = await _userServiceRpcClient.ListUsersByIdsAsync(request);
+        return reply.Users.Adapt<List<UserDto>>();
+    }
+
     public async Task<UserDto?> UpdateUserRoleAsync(int userId, UpdateUserRoleDto dto)
     {
         _logger.LogInformation("GrpcIdentityService::UpdateUserRoleAsync: called with UserId={usrId} Role={Role}", userId, dto.Role);
