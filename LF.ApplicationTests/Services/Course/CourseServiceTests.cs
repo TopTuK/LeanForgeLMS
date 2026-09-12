@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Payment;
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Models.Course.Enums;
 using LF.AppDomain.Models.Storage.Enums;
@@ -138,17 +139,31 @@ public class CourseServiceTests
     }
 
     [Fact]
-    public async Task EnrollUserAsync_ByOwner_CreatesActiveEnrollment()
+    public async Task EnrollUserAsync_ByAdmin_CreatesActiveEnrollment()
     {
         var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
         var service = CreateServiceWithEnrollments([course], [], out var dbContextMock);
 
-        var result = await service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 1, isAdmin: false);
+        var result = await service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 42, isAdmin: true);
 
         Assert.NotNull(result);
         Assert.Equal(EnrollmentStatus.Active, result!.Status);
         Assert.Equal(0m, result.PricePaid);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // Manual enrollment is admin-only, so even the course's own owner is refused — it is the
+    // only way into a Managed course and must not be delegable to the author.
+    [Fact]
+    public async Task EnrollUserAsync_ByOwnerWhoIsNotAdmin_ThrowsAuthorization()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var service = CreateServiceWithEnrollments([course], [], out var dbContextMock);
+
+        await Assert.ThrowsAsync<CourseAuthorizationException>(
+            () => service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 1, isAdmin: false));
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -760,5 +775,165 @@ public class CourseServiceTests
 
         var service = new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, sanitizer.Object);
         return (service, sanitizer);
+    }
+
+    private static CourseService CreateServiceForDeletion(
+        IReadOnlyCollection<DomainCourse> courses,
+        IReadOnlyCollection<DomainEnrollment> enrollments,
+        IReadOnlyCollection<PromoCode> promoCodes,
+        IReadOnlyCollection<PaymentOrder> paymentOrders,
+        out Mock<IAppDbContext> dbContextMock)
+    {
+        dbContextMock = new Mock<IAppDbContext>();
+        dbContextMock.SetupGet(c => c.Courses).Returns(courses.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollments.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.PromoCodes).Returns(promoCodes.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.PaymentOrders).Returns(paymentOrders.ToList().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.StorageObjects).Returns(new List<StorageObject>().BuildMockDbSet().Object);
+        dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
+    }
+
+    private static DomainEnrollment CreateEnrollment(int id, int courseId, int userId, EnrollmentStatus status, decimal pricePaid)
+    {
+        var enrollment = DomainEnrollment.Create(courseId, userId, DateTime.UtcNow, status, pricePaid);
+        EntityIdSetter.SetId(enrollment, id);
+        return enrollment;
+    }
+
+    [Fact]
+    public async Task DeleteCourseAsync_MissingCourse_ReturnsNull()
+    {
+        var service = CreateServiceForDeletion([], [], [], [], out _);
+
+        Assert.Null(await service.DeleteCourseAsync(courseId: 42, actingUserId: 1, force: false));
+    }
+
+    [Fact]
+    public async Task DeleteCourseAsync_PaidEnrollmentWithoutForce_ThrowsBlocked()
+    {
+        // Arrange
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var paid = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 1990m);
+        var service = CreateServiceForDeletion([course], [paid], [], [], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CourseDeletionBlockedException>(
+            () => service.DeleteCourseAsync(course.Id, actingUserId: 1, force: false));
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteCourseAsync_PaidEnrollmentWithForce_Deletes()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var paid = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 1990m);
+        var service = CreateServiceForDeletion([course], [paid], [], [], out var dbContextMock);
+
+        var result = await service.DeleteCourseAsync(course.Id, actingUserId: 1, force: true);
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result!.RemovedEnrollmentCount);
+        Assert.Equal(1, result.PaidEnrollmentCount);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // A PendingPayment row carries the course price but no money has actually moved, so it must
+    // not trip the paid-enrollment guard.
+    [Fact]
+    public async Task DeleteCourseAsync_PendingPaymentEnrollment_DoesNotCountAsPaid()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var pending = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.PendingPayment, pricePaid: 1990m);
+        var service = CreateServiceForDeletion([course], [pending], [], [], out var dbContextMock);
+
+        var result = await service.DeleteCourseAsync(course.Id, actingUserId: 1, force: false);
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result!.PaidEnrollmentCount);
+        Assert.Equal(1, result.RemovedEnrollmentCount);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // Free Active enrollments have PricePaid == 0 and must not block the delete either.
+    [Fact]
+    public async Task DeleteCourseAsync_FreeEnrollments_DeletesWithoutForce()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var free = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 0m);
+        var service = CreateServiceForDeletion([course], [free], [], [], out _);
+
+        var result = await service.DeleteCourseAsync(course.Id, actingUserId: 1, force: false);
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result!.PaidEnrollmentCount);
+    }
+
+    [Fact]
+    public async Task RemoveEnrollmentAsync_PaidEnrollment_ReportsWasPaid()
+    {
+        var paid = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 1990m);
+        var service = CreateServiceForDeletion([], [paid], [], [], out var dbContextMock);
+
+        var result = await service.RemoveEnrollmentAsync(courseId: 1, enrollmentId: 10, actingUserId: 1);
+
+        Assert.NotNull(result);
+        Assert.True(result!.WasPaid);
+        Assert.Equal(1990m, result.PricePaid);
+        Assert.Equal(7, result.UserId);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveEnrollmentAsync_FreeEnrollment_ReportsNotPaid()
+    {
+        var free = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 0m);
+        var service = CreateServiceForDeletion([], [free], [], [], out _);
+
+        var result = await service.RemoveEnrollmentAsync(courseId: 1, enrollmentId: 10, actingUserId: 1);
+
+        Assert.NotNull(result);
+        Assert.False(result!.WasPaid);
+    }
+
+    // The enrollment id alone is not enough — it must belong to the course in the route, or an
+    // admin could unenroll a student from a course they were not looking at.
+    [Fact]
+    public async Task RemoveEnrollmentAsync_EnrollmentOnAnotherCourse_ReturnsNull()
+    {
+        var other = CreateEnrollment(id: 10, courseId: 99, userId: 7, EnrollmentStatus.Active, pricePaid: 0m);
+        var service = CreateServiceForDeletion([], [other], [], [], out var dbContextMock);
+
+        Assert.Null(await service.RemoveEnrollmentAsync(courseId: 1, enrollmentId: 10, actingUserId: 1));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ListCourseEnrollmentsAsync_ReturnsProgressAgainstCourseLessonCount()
+    {
+        var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
+        var enrollment = CreateEnrollment(id: 10, courseId: 1, userId: 7, EnrollmentStatus.Active, pricePaid: 0m);
+        enrollment.CompleteLesson(1);
+        var service = CreateServiceForDeletion([course], [enrollment], [], [], out _);
+
+        var result = await service.ListCourseEnrollmentsAsync(courseId: 1, actingUserId: 1, page: 1, pageSize: 20);
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result!.TotalCount);
+        var item = Assert.Single(result.Items);
+        Assert.Equal(7, item.UserId);
+        Assert.Equal(1, item.TotalLessonCount);
+        Assert.Equal(1, item.CompletedLessonCount);
+        Assert.Equal(100, item.ProgressPercent);
+    }
+
+    [Fact]
+    public async Task ListCourseEnrollmentsAsync_MissingCourse_ReturnsNull()
+    {
+        var service = CreateServiceForDeletion([], [], [], [], out _);
+
+        Assert.Null(await service.ListCourseEnrollmentsAsync(courseId: 42, actingUserId: 1, page: 1, pageSize: 20));
     }
 }

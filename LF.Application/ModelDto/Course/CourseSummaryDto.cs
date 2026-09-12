@@ -20,4 +20,10 @@ public sealed class CourseSummaryDto
     public int CreatedByUserId { get; init; }
     public DateTime CreatedAt { get; init; }
     public int ChapterCount { get; init; }
+
+    // Hydrated from LF.IdentityService only on the admin listing path, where courses from every
+    // author are mixed together. Null everywhere else — the authoring list is single-author already.
+    public string? AuthorEmail { get; set; }
+    public string? AuthorFirstName { get; set; }
+    public string? AuthorLastName { get; set; }
 }

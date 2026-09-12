@@ -12,6 +12,7 @@ public sealed class CourseCatalogItemDto
     public int LessonCount { get; init; }
     public CoursePricingType PricingType { get; init; }
     public decimal? Price { get; init; }
+    public CourseEnrollmentMode EnrollmentMode { get; init; }
     public CourseCoverType CoverType { get; init; }
     public CourseCoverColor? CoverColor { get; init; }
     public string? CoverImageKey { get; init; }

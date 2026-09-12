@@ -13,11 +13,13 @@ public sealed class CoursePreviewDto
     public int LessonCount { get; init; }
     public CoursePricingType PricingType { get; init; }
     public decimal? Price { get; init; }
+    public CourseEnrollmentMode EnrollmentMode { get; init; }
     public CourseCoverType CoverType { get; init; }
     public CourseCoverColor? CoverColor { get; init; }
     public string? CoverImageKey { get; init; }
     public string? CoverImageContentType { get; init; }
     public bool IsEnrolled { get; init; }
     public int? EnrollmentId { get; init; }
+    public EnrollmentStatus? EnrollmentStatus { get; init; }
     public IReadOnlyList<CoursePreviewChapterDto> Chapters { get; init; } = [];
 }

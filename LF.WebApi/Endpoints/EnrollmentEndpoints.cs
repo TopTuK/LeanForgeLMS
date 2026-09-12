@@ -281,7 +281,8 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         item.CoverColor?.ToString(),
         item.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{item.Id}/cover/image" : null,
         item.PricingType.ToString(),
-        item.Price);
+        item.Price,
+        item.EnrollmentMode.ToString());
 
     private static EnrollmentSummaryResponse ToSummaryResponse(EnrollmentSummaryDto dto) => new(
         dto.Id,
@@ -371,7 +372,9 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.EnrollmentId,
         [.. dto.Chapters.Select(ch => ToCoursePreviewChapterResponse(dto.Id, ch))],
         dto.PricingType.ToString(),
-        dto.Price);
+        dto.Price,
+        dto.EnrollmentStatus?.ToString(),
+        dto.EnrollmentMode.ToString());
 
     private static CoursePreviewChapterResponse ToCoursePreviewChapterResponse(int courseId, CoursePreviewChapterDto chapter) => new(
         chapter.Id,

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { Lock } from 'lucide-vue-next';
+import { KeyRound, Lock } from 'lucide-vue-next';
 import {
   fetchCoursePreview,
   fetchCourseCoverImageObjectUrl,
@@ -13,6 +13,8 @@ import {
 import { createCheckout } from '@/services/paymentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 import { usePlatformStore } from '@/stores/platformStore';
+import awaitingPaymentImage from '@/assets/payments/awaiting-payment.jpg';
+import awaitingPaymentDetailImage from '@/assets/payments/awaiting-payment-detail.jpg';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,11 +31,21 @@ const enrolling = ref(false);
 const pendingPayment = ref(false);
 
 const isPaid = computed(() => course.value?.pricingType === 'Paid');
+const isAwaitingPayment = computed(() =>
+  pendingPayment.value || course.value?.enrollmentStatus === 'PendingPayment');
+const hasActiveEnrollment = computed(() =>
+  Boolean(course.value?.isEnrolled) && course.value?.enrollmentStatus !== 'PendingPayment');
 const rubFormatter = new Intl.NumberFormat('ru-RU');
 
+// A Managed (private) course can only be joined by an admin enrolling the student, so the CTA
+// must not be offered at all — the 403 from the API is defence-in-depth, not the first clue.
+const managedEnrollment = computed(() =>
+  course.value?.enrollmentMode === 'Managed' && !course.value?.isEnrolled);
+
 // Global admin kill-switch. When off, a not-yet-enrolled student can still browse the preview
-// but the enroll CTA is disabled.
-const enrollmentBlocked = computed(() => !platformStore.studentEnrollmentEnabled && !course.value?.isEnrolled);
+// but the enroll CTA is disabled. A pending checkout can still be completed.
+const enrollmentBlocked = computed(() =>
+  managedEnrollment.value || (!platformStore.studentEnrollmentEnabled && !course.value?.isEnrolled));
 
 const promoCode = ref('');
 const promoChecking = ref(false);
@@ -106,7 +118,7 @@ function goToCatalog() {
 async function onCtaClick() {
   if (!course.value) return;
 
-  if (course.value.isEnrolled) {
+  if (hasActiveEnrollment.value) {
     router.push({ name: 'CourseLearn', params: { enrollmentId: course.value.enrollmentId } });
     return;
   }
@@ -198,7 +210,10 @@ async function downloadFile(lesson, part, file) {
 </script>
 
 <template>
-  <div class="course-detail">
+  <div
+    class="course-detail"
+    :class="{ 'course-detail--awaiting': Boolean(course) && isAwaitingPayment }"
+  >
     <p
       v-if="loading"
       class="course-detail__hint"
@@ -229,42 +244,6 @@ async function downloadFile(lesson, part, file) {
         {{ $t('courses.detail.back') }}
       </button>
 
-      <header
-        class="course-detail__hero"
-        :class="{ 'course-detail__hero--empty': !hasCover }"
-        :style="coverStyle"
-      >
-        <img
-          v-if="showCoverImage"
-          :src="coverImageUrl"
-          alt=""
-          class="course-detail__hero-image"
-        >
-        <div
-          v-if="hasCover"
-          class="course-detail__hero-scrim"
-          aria-hidden="true"
-        />
-        <div
-          class="course-detail__hero-content"
-          :class="{ 'course-detail__hero-content--light': hasCover }"
-        >
-          <div class="course-detail__hero-badges">
-            <span class="course-detail__pill">{{ course.categoryName }}</span>
-            <span class="course-detail__pill course-detail__pill--muted">
-              {{ $t('courses.detail.lessons_count', { count: course.lessonCount }) }}
-            </span>
-          </div>
-          <h1>{{ course.title }}</h1>
-          <p
-            v-if="course.shortIntroduction"
-            class="course-detail__short-intro"
-          >
-            {{ course.shortIntroduction }}
-          </p>
-        </div>
-      </header>
-
       <p
         v-if="errorMessage"
         class="course-detail__alert"
@@ -273,225 +252,342 @@ async function downloadFile(lesson, part, file) {
         {{ errorMessage }}
       </p>
 
-      <div class="course-detail__body">
-        <div class="course-detail__main">
-          <section class="course-detail__section">
-            <div
-              v-if="course.description"
-              v-safe-html="course.description"
-              class="course-detail__prose"
-            />
-            <p
-              v-else
-              class="course-detail__hint"
-            >
-              {{ $t('courses.detail.description_empty') }}
-            </p>
-          </section>
+      <section
+        v-if="isAwaitingPayment"
+        class="course-detail__awaiting"
+        aria-labelledby="awaiting-payment-title"
+      >
+        <span
+          class="blueprint-grid blueprint-grid--band blueprint-grid--fade"
+          aria-hidden="true"
+        />
 
-          <section class="course-detail__section">
-            <h2 class="course-detail__section-title">
-              {{ $t('courses.detail.content_title') }}
-            </h2>
-
-            <details
-              v-for="chapter in course.chapters"
-              :key="chapter.id"
-              class="course-detail__chapter"
-              open
-            >
-              <summary class="course-detail__chapter-title">
-                {{ chapter.title }}
-              </summary>
-
-              <ul class="course-detail__lessons">
-                <li
-                  v-for="lesson in chapter.lessons"
-                  :key="lesson.id"
-                >
-                  <details
-                    v-if="lesson.includeInPreview"
-                    class="course-detail__lesson"
-                    @toggle="onLessonToggle(lesson, $event)"
-                  >
-                    <summary class="course-detail__lesson-summary">
-                      <span class="course-detail__preview-badge">{{ $t('courses.detail.preview_badge') }}</span>
-                      {{ lesson.title }}
-                    </summary>
-
-                    <div
-                      v-if="lessonParts(lesson).length > 0"
-                      class="course-detail__lesson-parts"
-                    >
-                      <template
-                        v-for="part in lessonParts(lesson)"
-                        :key="part.id"
-                      >
-                        <div
-                          v-if="part.type === 'text'"
-                          v-safe-html="part.html"
-                          class="course-detail__prose"
-                        />
-
-                        <p
-                          v-else-if="part.type === 'quiz'"
-                          class="course-detail__quiz-badge"
-                        >
-                          {{ $t('courses.detail.quiz_badge') }}
-                        </p>
-
-                        <ul
-                          v-else-if="part.type === 'files'"
-                          class="course-detail__files"
-                        >
-                          <li
-                            v-for="file in part.files"
-                            :key="file.id"
-                            class="course-detail__files-item"
-                          >
-                            <span class="course-detail__files-name">{{ file.fileName }}</span>
-                            <button
-                              type="button"
-                              class="course-detail__files-download"
-                              :disabled="downloadingFileId === file.id"
-                              @click="downloadFile(lesson, part, file)"
-                            >
-                              {{ downloadingFileId === file.id ? t('courses.detail.files.downloading') : t('courses.detail.files.download') }}
-                            </button>
-                            <span
-                              v-if="downloadErrorFileId === file.id"
-                              class="course-detail__files-error"
-                            >
-                              {{ t('courses.detail.files.download_error') }}
-                            </span>
-                          </li>
-                        </ul>
-
-                        <div
-                          v-else
-                          class="course-detail__media"
-                        >
-                          <img
-                            v-if="part.type === 'image' && mediaObjectUrls[part.id]"
-                            :src="mediaObjectUrls[part.id]"
-                            alt=""
-                            class="course-detail__media-image"
-                          >
-                          <video
-                            v-else-if="part.type === 'video' && mediaObjectUrls[part.id]"
-                            :src="mediaObjectUrls[part.id]"
-                            class="course-detail__media-player"
-                            controls
-                            preload="metadata"
-                          />
-                          <audio
-                            v-else-if="part.type === 'audio' && mediaObjectUrls[part.id]"
-                            :src="mediaObjectUrls[part.id]"
-                            class="course-detail__media-player course-detail__media-player--audio"
-                            controls
-                            preload="metadata"
-                          />
-                        </div>
-                      </template>
-                    </div>
-                    <div
-                      v-else
-                      v-safe-html="lesson.content"
-                      class="course-detail__prose"
-                    />
-                  </details>
-
-                  <div
-                    v-else
-                    class="course-detail__lesson course-detail__lesson--locked"
-                  >
-                    <Lock
-                      :size="14"
-                      aria-hidden="true"
-                    />
-                    <span class="course-detail__lesson-title">{{ lesson.title }}</span>
-                    <span class="course-detail__locked-hint">{{ $t('courses.detail.locked_hint') }}</span>
-                  </div>
-                </li>
-              </ul>
-            </details>
-          </section>
+        <div class="course-detail__awaiting-copy">
+          <p class="mono-label course-detail__awaiting-eyebrow">
+            {{ $t('courses.detail.awaiting_payment_eyebrow') }}
+          </p>
+          <p class="course-detail__awaiting-course">
+            {{ course.title }}
+          </p>
+          <h1
+            id="awaiting-payment-title"
+            class="course-detail__awaiting-title font-display"
+          >
+            {{ pendingPayment ? $t('courses.detail.redirecting') : $t('courses.detail.awaiting_payment_title') }}
+          </h1>
+          <p class="course-detail__awaiting-body">
+            {{ pendingPayment ? $t('courses.detail.redirecting_body') : $t('courses.detail.awaiting_payment') }}
+          </p>
+          <p class="course-detail__price course-detail__awaiting-price">
+            {{ priceLabel }}
+          </p>
+          <button
+            type="button"
+            class="course-detail__cta-btn"
+            :disabled="enrolling || pendingPayment || enrollmentBlocked"
+            @click="onCtaClick"
+          >
+            {{ pendingPayment || enrolling
+              ? $t('courses.detail.redirecting')
+              : $t('courses.detail.awaiting_payment_cta') }}
+          </button>
+          <button
+            type="button"
+            class="course-detail__text-btn course-detail__awaiting-secondary"
+            @click="goToCatalog"
+          >
+            {{ $t('courses.detail.back') }}
+          </button>
         </div>
 
-        <aside class="course-detail__cta-panel">
-          <p class="course-detail__price">
-            {{ priceLabel }}
-            <span
-              v-if="isPaid && promoResult?.isValid"
-              class="course-detail__price-old"
-            >{{ rubFormatter.format(course.price) }} ₽</span>
-          </p>
+        <div class="course-detail__awaiting-media">
+          <figure class="course-detail__awaiting-hero">
+            <img
+              :src="awaitingPaymentImage"
+              :alt="$t('courses.detail.awaiting_payment_image_alt')"
+              width="1024"
+              height="768"
+              decoding="async"
+            >
+            <figcaption>
+              <KeyRound
+                class="size-4"
+                aria-hidden="true"
+              />
+              {{ $t('courses.detail.awaiting_payment_image_caption') }}
+            </figcaption>
+          </figure>
+          <figure class="course-detail__awaiting-detail">
+            <img
+              :src="awaitingPaymentDetailImage"
+              alt=""
+              width="1024"
+              height="768"
+              decoding="async"
+            >
+          </figure>
+        </div>
+      </section>
 
-          <div
-            v-if="isPaid && !course.isEnrolled && !pendingPayment && !enrollmentBlocked"
-            class="course-detail__promo"
+      <template v-else>
+        <header
+          class="course-detail__hero"
+          :class="{ 'course-detail__hero--empty': !hasCover }"
+          :style="coverStyle"
+        >
+          <img
+            v-if="showCoverImage"
+            :src="coverImageUrl"
+            alt=""
+            class="course-detail__hero-image"
           >
-            <label
-              class="course-detail__promo-label"
-              :for="'promo-code'"
-            >{{ $t('courses.detail.promo_label') }}</label>
-            <div class="course-detail__promo-row">
-              <input
-                id="promo-code"
-                v-model="promoCode"
-                type="text"
-                class="course-detail__promo-input"
-                :placeholder="$t('courses.detail.promo_placeholder')"
-              >
-              <button
-                type="button"
-                class="course-detail__promo-btn"
-                :disabled="promoChecking || !promoCode.trim()"
-                @click="applyPromoCode"
-              >
-                {{ promoChecking ? $t('courses.detail.promo_checking') : $t('courses.detail.promo_apply') }}
-              </button>
+          <div
+            v-if="hasCover"
+            class="course-detail__hero-scrim"
+            aria-hidden="true"
+          />
+          <div
+            class="course-detail__hero-content"
+            :class="{ 'course-detail__hero-content--light': hasCover }"
+          >
+            <div class="course-detail__hero-badges">
+              <span class="course-detail__pill">{{ course.categoryName }}</span>
+              <span class="course-detail__pill course-detail__pill--muted">
+                {{ $t('courses.detail.lessons_count', { count: course.lessonCount }) }}
+              </span>
             </div>
+            <h1>{{ course.title }}</h1>
             <p
-              v-if="promoResult && !promoResult.isValid"
-              class="course-detail__promo-msg course-detail__promo-msg--error"
+              v-if="course.shortIntroduction"
+              class="course-detail__short-intro"
             >
-              {{ promoResult.reason || $t('courses.detail.promo_invalid') }}
-            </p>
-            <p
-              v-else-if="promoResult?.isValid"
-              class="course-detail__promo-msg"
-            >
-              {{ $t('courses.detail.promo_applied', { amount: rubFormatter.format(promoResult.discountAmount) }) }}
+              {{ course.shortIntroduction }}
             </p>
           </div>
+        </header>
 
-          <p
-            v-if="pendingPayment"
-            class="course-detail__pending"
-          >
-            {{ $t('courses.detail.redirecting') }}
-          </p>
-          <template v-else>
+        <div class="course-detail__body">
+          <div class="course-detail__main">
+            <section class="course-detail__section">
+              <div
+                v-if="course.description"
+                v-safe-html="course.description"
+                class="course-detail__prose"
+              />
+              <p
+                v-else
+                class="course-detail__hint"
+              >
+                {{ $t('courses.detail.description_empty') }}
+              </p>
+            </section>
+
+            <section class="course-detail__section">
+              <h2 class="course-detail__section-title">
+                {{ $t('courses.detail.content_title') }}
+              </h2>
+
+              <details
+                v-for="chapter in course.chapters"
+                :key="chapter.id"
+                class="course-detail__chapter"
+                open
+              >
+                <summary class="course-detail__chapter-title">
+                  {{ chapter.title }}
+                </summary>
+
+                <ul class="course-detail__lessons">
+                  <li
+                    v-for="lesson in chapter.lessons"
+                    :key="lesson.id"
+                  >
+                    <details
+                      v-if="lesson.includeInPreview"
+                      class="course-detail__lesson"
+                      @toggle="onLessonToggle(lesson, $event)"
+                    >
+                      <summary class="course-detail__lesson-summary">
+                        <span class="course-detail__preview-badge">{{ $t('courses.detail.preview_badge') }}</span>
+                        {{ lesson.title }}
+                      </summary>
+
+                      <div
+                        v-if="lessonParts(lesson).length > 0"
+                        class="course-detail__lesson-parts"
+                      >
+                        <template
+                          v-for="part in lessonParts(lesson)"
+                          :key="part.id"
+                        >
+                          <div
+                            v-if="part.type === 'text'"
+                            v-safe-html="part.html"
+                            class="course-detail__prose"
+                          />
+
+                          <p
+                            v-else-if="part.type === 'quiz'"
+                            class="course-detail__quiz-badge"
+                          >
+                            {{ $t('courses.detail.quiz_badge') }}
+                          </p>
+
+                          <ul
+                            v-else-if="part.type === 'files'"
+                            class="course-detail__files"
+                          >
+                            <li
+                              v-for="file in part.files"
+                              :key="file.id"
+                              class="course-detail__files-item"
+                            >
+                              <span class="course-detail__files-name">{{ file.fileName }}</span>
+                              <button
+                                type="button"
+                                class="course-detail__files-download"
+                                :disabled="downloadingFileId === file.id"
+                                @click="downloadFile(lesson, part, file)"
+                              >
+                                {{ downloadingFileId === file.id ? t('courses.detail.files.downloading') : t('courses.detail.files.download') }}
+                              </button>
+                              <span
+                                v-if="downloadErrorFileId === file.id"
+                                class="course-detail__files-error"
+                              >
+                                {{ t('courses.detail.files.download_error') }}
+                              </span>
+                            </li>
+                          </ul>
+
+                          <div
+                            v-else
+                            class="course-detail__media"
+                          >
+                            <img
+                              v-if="part.type === 'image' && mediaObjectUrls[part.id]"
+                              :src="mediaObjectUrls[part.id]"
+                              alt=""
+                              class="course-detail__media-image"
+                            >
+                            <video
+                              v-else-if="part.type === 'video' && mediaObjectUrls[part.id]"
+                              :src="mediaObjectUrls[part.id]"
+                              class="course-detail__media-player"
+                              controls
+                              preload="metadata"
+                            />
+                            <audio
+                              v-else-if="part.type === 'audio' && mediaObjectUrls[part.id]"
+                              :src="mediaObjectUrls[part.id]"
+                              class="course-detail__media-player course-detail__media-player--audio"
+                              controls
+                              preload="metadata"
+                            />
+                          </div>
+                        </template>
+                      </div>
+                      <div
+                        v-else
+                        v-safe-html="lesson.content"
+                        class="course-detail__prose"
+                      />
+                    </details>
+
+                    <div
+                      v-else
+                      class="course-detail__lesson course-detail__lesson--locked"
+                    >
+                      <Lock
+                        :size="14"
+                        aria-hidden="true"
+                      />
+                      <span class="course-detail__lesson-title">{{ lesson.title }}</span>
+                      <span class="course-detail__locked-hint">{{ $t('courses.detail.locked_hint') }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </details>
+            </section>
+          </div>
+
+          <aside class="course-detail__cta-panel">
+            <p class="course-detail__price">
+              {{ priceLabel }}
+              <span
+                v-if="isPaid && promoResult?.isValid"
+                class="course-detail__price-old"
+              >{{ rubFormatter.format(course.price) }} ₽</span>
+            </p>
+
+            <div
+              v-if="isPaid && !course.isEnrolled && !pendingPayment && !enrollmentBlocked"
+              class="course-detail__promo"
+            >
+              <label
+                class="course-detail__promo-label"
+                :for="'promo-code'"
+              >{{ $t('courses.detail.promo_label') }}</label>
+              <div class="course-detail__promo-row">
+                <input
+                  id="promo-code"
+                  v-model="promoCode"
+                  type="text"
+                  class="course-detail__promo-input"
+                  :placeholder="$t('courses.detail.promo_placeholder')"
+                >
+                <button
+                  type="button"
+                  class="course-detail__promo-btn"
+                  :disabled="promoChecking || !promoCode.trim()"
+                  @click="applyPromoCode"
+                >
+                  {{ promoChecking ? $t('courses.detail.promo_checking') : $t('courses.detail.promo_apply') }}
+                </button>
+              </div>
+              <p
+                v-if="promoResult && !promoResult.isValid"
+                class="course-detail__promo-msg course-detail__promo-msg--error"
+              >
+                {{ promoResult.reason || $t('courses.detail.promo_invalid') }}
+              </p>
+              <p
+                v-else-if="promoResult?.isValid"
+                class="course-detail__promo-msg"
+              >
+                {{ $t('courses.detail.promo_applied', { amount: rubFormatter.format(promoResult.discountAmount) }) }}
+              </p>
+            </div>
+
             <p
-              v-if="enrollmentBlocked"
+              v-if="pendingPayment"
               class="course-detail__pending"
             >
-              {{ $t('courses.detail.enrollment_disabled') }}
+              {{ $t('courses.detail.redirecting') }}
             </p>
-            <button
-              type="button"
-              class="course-detail__cta-btn"
-              :disabled="enrolling || enrollmentBlocked"
-              @click="onCtaClick"
-            >
-              {{ course.isEnrolled
-                ? $t('courses.detail.continue')
-                : (enrolling ? $t('courses.detail.enrolling') : $t('courses.detail.enroll')) }}
-            </button>
-          </template>
-        </aside>
-      </div>
+            <template v-else>
+              <p
+                v-if="enrollmentBlocked"
+                class="course-detail__pending"
+              >
+                {{ managedEnrollment
+                  ? $t('courses.detail.enrollment_managed')
+                  : $t('courses.detail.enrollment_disabled') }}
+              </p>
+              <button
+                type="button"
+                class="course-detail__cta-btn"
+                :disabled="enrolling || enrollmentBlocked"
+                @click="onCtaClick"
+              >
+                {{ hasActiveEnrollment
+                  ? $t('courses.detail.continue')
+                  : (enrolling ? $t('courses.detail.enrolling') : $t('courses.detail.enroll')) }}
+              </button>
+            </template>
+          </aside>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -501,6 +597,15 @@ async function downloadFile(lesson, part, file) {
   min-height: calc(100vh - 4.5rem);
   background: var(--color-surface-950);
   padding: 1.25rem 1.25rem 3rem;
+}
+
+.course-detail--awaiting {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 42% at 8% 4%, var(--industrial-accent-wash), transparent 70%),
+    var(--color-surface-950);
 }
 
 @media (min-width: 768px) {
@@ -996,5 +1101,144 @@ async function downloadFile(lesson, part, file) {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.course-detail__awaiting {
+  position: relative;
+  display: grid;
+  gap: clamp(2rem, 6vw, 4.5rem);
+  margin-top: 0.5rem;
+  align-items: center;
+}
+
+.course-detail__awaiting-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.course-detail__awaiting-eyebrow {
+  margin: 0 0 0.85rem;
+  color: var(--color-accent-coral);
+}
+
+.course-detail__awaiting-course {
+  margin: 0 0 0.75rem;
+  max-width: 36rem;
+  color: var(--color-ink-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.course-detail__awaiting-title {
+  max-width: 22rem;
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 1.05;
+}
+
+.course-detail__awaiting-body {
+  max-width: 32rem;
+  margin: 1.25rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.course-detail__awaiting-price {
+  margin: 1.5rem 0 1.25rem;
+}
+
+.course-detail__awaiting-copy .course-detail__cta-btn {
+  width: auto;
+  min-width: 14rem;
+}
+
+.course-detail__awaiting-secondary {
+  margin-top: 1rem;
+}
+
+.course-detail__awaiting-media {
+  position: relative;
+  z-index: 1;
+}
+
+.course-detail__awaiting-hero {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  box-shadow: 0 1.5rem 4rem color-mix(in srgb, var(--color-surface-900) 18%, transparent);
+}
+
+.course-detail__awaiting-hero::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, white 12%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
+}
+
+.course-detail__awaiting-hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.course-detail__awaiting-hero figcaption {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid color-mix(in srgb, white 18%, transparent);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--color-surface-900) 86%, transparent);
+  color: var(--color-ink-muted);
+  font-size: 0.72rem;
+  backdrop-filter: blur(12px);
+}
+
+.course-detail__awaiting-detail {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  right: -0.75rem;
+  bottom: -1.25rem;
+  width: 42%;
+  margin: 0;
+  overflow: hidden;
+  border: 0.35rem solid var(--color-surface-950);
+  border-radius: calc(var(--radius-card) * 0.75);
+  background: var(--color-card);
+  box-shadow: 0 1.25rem 2.5rem color-mix(in srgb, #000 18%, transparent);
+}
+
+.course-detail__awaiting-detail img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+@media (min-width: 900px) {
+  .course-detail__awaiting {
+    grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+  }
+
+  .course-detail__awaiting-detail {
+    display: block;
+  }
 }
 </style>

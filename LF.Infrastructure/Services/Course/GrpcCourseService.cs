@@ -1,3 +1,4 @@
+using System.Globalization;
 using Grpc.Core;
 using LF.Application.Common.Exceptions;
 using LF.Application.ModelDto.Course;
@@ -6,6 +7,7 @@ using LF.Application.Services.Course;
 using LF.CourseService;
 using Mapster;
 using Microsoft.Extensions.Logging;
+using AppEnrollmentStatus = LF.AppDomain.Models.Course.Enums.EnrollmentStatus;
 using AppMoveDirection = LF.Application.ModelDto.Course.MoveDirection;
 using RpcMoveDirection = LF.CourseService.MoveDirection;
 
@@ -245,6 +247,100 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
 
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.ReplaceLessonPartsAsync(request));
     }
+
+    public async Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingUserId, bool force)
+    {
+        _logger.LogInformation("GrpcCourseService::DeleteCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId} Force={Force}",
+            courseId, actingUserId, force);
+
+        var request = new DeleteCourseRequest { CourseId = courseId, ActingUserId = actingUserId, Force = force };
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.DeleteCourseAsync(request);
+            if (!reply.Found)
+                return null;
+
+            return new DeleteCourseResultDto
+            {
+                RemovedEnrollmentCount = reply.RemovedEnrollmentCount,
+                PaidEnrollmentCount = reply.PaidEnrollmentCount,
+                StorageObjectKeys = [.. reply.StorageObjectKeys],
+            };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new CourseDeletionBlockedException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new CourseAuthorizationException(ex.Status.Detail);
+        }
+    }
+
+    public async Task<PagedCourseEnrollmentsDto?> ListCourseEnrollmentsAsync(int courseId, int actingUserId, int page, int pageSize)
+    {
+        _logger.LogInformation("GrpcCourseService::ListCourseEnrollmentsAsync: called with CourseId={CourseId} ActingUserId={ActingUserId} Page={Page} PageSize={PageSize}",
+            courseId, actingUserId, page, pageSize);
+
+        var request = new ListCourseEnrollmentsRequest
+        {
+            CourseId = courseId,
+            ActingUserId = actingUserId,
+            Page = page,
+            PageSize = pageSize,
+        };
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.ListCourseEnrollmentsAsync(request);
+            return new PagedCourseEnrollmentsDto
+            {
+                TotalCount = reply.TotalCount,
+                Items = [.. reply.Items.Select(ToCourseEnrollmentDto)],
+            };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<RemoveEnrollmentResultDto?> RemoveEnrollmentAsync(int courseId, int enrollmentId, int actingUserId)
+    {
+        _logger.LogInformation("GrpcCourseService::RemoveEnrollmentAsync: called with CourseId={CourseId} EnrollmentId={EnrollmentId} ActingUserId={ActingUserId}",
+            courseId, enrollmentId, actingUserId);
+
+        var request = new RemoveCourseEnrollmentRequest { CourseId = courseId, EnrollmentId = enrollmentId, ActingUserId = actingUserId };
+        var reply = await _courseServiceRpcClient.RemoveCourseEnrollmentAsync(request);
+
+        if (!reply.Found)
+            return null;
+
+        return new RemoveEnrollmentResultDto
+        {
+            UserId = reply.UserId,
+            WasPaid = reply.WasPaid,
+            PricePaid = decimal.Parse(reply.PricePaid, CultureInfo.InvariantCulture),
+        };
+    }
+
+    // Hand-built for the same reason as the server side: Mapster leaves Timestamp fields at their
+    // epoch default rather than converting them back to DateTime.
+    private static CourseEnrollmentDto ToCourseEnrollmentDto(CourseEnrollmentReply reply) => new()
+    {
+        Id = reply.Id,
+        UserId = reply.UserId,
+        Status = (AppEnrollmentStatus)(int)reply.Status,
+        PricePaid = decimal.Parse(reply.PricePaid, CultureInfo.InvariantCulture),
+        EnrolledAt = reply.EnrolledAt.ToDateTime(),
+        CompletedAt = reply.CompletedAt is null ? null : reply.CompletedAt.ToDateTime(),
+        TotalLessonCount = reply.TotalLessonCount,
+        CompletedLessonCount = reply.CompletedLessonCount,
+        ProgressPercent = reply.TotalLessonCount > 0
+            ? (int)Math.Round(reply.CompletedLessonCount * 100.0 / reply.TotalLessonCount, MidpointRounding.AwayFromZero)
+            : 0,
+    };
 
     // Mapster's top-level Adapt<T>() isn't trusted here to populate nested `repeated` fields
     // correctly (same reasoning as RpcCourseService.ToReply/ToEnrollmentReply on the server side) —

@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddScoped<IAdminCourseService, AdminCourseService>();
         services.AddScoped<ICourseAuthoringService, CourseAuthoringService>();
         services.AddScoped<IEnrollmentLearningService, EnrollmentLearningService>();
         services.AddScoped<IPromoCodeAdminService, PromoCodeAdminService>();

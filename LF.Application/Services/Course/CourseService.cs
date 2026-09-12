@@ -70,7 +70,10 @@ internal sealed class CourseService(
         if (course is null)
             return null;
 
-        EnsureOwnership(course, actingUserId, isAdmin);
+        // Manual enrollment is admin-only: it is the sole way into a Managed (private) course,
+        // so it must not be reachable by a course owner acting on their own course.
+        if (!isAdmin)
+            throw new CourseAuthorizationException("Only an administrator can enroll a student in a course.");
 
         if (!course.IsPublished)
             throw new InvalidOperationException("Cannot add a student to an unpublished course.");
@@ -421,6 +424,134 @@ internal sealed class CourseService(
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
+    }
+
+    // Admin-only (enforced by the AdminOnly endpoint policy). The removal order below is dictated by
+    // the schema, not by preference: PromoCode -> Course and Enrollment -> PromoCode are both
+    // DeleteBehavior.Restrict, so a course-scoped promo code aborts the whole delete unless its
+    // enrollments go first. Chapters/lessons/parts and QuizAttempts cascade on their own.
+    // CoursePayment is deliberately left alone — that ledger is built to outlive the rows it snapshots.
+    public async Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingUserId, bool force)
+    {
+        _logger.LogInformation("CourseService::DeleteCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId} Force={Force}",
+            courseId, actingUserId, force);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        var enrollments = await _dbContext.Enrollments.Where(e => e.CourseId == courseId).ToListAsync();
+
+        // A price on a PendingPayment row is only an intent to pay — no money changed hands.
+        var paidCount = enrollments.Count(e => e.Status == EnrollmentStatus.Active && e.PricePaid > 0m);
+        if (paidCount > 0 && !force)
+        {
+            throw new CourseDeletionBlockedException(
+                $"{paidCount} student(s) have paid for this course. Deleting it removes their access without a refund.");
+        }
+
+        var enrollmentIds = enrollments.Select(e => e.Id).ToList();
+
+        // Orphaned PaymentOrders are not just untidy: EnrollmentId carries no FK, so a late Robokassa
+        // webhook would otherwise try to activate an enrollment that no longer exists.
+        var paymentOrders = await _dbContext.PaymentOrders.Where(o => enrollmentIds.Contains(o.EnrollmentId)).ToListAsync();
+        var promoCodes = await _dbContext.PromoCodes.Where(p => p.CourseId == courseId).ToListAsync();
+
+        var storageObjects = CollectStorageObjects(course);
+
+        _dbContext.Enrollments.RemoveRange(enrollments);
+        _dbContext.PaymentOrders.RemoveRange(paymentOrders);
+        _dbContext.PromoCodes.RemoveRange(promoCodes);
+        _dbContext.Courses.Remove(course);
+        _dbContext.StorageObjects.RemoveRange(storageObjects);
+
+        await _dbContext.SaveChangesAsync();
+
+        return new DeleteCourseResultDto
+        {
+            RemovedEnrollmentCount = enrollments.Count,
+            PaidEnrollmentCount = paidCount,
+            StorageObjectKeys = [.. storageObjects.Select(s => s.ObjectKey)],
+        };
+    }
+
+    // Every StorageObject the course alone referenced. These are Restrict on the principal side, so
+    // nothing cascades them — without this the rows and their MinIO blobs leak on every delete.
+    private static List<StorageObject> CollectStorageObjects(DomainCourse course)
+    {
+        var parts = course.Chapters.SelectMany(ch => ch.Lessons).SelectMany(l => l.Parts).ToList();
+
+        return [.. new[] { course.CoverImageStorageObject }
+            .Concat(parts.Select(p => p.StorageObject))
+            .Concat(parts.SelectMany(p => p.Files).Select(f => f.StorageObject))
+            .OfType<StorageObject>()
+            .DistinctBy(s => s.Id)];
+    }
+
+    public async Task<PagedCourseEnrollmentsDto?> ListCourseEnrollmentsAsync(int courseId, int actingUserId, int page, int pageSize)
+    {
+        _logger.LogInformation("CourseService::ListCourseEnrollmentsAsync: called with CourseId={CourseId} ActingUserId={ActingUserId} Page={Page} PageSize={PageSize}",
+            courseId, actingUserId, page, pageSize);
+
+        var course = await _dbContext.Courses.AsNoTracking()
+            .Include(c => c.Chapters)
+            .ThenInclude(ch => ch.Lessons)
+            .FirstOrDefaultAsync(c => c.Id == courseId);
+
+        if (course is null)
+            return null;
+
+        var totalLessonCount = course.Chapters.Sum(ch => ch.Lessons.Count);
+        var query = _dbContext.Enrollments.AsNoTracking().Where(e => e.CourseId == courseId);
+
+        var totalCount = await query.CountAsync();
+        var enrollments = await query
+            .OrderByDescending(e => e.EnrolledAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedCourseEnrollmentsDto
+        {
+            TotalCount = totalCount,
+            Items = [.. enrollments.Select(e => new CourseEnrollmentDto
+            {
+                Id = e.Id,
+                UserId = e.UserId,
+                Status = e.Status,
+                PricePaid = e.PricePaid,
+                EnrolledAt = e.EnrolledAt,
+                CompletedAt = e.CompletedAt,
+                TotalLessonCount = totalLessonCount,
+                CompletedLessonCount = e.CompletedLessonIds.Length,
+                ProgressPercent = e.ProgressPercent(totalLessonCount),
+            })],
+        };
+    }
+
+    // Admin-only. No refund is attempted — the payment stack has no refund path at all, and the
+    // CoursePayment ledger row stays put so the money is still reported.
+    public async Task<RemoveEnrollmentResultDto?> RemoveEnrollmentAsync(int courseId, int enrollmentId, int actingUserId)
+    {
+        _logger.LogInformation("CourseService::RemoveEnrollmentAsync: called with CourseId={CourseId} EnrollmentId={EnrollmentId} ActingUserId={ActingUserId}",
+            courseId, enrollmentId, actingUserId);
+
+        var enrollment = await _dbContext.Enrollments.FirstOrDefaultAsync(e => e.Id == enrollmentId && e.CourseId == courseId);
+        if (enrollment is null)
+            return null;
+
+        var paymentOrders = await _dbContext.PaymentOrders.Where(o => o.EnrollmentId == enrollmentId).ToListAsync();
+
+        _dbContext.Enrollments.Remove(enrollment);
+        _dbContext.PaymentOrders.RemoveRange(paymentOrders);
+        await _dbContext.SaveChangesAsync();
+
+        return new RemoveEnrollmentResultDto
+        {
+            UserId = enrollment.UserId,
+            WasPaid = enrollment.Status == EnrollmentStatus.Active && enrollment.PricePaid > 0m,
+            PricePaid = enrollment.PricePaid,
+        };
     }
 
     private static void EnsureOwnership(DomainCourse course, int actingUserId, bool isAdmin)

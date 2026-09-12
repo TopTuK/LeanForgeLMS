@@ -13,7 +13,8 @@ public sealed record CourseCatalogItemResponse(
     string? CoverColor,
     string? CoverImageUrl,
     string PricingType,
-    decimal? Price);
+    decimal? Price,
+    string EnrollmentMode);
 
 public sealed record PagedCourseCatalogResponse(IReadOnlyList<CourseCatalogItemResponse> Items, int TotalCount, int Page, int PageSize);
 
@@ -116,4 +117,6 @@ public sealed record CoursePreviewResponse(
     int? EnrollmentId,
     IReadOnlyList<CoursePreviewChapterResponse> Chapters,
     string PricingType,
-    decimal? Price);
+    decimal? Price,
+    string? EnrollmentStatus,
+    string EnrollmentMode);

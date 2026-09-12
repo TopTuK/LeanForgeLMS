@@ -14,6 +14,7 @@ namespace LF.Application.Services.User
         Task<UserDto?> UpdateUserAvatarAsync(int userId, string? avatarKey);
         Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto);
         Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search);
+        Task<IReadOnlyList<UserDto>> ListUsersByIdsAsync(IReadOnlyList<int> ids);
         Task<UserDto?> UpdateUserRoleAsync(int userId, UpdateUserRoleDto dto);
         Task<bool> DeleteUserAsync(int userId);
     }

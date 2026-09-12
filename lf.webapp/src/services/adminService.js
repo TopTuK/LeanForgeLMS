@@ -9,6 +9,23 @@ export const updateUserRole = (id, role) => api.put(`/admin/users/${id}/role`, {
 
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`);
 
+export const fetchAdminCourses = ({ page = 1, pageSize = 20 } = {}) =>
+  api.get('/admin/courses', { params: { page, pageSize } }).then((r) => r.data);
+
+export const fetchCourseEnrollments = (courseId, { page = 1, pageSize = 20 } = {}) =>
+  api.get(`/admin/courses/${courseId}/enrollments`, { params: { page, pageSize } }).then((r) => r.data);
+
+export const enrollStudent = (courseId, userId) =>
+  api.post(`/admin/courses/${courseId}/enrollments`, { userId }).then((r) => r.data);
+
+export const removeEnrollment = (courseId, enrollmentId) =>
+  api.delete(`/admin/courses/${courseId}/enrollments/${enrollmentId}`).then((r) => r.data);
+
+// force acknowledges that paid students lose access without a refund; without it the API
+// refuses a course anyone has paid for.
+export const deleteCourse = (courseId, { force = false } = {}) =>
+  api.delete(`/admin/courses/${courseId}`, { params: { force: force || undefined } }).then((r) => r.data);
+
 export const fetchAdminCategories = () => api.get('/admin/categories').then((r) => r.data);
 
 export const createCategory = (name) => api.post('/admin/categories', { name }).then((r) => r.data);

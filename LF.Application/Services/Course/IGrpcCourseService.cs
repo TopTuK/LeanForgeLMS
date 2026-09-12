@@ -21,4 +21,7 @@ public interface IGrpcCourseService
     Task<CourseDetailDto?> RemoveLessonAsync(int courseId, int chapterId, int lessonId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> ReplaceLessonPartsAsync(int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin);
+    Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingUserId, bool force);
+    Task<PagedCourseEnrollmentsDto?> ListCourseEnrollmentsAsync(int courseId, int actingUserId, int page, int pageSize);
+    Task<RemoveEnrollmentResultDto?> RemoveEnrollmentAsync(int courseId, int enrollmentId, int actingUserId);
 }

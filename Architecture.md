@@ -339,8 +339,46 @@ Owned entirely by `LF.CourseService`, exposed to `LF.WebApi` over `course_servic
   `BrowseCatalogAsync` excludes the acting user's own courses. This is an ownership check
   (`Course.CreatedByUserId`), not a role ban.
 
-The student side (`/api/enrollments`) and the authoring side (`/api/courses`) are separate
-endpoint groups with separate audiences — see [API surface](#api-surface).
+- **Enrollment mode.** `Course.EnrollmentMode` is `Open` or `Managed`. `Managed` is the
+  "private course" concept: `EnrollmentService.EnrollAsync` refuses self-enrollment
+  (`EnrollmentModeException` → `403`), and the catalog/preview responses carry `enrollmentMode`
+  so `CourseDetailView` hides the Enroll CTA instead of letting a student discover the 403 by
+  clicking. The only way in is an admin enrolling the student.
+
+**Admin course management** (`/api/admin/courses`, `AdminOnly`) covers the operations the
+authoring side deliberately does not:
+
+- **Every course, not just the admin's own.** `GET /api/admin/courses` lists all courses
+  (`ListCoursesAsync(isAdmin: true)`) with the **author** of each hydrated from
+  `LF.IdentityService`, since the list mixes owners. *Edit* routes into the normal course editor
+  (`CourseEdit`) — no separate admin editor exists, because `EnsureOwnership` already passes for
+  an admin on every authoring mutation, so an admin can edit any course through the existing UI.
+- **Manual enrollment is admin-only.** `POST /api/admin/courses/{id}/enrollments` is the single
+  manual-enrollment path; `CourseService.EnrollUserAsync` throws `CourseAuthorizationException`
+  for a non-admin even when they own the course. (This moved off `/api/courses/{id}/enrollments`,
+  which previously allowed the course owner too.)
+- **Removing a student** — `DELETE /api/admin/courses/{id}/enrollments/{enrollmentId}` deletes the
+  enrollment and its `PaymentOrder`s, and reports `wasPaid`/`pricePaid` so the SPA can name the
+  amount in its warning. **No refund is issued** — the payment stack has no refund path — and the
+  `CoursePayment` ledger row survives.
+- **Deleting a course** — `DELETE /api/admin/courses/{id}` is a hard delete. It **refuses with 409
+  when any student has actually paid** (`Active` *and* `PricePaid > 0`; a `PendingPayment` row
+  carries a price but no money moved) unless `?force=true`. The removal order is forced by the
+  schema: enrollments (cascading `QuizAttempt`s) → `PaymentOrder`s → course-scoped `PromoCode`s
+  (`Restrict`, and `Enrollment.PromoCodeId` is `Restrict` too) → the course (cascading
+  chapters/lessons/parts) → the orphaned `StorageObject` rows. Because `LF.CourseService` has no
+  MinIO client, the RPC **returns the orphaned object keys** and `AdminCourseService` (in
+  `LF.WebApi`) deletes the blobs best-effort afterwards — a storage failure is logged, never
+  surfaced as a failed delete, since the rows are already gone.
+
+Student names on the roster are hydrated in `AdminCourseService` via
+`ListUsersByIds` on `user_service.proto`: `LF.CourseService` owns enrollments but only knows a
+scalar `UserId`, so a user deleted from the identity store still lists (without a name) rather
+than vanishing.
+
+The student side (`/api/enrollments`), the authoring side (`/api/courses`) and the admin side
+(`/api/admin/courses`) are separate endpoint groups with separate audiences — see
+[API surface](#api-surface).
 
 ## Pricing, promo codes & the enrollment kill-switch
 
@@ -365,7 +403,7 @@ state.
   extends `InvalidOperationException`, so it rides the existing plumbing to **HTTP 409** with
   the message, covering both self-enroll (`POST /api/enrollments`) and paid checkout
   (`POST /api/payments/checkout`) — the two paths that funnel through that method.
-  Admin/instructor "managed" enrollment (`POST /api/courses/{id}/enrollments`) is a different
+  Admin "managed" enrollment (`POST /api/admin/courses/{id}/enrollments`) is a different
   method and is **not** gated.
 - **Why not in `LF.CourseService`.** That is where the guard used to live, but the three gRPC
   hosts run on the `leanforge-internal` Docker network (`internal: true`, no egress) and cannot
@@ -492,6 +530,7 @@ reflection in `Program.cs` (`MapEndpointGroups`). Existing auth is MVC (`AuthCon
 | `PlatformEndpoints` | `/api/platform/config` | authenticated |
 | `AdminUserEndpoints` | `/api/admin/users` | `AdminOnly` |
 | `AdminCategoryEndpoints` | `/api/admin/categories` | `AdminOnly` |
+| `AdminCourseEndpoints` | `/api/admin/courses` | `AdminOnly` |
 | `AdminPromoCodeEndpoints` | `/api/admin/promo-codes` | `AdminOnly` |
 | `AdminPaymentReportEndpoints` | `/api/admin/payments` | `AdminOnly` |
 | `DevAuthEndpoints` | `/api/dev-auth` | none — Development only, structurally absent otherwise |

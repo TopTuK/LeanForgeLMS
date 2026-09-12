@@ -13,7 +13,7 @@ var postgres = builder
     .WithEnvironment("POSTGRES_DB", "leanforge") // for scripts
     .WithUserName(pgUser)
     .WithPassword(pgPassword)
-    //.WithDataVolume("leanforge-db") // for debug do not save datavolume
+    .WithDataVolume("leanforge-db")
     .AddDatabase("leanforge");
 
 var minioUser = builder.AddParameter("minio-user", "minioadmin");
@@ -34,7 +34,9 @@ var unleashApiKey = builder.AddParameter(
     () => builder.Configuration["UNLEASH_API_KEY"] ?? string.Empty,
     secret: true);
 
-var minio = builder.AddMinioContainer("minio", minioUser, minioPassword, port: 9000);
+var minio = builder
+    .AddMinioContainer("minio", minioUser, minioPassword, port: 9000)
+    .WithDataVolume("leanforge-minio-data");
 
 var identityService = builder
     .AddProject<Projects.Lf_IdentityService>("lf-identityservice")
@@ -60,7 +62,12 @@ var webApp = builder
     .WithHttpEndpoint(port: 5173, env: "PORT");
 
 var webApi = builder
-    .AddProject<Projects.LF_WebApi>("lf-webapi")
+    // Pin the launch profile explicitly: LF.WebApi/Properties/launchSettings.json declares "http"
+    // before "https", and Aspire's AddProject defaults to the first "Project" profile in the file.
+    // Without this, lf-webapi never gets an HTTPS endpoint under Aspire, every request (including
+    // the PMI/Google/Yandex OIDC/OAuth challenge redirect_uri) is plaintext, and those providers
+    // reject the http:// redirect_uri ("External authentication does not support http").
+    .AddProject<Projects.LF_WebApi>("lf-webapi", launchProfileName: "https")
     .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithEnvironment("Unleash__ApiKey", unleashApiKey)
     .WithReference(identityService)

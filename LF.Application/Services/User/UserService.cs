@@ -114,6 +114,22 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
         return new PagedUsersDto { Items = users.Adapt<List<UserDto>>(), TotalCount = totalCount };
     }
 
+    // Bulk id lookup for callers holding scalar user ids from another bounded context (a course
+    // enrollment roster). Unknown ids are simply absent from the result rather than an error.
+    public async Task<IReadOnlyList<UserDto>> ListUsersByIdsAsync(IReadOnlyList<int> ids)
+    {
+        _logger.LogInformation("UserService::ListUsersByIdsAsync: called with IdCount={IdCount}", ids.Count);
+
+        if (ids.Count == 0)
+            return [];
+
+        var users = await _dbContext.Users.AsNoTracking()
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync();
+
+        return users.Adapt<List<UserDto>>();
+    }
+
     public async Task<UserDto?> UpdateUserRoleAsync(int id, UpdateUserRoleDto dto)
     {
         _logger.LogInformation("UserService::UpdateUserRoleAsync: called with Id={usrId} Role={Role}", id, dto.Role);

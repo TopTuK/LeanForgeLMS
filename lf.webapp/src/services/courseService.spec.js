@@ -20,7 +20,6 @@ import {
   moveLesson,
   removeLesson,
   publishCourse,
-  enrollStudent,
 } from '@/services/courseService';
 
 describe('courseService', () => {
@@ -42,7 +41,6 @@ describe('courseService', () => {
     ['moveLesson', () => moveLesson(1, 2, 3, 'down'), 'post', ['/courses/1/chapters/2/lessons/3/move', { direction: 'down' }]],
     ['removeLesson', () => removeLesson(1, 2, 3), 'delete', ['/courses/1/chapters/2/lessons/3']],
     ['publishCourse', () => publishCourse(5), 'post', ['/courses/5/publish']],
-    ['enrollStudent', () => enrollStudent(5, 9), 'post', ['/courses/5/enrollments', { userId: 9 }]],
   ])('%s calls the right endpoint and unwraps data', async (_name, call, method, args) => {
     await expect(call()).resolves.toBe('RESULT');
     expect(api[method]).toHaveBeenCalledWith(...args);

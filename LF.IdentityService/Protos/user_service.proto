@@ -21,6 +21,9 @@ service UserServiceRpc {
   rpc EnsureUserWithRole (EnsureUserWithRoleRequest) returns (GetUserReply);
   // List users, paged, with an optional search filter (admin use)
   rpc ListUsers (ListUsersRequest) returns (ListUsersReply);
+  // Resolve a set of users by id, for callers that hold only scalar user ids across a
+  // bounded-context boundary (e.g. a course enrollment roster). Unknown ids are omitted.
+  rpc ListUsersByIds (ListUsersByIdsRequest) returns (ListUsersReply);
   // Set a user's role by id (admin use)
   rpc UpdateUserRole (UpdateUserRoleRequest) returns (GetUserReply);
   // Permanently delete a user by id (admin use)
@@ -81,6 +84,10 @@ message ListUsersRequest {
   int32 page = 1;
   int32 page_size = 2;
   google.protobuf.StringValue search = 3;
+}
+
+message ListUsersByIdsRequest {
+  repeated int32 ids = 1;
 }
 
 message ListUsersReply {
