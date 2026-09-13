@@ -6,6 +6,7 @@ using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.News;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
 using LF.Application.Services.Profile;
@@ -54,6 +55,8 @@ public class DependencyInjectionTests
         Assert.IsType<PromoCodeAdminService>(scope.ServiceProvider.GetRequiredService<IPromoCodeAdminService>());
         Assert.IsType<StorageService>(scope.ServiceProvider.GetRequiredService<IStorageService>());
         Assert.IsType<PaymentReportService>(scope.ServiceProvider.GetRequiredService<IPaymentReportService>());
+        Assert.IsType<NewsService>(scope.ServiceProvider.GetRequiredService<INewsService>());
+        Assert.IsType<AdminNewsService>(scope.ServiceProvider.GetRequiredService<IAdminNewsService>());
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import NewsCard from '@/components/news/NewsCard.vue';
+import { fetchPublicNews } from '@/services/newsService';
 import AudienceCard from '@/components/home/AudienceCard.vue';
 import AuthorCard from '@/components/home/AuthorCard.vue';
 import FaqItem from '@/components/home/FaqItem.vue';
@@ -63,6 +65,20 @@ const authorHighlights = computed(() => {
 function index(n) {
   return String(n).padStart(2, '0');
 }
+
+const latestNews = ref([]);
+
+// The landing page must stand on its own without the API: an empty or failed feed just hides the block.
+async function loadLatestNews() {
+  try {
+    const result = await fetchPublicNews({ page: 1, pageSize: 3 });
+    latestNews.value = result.items;
+  } catch {
+    latestNews.value = [];
+  }
+}
+
+onMounted(loadLatestNews);
 </script>
 
 <template>
@@ -324,6 +340,43 @@ function index(n) {
             :index="index(Number(key))"
             :question="$t(`home.faq.items.${key}.question`)"
             :answer="$t(`home.faq.items.${key}.answer`)"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section
+      v-if="latestNews.length"
+      id="news"
+      class="landing-section landing-section--band-soft"
+      aria-labelledby="news-title"
+    >
+      <div class="layout-max landing-section__inner">
+        <div class="landing-news__head">
+          <SectionHeading
+            v-motion="reveal()"
+            :index="index(6)"
+            :eyebrow="$t('home.news.eyebrow')"
+            :title="$t('home.news.title')"
+            :subtitle="$t('home.news.subtitle')"
+            heading-id="news-title"
+          />
+          <router-link
+            :to="{ name: 'NewsList' }"
+            class="landing-news__all"
+          >
+            {{ $t('home.news.all') }}
+            <span aria-hidden="true">→</span>
+          </router-link>
+        </div>
+
+        <div class="landing-grid landing-grid--news">
+          <NewsCard
+            v-for="(post, i) in latestNews"
+            :key="post.id"
+            v-motion="reveal(i * 90)"
+            :post="post"
+            :to="{ name: 'NewsDetail', params: { id: post.id } }"
           />
         </div>
       </div>
@@ -607,6 +660,32 @@ function index(n) {
   border-top: 1px solid var(--color-border-subtle);
 }
 
+.landing-news__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+}
+
+.landing-news__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-accent-coral);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.landing-news__all:hover {
+  color: var(--color-accent-coral-dark);
+}
+
+.landing-grid--news {
+  grid-template-columns: 1fr;
+}
+
 .landing-cta__notify {
   color: var(--band-ink);
   font-size: 0.9rem;
@@ -634,7 +713,8 @@ function index(n) {
   }
 
   .landing-grid--audience,
-  .landing-grid--approach {
+  .landing-grid--approach,
+  .landing-grid--news {
     grid-template-columns: repeat(3, 1fr);
     max-width: none;
   }

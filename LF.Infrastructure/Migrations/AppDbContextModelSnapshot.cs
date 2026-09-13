@@ -435,6 +435,87 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFQuizQuestions", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.News.NewsImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("NewsPostId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StorageObjectId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NewsPostId");
+
+                    b.HasIndex("StorageObjectId");
+
+                    b.ToTable("LFNewsImages", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.News.NewsPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Html")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Visibility")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsPublished", "Visibility", "PublishedAt");
+
+                    b.ToTable("LFNewsPosts", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.News.NewsReadMarker", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("LFNewsReadMarkers", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Payment.CoursePayment", b =>
                 {
                     b.Property<int>("Id")
@@ -760,6 +841,23 @@ namespace LF.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.News.NewsImage", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.News.NewsPost", null)
+                        .WithMany("Images")
+                        .HasForeignKey("NewsPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LF.AppDomain.Entities.Storage.StorageObject", "StorageObject")
+                        .WithMany()
+                        .HasForeignKey("StorageObjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("StorageObject");
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Chapter", b =>
                 {
                     b.Navigation("Lessons");
@@ -790,6 +888,11 @@ namespace LF.Infrastructure.Migrations
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizQuestion", b =>
                 {
                     b.Navigation("Options");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.News.NewsPost", b =>
+                {
+                    b.Navigation("Images");
                 });
 #pragma warning restore 612, 618
         }

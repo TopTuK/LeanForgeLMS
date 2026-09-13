@@ -26,8 +26,9 @@ strictly inward (`Domain ← Application ← Infrastructure ← Api`).
 - **`LF.WebApi`** — hosts the Vue SPA, the JWT/Cookie/OIDC/OAuth authentication pipeline
   (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s, auto-discovered).
   It reaches the three internal services only through their gRPC contracts. In Postgres it
-  touches only two ownerless / orchestration tables directly: `StorageObjects`,
-  `CoursePayments` (see [Data & persistence](#data--persistence)).
+  touches only the ownerless / orchestration / platform-content tables it owns directly:
+  `StorageObjects`, `CoursePayments`, and the news tables (`NewsPosts`, `NewsImages`,
+  `NewsReadMarkers`) (see [Data & persistence](#data--persistence)).
 - **`LF.IdentityService`** — internal gRPC service that owns all user identity data
   (`Users`). It is also the **sole schema owner/migrator** for the shared database.
 - **`LF.CourseService`** — internal gRPC service that owns the course domain: courses,
@@ -40,8 +41,8 @@ strictly inward (`Domain ← Application ← Infrastructure ← Api`).
 - **PostgreSQL** (`leanforge`) — one database, shared by all four hosts; each host only
   ever touches the tables it owns.
 - **MinIO** — S3-compatible object storage, reachable only from `LF.WebApi`, never from the
-  browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images and
-  lesson media — image / video / audio / file blocks).
+  browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images,
+  lesson media — image / video / audio / file blocks — and news images).
 
 ```mermaid
 graph LR
@@ -52,7 +53,7 @@ graph LR
     Robokassa["Robokassa<br/>(hosted checkout + ResultURL webhook)"]
 
     subgraph Public["Public network"]
-        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth<br/>owns StorageObjects, CoursePayments"]
+        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth<br/>owns StorageObjects, CoursePayments, News"]
     end
 
     subgraph Internal["Internal-only network"]
@@ -73,7 +74,7 @@ graph LR
     WebApi -- "gRPC: course_service.proto" --> CourseSvc
     WebApi -- "gRPC: payment_service.proto" --> PaymentSvc
     WebApi -- "S3 API (avatar + media bytes)" --> Minio
-    WebApi -- "StorageObjects / CoursePayments" --> Postgres
+    WebApi -- "StorageObjects / CoursePayments / News" --> Postgres
     IdentitySvc --> Postgres
     CourseSvc --> Postgres
     PaymentSvc --> Postgres
@@ -89,8 +90,8 @@ webhook lands on `LF.WebApi`, which calls `LF.PaymentService` (verify signature,
 order) and then `LF.CourseService` (`ConfirmEnrollmentPayment` — activate the enrollment,
 redeem the promo code); both calls are idempotent, so a webhook retry is safe.
 
-**The direct-DB exceptions.** Two tables are reached from `LF.WebApi` via `IAppDbContext`
-rather than a gRPC round-trip, each for a deliberate reason:
+**The direct-DB exceptions.** Three groups of tables are reached from `LF.WebApi` via
+`IAppDbContext` rather than a gRPC round-trip, each for a deliberate reason:
 
 - **`StorageObjects`** (avatar / cover-image / lesson-media metadata) is a generic, ownerless
   table, and `LF.WebApi` is the only process with both a MinIO client and a reason to write
@@ -100,6 +101,10 @@ rather than a gRPC round-trip, each for a deliberate reason:
   the coordinator that already has every join it needs (`Users`, `Courses`, `Enrollments`,
   `PromoCodes`, `PaymentOrders`) in a single `IAppDbContext`, so the ledger projection lives
   there.
+- **`NewsPosts` / `NewsImages` / `NewsReadMarkers`** are platform content, not course domain,
+  and every news image is a MinIO blob — the same reasoning as `StorageObjects`: `LF.WebApi` is
+  the only process that can write the post and manage its blobs in one place, so news needs no
+  gRPC contract at all. See [News & notifications](#news--notifications).
 
 Ownership is enforced by convention (which host's `Program.cs` / DI wires up which use-case
 services), not by database-level permissions.
@@ -135,7 +140,7 @@ graph BT
 
 | Layer | Project | Responsibility |
 |---|---|---|
-| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `PaymentOrder`, `CoursePayment`, `StorageObject`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`). Zero project or framework references by design. |
+| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `PaymentOrder`, `CoursePayment`, `StorageObject`, `NewsPost`, `NewsImage`, `NewsReadMarker`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`, `NewsVisibility`). Zero project or framework references by design. |
 | Application | `LF.Application` | Use-case services, DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IFeatureFlagService`, `IPaymentGateway`, `IHtmlSanitizer`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcEnrollmentService`, `IGrpcPromoCodeService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
 | Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql, one `IEntityTypeConfiguration` per entity), the gRPC clients to the three internal services, the MinIO-backed `IFileStorageService` (two keyed buckets), the Robokassa-backed `IPaymentGateway`, the Ganss-backed `IHtmlSanitizer`, the Unleash-backed `IFeatureFlagService`, `StorageRepository` (the one deliberate repository), and `DatabaseInitializer` (migrations + seeding + backfill). Split into narrow DI extensions so each host wires only what it needs. |
 | Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (auth controllers) + Minimal API (`IEndpointGroup`, auto-discovered) — the only public-facing process. The other three are bare gRPC hosts, internal-only. |
@@ -146,7 +151,7 @@ umbrella registration would crash whichever host doesn't have all the dependenci
 
 | Extension | Called by | Registers |
 |---|---|---|
-| `AddAuthenticationApplication()` | `LF.WebApi` | `AuthenticationService`, `TokenService`, `ProfileService`, `AdminUserService`, `CourseAuthoringService`, `EnrollmentLearningService`, `PromoCodeAdminService`, `StorageService`, `PaymentReportService`, `TimeProvider.System` |
+| `AddAuthenticationApplication()` | `LF.WebApi` | `AuthenticationService`, `TokenService`, `ProfileService`, `AdminUserService`, `CourseAuthoringService`, `EnrollmentLearningService`, `PromoCodeAdminService`, `StorageService`, `PaymentReportService`, `NewsService`, `AdminNewsService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
 | `AddUserApplication()` | `LF.IdentityService` | `UserService` |
 | `AddCourseApplication()` | `LF.CourseService` | `CourseService`, `EnrollmentService`, `PromoCodeService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
 | `AddPaymentApplication()` | `LF.PaymentService` | `PaymentOrderService`, `TimeProvider.System` |
@@ -161,7 +166,8 @@ umbrella registration would crash whichever host doesn't have all the dependenci
 **One intentional deviation from textbook Clean Architecture:**
 
 - **`AppDbContext` is registered in all four hosts**, but each only touches the tables it
-  owns (`Users` / the course domain / `PaymentOrders` / `CoursePayments` + `StorageObjects`).
+  owns (`Users` / the course domain / `PaymentOrders` / `CoursePayments` + `StorageObjects` +
+  the news tables).
   Enforced by convention.
 
 ## Runtime & cross-cutting concerns
@@ -472,6 +478,44 @@ promo code, provider + provider operation id, paid-at, recorded-at.
   hand-rolled RFC 4180, `;`-delimited with a UTF-8 BOM so it opens cleanly in Russian-locale
   Excel (no CSV library in the stack). Both endpoints run `ReconcileAsync` first.
 
+## News & notifications
+
+Admins publish **news posts** — a title, a rich-text body and an ordered gallery of up to 10
+images — from **Admin → News**. Each post is either **Public** or **MembersOnly** and can be
+kept as a draft.
+
+- **Ownership.** `LF.WebApi` owns `LFNewsPosts`, `LFNewsImages` and `LFNewsReadMarkers` directly
+  through `IAppDbContext` (see "The direct-DB exceptions" above) — no gRPC contract is involved.
+  `NewsService` (reading, unread state) and `AdminNewsService` (authoring) are registered by
+  `AddAuthenticationApplication()`.
+- **Domain.** `NewsPost` owns its invariants: title ≤ 200 characters, non-empty body, at most 10
+  images, image storage objects only, no duplicates. `ReplaceImages` bulk-replaces the gallery
+  (kept images keep their row, and therefore their URL) and returns the dropped storage object
+  ids. `Publish` stamps `PublishedAt` on the **first** publish only, so unpublishing and
+  republishing never resurfaces an old post as unread.
+- **Body HTML** is sanitized on write with the same `GanssHtmlSanitizer` allow-list as lesson text
+  and rendered through `v-safe-html`.
+- **Images.** `POST /api/admin/news/images` uploads one PNG/JPEG/WEBP file (≤ 5 MB) to the
+  `storage` bucket under `news/{guid}{ext}` and returns a `storageObjectId`; the editor sends the
+  ordered ids on save. `AdminNewsService` accepts only `news/`-prefixed storage objects that are
+  not attached to another post, so a course cover or lesson media file can never be published
+  (or deleted) through news. Dropped and deleted images lose their `StorageObject` row in the
+  same save; the blobs are then deleted best-effort, as in `AdminCourseService`.
+- **Reading.**
+  - `GET /api/news` and `GET /api/news/{id}` (anonymous) serve **public, published** posts
+    only. They back the Home landing block (latest 3) and the public `/news` and `/news/:id`
+    pages.
+  - `GET /api/notifications` (authenticated) serves **every** published post. The SPA's
+    **Notifications** section (`/notifications`) marks members-only posts with a badge.
+  - `GET /api/news/{id}/images/{imageId}` is anonymous but gated per request:
+    `isAdmin || (IsPublished && (Public || authenticated))`, otherwise 404, so a members-only
+    post's existence isn't revealed. Because public images need no auth, the SPA renders news
+    images with a plain `<img src>` rather than the blob/object-URL path used for other media.
+- **Unread badge.** One `NewsReadMarker` row per user (`UserId` key, `LastSeenAt`). Unread means
+  published with `PublishedAt > LastSeenAt` (everything, before the first visit).
+  `GET /api/notifications/unread-count` feeds the header badge; opening Notifications calls
+  `POST /api/notifications/mark-seen`, which only ever moves the marker forward.
+
 ## Course covers, lesson media & the Storage service
 
 Course creators pick a cover when creating a course — a predefined solid color or an uploaded
@@ -528,11 +572,14 @@ reflection in `Program.cs` (`MapEndpointGroups`). Existing auth is MVC (`AuthCon
 | `EnrollmentEndpoints` | `/api/enrollments` | authenticated |
 | `PaymentEndpoints` | `/api/payments` | per route — `checkout` / `orders/{id}` authenticated; `robokassa/result` anonymous + signature-verified |
 | `PlatformEndpoints` | `/api/platform/config` | authenticated |
+| `NewsEndpoints` | `/api/news` | none — public posts only; the image route gates each request by post visibility |
+| `NotificationEndpoints` | `/api/notifications` | authenticated |
 | `AdminUserEndpoints` | `/api/admin/users` | `AdminOnly` |
 | `AdminCategoryEndpoints` | `/api/admin/categories` | `AdminOnly` |
 | `AdminCourseEndpoints` | `/api/admin/courses` | `AdminOnly` |
 | `AdminPromoCodeEndpoints` | `/api/admin/promo-codes` | `AdminOnly` |
 | `AdminPaymentReportEndpoints` | `/api/admin/payments` | `AdminOnly` |
+| `AdminNewsEndpoints` | `/api/admin/news` | `AdminOnly` |
 | `DevAuthEndpoints` | `/api/dev-auth` | none — Development only, structurally absent otherwise |
 | `AuthController` (MVC) | `/api/Auth/*` | `[AllowAnonymous]` sign-in/callback, `[Authorize]` logout |
 
@@ -564,8 +611,8 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
 - **One shared PostgreSQL database** (`leanforge`). `AppDbContext` (Npgsql) implements
   `IAppDbContext`; Application-layer services depend on the interface. `DbSet`s:
   `Users`, `Courses`, `Categories`, `Enrollments`, `PromoCodes`, `PaymentOrders`,
-  `CoursePayments`, `StorageObjects`, `QuizAttempts` (other course
-  entities are mapped and reached through navigations).
+  `CoursePayments`, `StorageObjects`, `QuizAttempts`, `NewsPosts`, `NewsReadMarkers` (other
+  course entities and `NewsImage` are mapped and reached through navigations).
 - **Table-per-owner.** Table names are `"LF" + PascalPlural` (`LFUsers`, `LFCourses`,
   `LFPaymentOrders`, `LFCoursePayments`, …). Money is `numeric(12,2)`;
   enums are stored as `int`.
@@ -575,9 +622,8 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
   owner's own tables (e.g. `Course` → `Chapter` → `Lesson`).
 - **Entity configuration** is one `internal sealed IEntityTypeConfiguration<T>` per entity,
   auto-applied via `ApplyConfigurationsFromAssembly`.
-- **Migrations** (`LF.Infrastructure/Migrations/`) — 14 to date, latest
-  `20260910093041_DropPlatformSettings` (the enrollment kill-switch moved to Unleash, so the
-  single-row settings table was dropped). Only `LF.IdentityService` applies
+- **Migrations** (`LF.Infrastructure/Migrations/`) — 15 to date, latest
+  `20260913211744_AddNews` (the news posts, images and read-marker tables). Only `LF.IdentityService` applies
   them at runtime (`DatabaseInitializer.InitializeDatabaseAsync` → `Database.MigrateAsync()`),
   and it also seeds `DefaultAdmins` and the starter categories, and backfills `CoursePayments`. `LF.CourseService` / `LF.PaymentService` / `LF.WebApi`
   just connect and assume the schema is current.
@@ -632,7 +678,7 @@ docker-compose.yml               # Production deployment (6 services)
 | Authentication | JWT Bearer (primary, delivered in an HttpOnly cookie) + temp Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google + OAuth 2.0 (`AspNet.Security.OAuth.Yandex`) against Yandex |
 | Object mapping | Mapster |
 | Validation | FluentValidation (`LF.WebApi` only, instantiated inline) |
-| HTML sanitization | `HtmlSanitizer` (Ganss) behind `IHtmlSanitizer`, in `LF.CourseService` |
+| HTML sanitization | `HtmlSanitizer` (Ganss) behind `IHtmlSanitizer`, in `LF.CourseService` (lesson HTML) and `LF.WebApi` (news posts) |
 | Logging | Serilog (`Serilog.AspNetCore`), centralized in `ServiceDefaults`, colorized console, two-stage bootstrap, one summary line per request/RPC |
 | Observability | OpenTelemetry traces + metrics via `ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
 | Error monitoring | Sentry (`Sentry.AspNetCore`), wired once in `ServiceDefaults`, enabled only when `SENTRY_DSN` is set |
@@ -660,7 +706,7 @@ docker-compose.yml               # Production deployment (6 services)
 network — it needs outbound internet for the PMI OIDC / Google + Yandex OAuth handshakes and it
 receives Robokassa's ResultURL webhook. Everything else is internal-only and unreachable
 from the host or the internet. `lf-webapi` gets its own `ConnectionStrings__leanforge` for
-the `StorageObjects` / `CoursePayments` access described above. It is also the only container
+the `StorageObjects` / `CoursePayments` / news access described above. It is also the only container
 that talks to Unleash, which is why the feature flag client is registered there and nowhere else.
 
 **There is no `lf-webapp` container** — `LF.WebApi/Dockerfile` is 3-stage: a `node:22` stage
@@ -783,3 +829,5 @@ cd lf.webapp && npm run lint && npm test
 - **Lesson video/audio upload size limits** (200 MB / 50 MB) — current placeholders, not
   verified against Kestrel / dev-proxy request-body-size limits.
 - **Admin course moderation** — `/admin/courses` is still a placeholder page.
+- **Orphaned uploads** — a news image (or course cover) uploaded in an editor that is then
+  abandoned without saving keeps its `StorageObject` row and blob. No cleanup job exists yet.

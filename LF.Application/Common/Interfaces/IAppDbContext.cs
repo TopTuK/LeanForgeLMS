@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.News;
 using LF.AppDomain.Entities.Payment;
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Entities.User;
@@ -17,6 +18,8 @@ public interface IAppDbContext
     DbSet<CoursePayment> CoursePayments { get; }
     DbSet<StorageObject> StorageObjects { get; }
     DbSet<QuizAttempt> QuizAttempts { get; }
+    DbSet<NewsPost> NewsPosts { get; }
+    DbSet<NewsReadMarker> NewsReadMarkers { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

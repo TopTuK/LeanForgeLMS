@@ -27,7 +27,10 @@
         "theme_light": "Switch to light theme",
         "theme_dark": "Switch to dark theme",
         "audience": "Who it's for",
-        "approach": "Approach"
+        "approach": "Approach",
+        "news": "News",
+        "notifications": "Notifications",
+        "notifications_unread": "Notifications, {count} unread"
     },
     "footer": {
         "privacy": "Privacy policy",
@@ -56,6 +59,10 @@
     "courses_edit_view_title": "Edit course — High Managers School",
     "courses_lesson_edit_view_title": "Edit lesson — High Managers School",
     "courses_learn_view_title": "Learning — High Managers School",
+    "news_view_title": "News — High Managers School",
+    "notifications_view_title": "Notifications — High Managers School",
+    "admin_news_view_title": "Administration — News — High Managers School",
+    "admin_news_editor_view_title": "Administration — News post — High Managers School",
     "admin": {
         "sidebar": {
             "users": "Users",
@@ -63,7 +70,64 @@
             "categories": "Categories",
             "toggle": "Toggle sidebar",
             "promo_codes": "Promo codes",
-            "payments": "Payments"
+            "payments": "Payments",
+            "news": "News"
+        },
+        "news": {
+            "title": "News",
+            "subtitle": "Posts for the public site and for signed-in students' Notifications.",
+            "add_action": "New post",
+            "empty": "No news posts yet.",
+            "load_error": "Could not load news posts.",
+            "delete_error": "Could not delete the post.",
+            "col_title": "Title",
+            "col_visibility": "Audience",
+            "col_status": "Status",
+            "col_date": "Date",
+            "col_images": "Images",
+            "published": "Published",
+            "draft": "Draft",
+            "visibility_public": "Everyone",
+            "visibility_members": "Members only",
+            "edit": "Edit",
+            "delete": "Delete",
+            "cancel": "Cancel",
+            "delete_title": "Delete news post",
+            "delete_confirm": "Delete “{title}”? Its images are removed too. This cannot be undone.",
+            "editor": {
+                "create_title": "New news post",
+                "edit_title": "Edit news post",
+                "back": "Back to news",
+                "title_label": "Title",
+                "title_placeholder": "What is the news about?",
+                "body_label": "Text",
+                "body_placeholder": "Write the announcement…",
+                "visibility_label": "Audience",
+                "visibility_public_hint": "Everyone, including visitors who are not signed in.",
+                "visibility_members_hint": "Only signed-in users, in their Notifications.",
+                "published_label": "Published",
+                "published_hint": "Drafts are visible only here in the admin panel.",
+                "images_label": "Images",
+                "images_hint": "PNG, JPEG or WEBP up to 5 MB each, at most {max}. The first image is the cover; drag to reorder.",
+                "images_add": "Add images",
+                "images_drop": "Click to choose images or drop them here",
+                "images_limit": "A post can have at most {max} images.",
+                "image_invalid": "{name}: only PNG, JPEG or WEBP up to 5 MB.",
+                "image_upload_error": "Upload failed",
+                "uploading": "Uploading…",
+                "remove_image": "Remove image {index}",
+                "move_left": "Move image {index} earlier",
+                "move_right": "Move image {index} later",
+                "save": "Save",
+                "saving": "Saving…",
+                "cancel": "Cancel",
+                "title_required": "Enter a title.",
+                "body_required": "Write the text of the post.",
+                "uploads_pending": "Wait until all images have finished uploading.",
+                "uploads_failed": "Remove the images that failed to upload.",
+                "save_error": "Could not save the post.",
+                "load_error": "Could not load the post."
+            }
         },
         "payments": {
             "title": "Course payments",
@@ -520,6 +584,34 @@
     "certificates": {
         "hello": "This section is coming later."
     },
+    "news": {
+        "eyebrow": "News",
+        "title": "School news",
+        "subtitle": "Announcements, new courses and platform updates.",
+        "empty": "No news yet — check back soon.",
+        "load_error": "Could not load news. Please try again later.",
+        "not_found": "This post does not exist or is no longer available.",
+        "back_to_list": "All news",
+        "back_home": "Back to home",
+        "read_more": "Read more",
+        "show_more": "Show more",
+        "loading": "Loading…",
+        "members_only": "Members only",
+        "open_image": "Open image {index} of {total}",
+        "image_alt": "{title} — image {index}",
+        "lightbox_prev": "Previous image",
+        "lightbox_next": "Next image",
+        "lightbox_close": "Close",
+        "lightbox_counter": "{index} / {total}"
+    },
+    "notifications": {
+        "eyebrow": "Updates",
+        "title": "Notifications",
+        "subtitle": "School news and announcements, including updates only for signed-in students.",
+        "empty": "Nothing here yet — news appears as soon as it is published.",
+        "load_error": "Could not load notifications. Please try again later.",
+        "new_badge": "New"
+    },
     "profile": {
         "eyebrow": "Account",
         "title": "Your profile",
@@ -734,6 +826,12 @@
             "notify_cta": "Get notified about new courses",
             "notify_subject": "Notify me about new courses",
             "email": "support{'@'}pmi.moscow"
+        },
+        "news": {
+            "eyebrow": "News",
+            "title": "What's new at the school",
+            "subtitle": "Announcements, new courses and platform updates.",
+            "all": "All news"
         }
     },
     "admin_promo_codes_view_title": "Promo codes - Admin",

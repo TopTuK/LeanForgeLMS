@@ -28,6 +28,11 @@ const AdminCoursesView = () => import('@/views/admin/AdminCoursesView.vue');
 const AdminCategoriesView = () => import('@/views/admin/AdminCategoriesView.vue');
 const AdminPromoCodesView = () => import('@/views/admin/AdminPromoCodesView.vue');
 const AdminPaymentsView = () => import('@/views/admin/AdminPaymentsView.vue');
+const AdminNewsView = () => import('@/views/admin/AdminNewsView.vue');
+const AdminNewsEditorView = () => import('@/views/admin/AdminNewsEditorView.vue');
+const NewsListView = () => import('@/views/news/NewsListView.vue');
+const NewsDetailView = () => import('@/views/news/NewsDetailView.vue');
+const NotificationsView = () => import('@/views/NotificationsView.vue');
 
 const routes = [
     {
@@ -76,6 +81,37 @@ const routes = [
             title: 'cookies_view_title',
             requiresAuth: false,
             public: true,
+        }
+    },
+    // `public: true` keeps signed-in users from being bounced to Courses: public news is
+    // readable by everyone, rendered in whichever layout matches the session.
+    {
+        path: '/news',
+        name: 'NewsList',
+        component: NewsListView,
+        meta: {
+            title: 'news_view_title',
+            requiresAuth: false,
+            public: true,
+        }
+    },
+    {
+        path: '/news/:id(\\d+)',
+        name: 'NewsDetail',
+        component: NewsDetailView,
+        meta: {
+            title: 'news_view_title',
+            requiresAuth: false,
+            public: true,
+        }
+    },
+    {
+        path: '/notifications',
+        name: 'Notifications',
+        component: NotificationsView,
+        meta: {
+            title: 'notifications_view_title',
+            requiresAuth: true,
         }
     },
     {
@@ -275,6 +311,36 @@ const routes = [
                 component: AdminPaymentsView,
                 meta: {
                     title: 'admin_payments_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'news',
+                name: 'AdminNews',
+                component: AdminNewsView,
+                meta: {
+                    title: 'admin_news_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'news/new',
+                name: 'AdminNewsCreate',
+                component: AdminNewsEditorView,
+                meta: {
+                    title: 'admin_news_editor_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'news/:id(\\d+)/edit',
+                name: 'AdminNewsEdit',
+                component: AdminNewsEditorView,
+                meta: {
+                    title: 'admin_news_editor_view_title',
                     requiresAuth: true,
                     roles: ['Admin'],
                 }

@@ -23,6 +23,12 @@ import {
   enrollStudent,
   removeEnrollment,
   deleteCourse,
+  fetchAdminNews,
+  fetchAdminNewsPost,
+  createNewsPost,
+  updateNewsPost,
+  deleteNewsPost,
+  uploadNewsImage,
 } from '@/services/adminService';
 
 describe('adminService', () => {
@@ -164,6 +170,50 @@ describe('adminService', () => {
       expect(clickSpy).toHaveBeenCalled();
       document.createElement.mockRestore();
       document.body.appendChild.mockRestore();
+    });
+  });
+
+  describe('news', () => {
+    it('fetchAdminNews sends default paging', async () => {
+      api.get.mockResolvedValue({ data: { items: [], totalCount: 0 } });
+
+      const result = await fetchAdminNews();
+
+      expect(api.get).toHaveBeenCalledWith('/admin/news', { params: { page: 1, pageSize: 20 } });
+      expect(result).toEqual({ items: [], totalCount: 0 });
+    });
+
+    it('fetchAdminNewsPost requests one post', async () => {
+      await fetchAdminNewsPost(7);
+      expect(api.get).toHaveBeenCalledWith('/admin/news/7');
+    });
+
+    it('createNewsPost and updateNewsPost send the payload', async () => {
+      const payload = { title: 'Launch', html: '<p>Hi</p>', visibility: 'Public', isPublished: true, imageStorageObjectIds: [3, 1] };
+
+      await createNewsPost(payload);
+      await updateNewsPost(7, payload);
+
+      expect(api.post).toHaveBeenCalledWith('/admin/news', payload);
+      expect(api.put).toHaveBeenCalledWith('/admin/news/7', payload);
+    });
+
+    it('deleteNewsPost deletes by id', async () => {
+      await deleteNewsPost(7);
+      expect(api.delete).toHaveBeenCalledWith('/admin/news/7');
+    });
+
+    it('uploadNewsImage posts the file as multipart form data', async () => {
+      api.post.mockResolvedValue({ data: { storageObjectId: 11 } });
+      const file = new File(['x'], 'a.png', { type: 'image/png' });
+
+      const result = await uploadNewsImage(file);
+
+      const [url, body] = api.post.mock.calls[0];
+      expect(url).toBe('/admin/news/images');
+      expect(body).toBeInstanceOf(FormData);
+      expect(body.get('file')).toBe(file);
+      expect(result).toEqual({ storageObjectId: 11 });
     });
   });
 });

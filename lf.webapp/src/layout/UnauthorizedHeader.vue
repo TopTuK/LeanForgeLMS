@@ -70,6 +70,12 @@ function closeMobile() {
         >
           {{ $t(link.labelKey) }}
         </a>
+        <router-link
+          :to="{ name: 'NewsList' }"
+          class="app-header__link"
+        >
+          {{ $t('nav.news') }}
+        </router-link>
       </nav>
 
       <div class="app-header__actions">
@@ -111,6 +117,13 @@ function closeMobile() {
         >
           {{ $t(link.labelKey) }}
         </a>
+        <router-link
+          :to="{ name: 'NewsList' }"
+          class="rounded-md px-2 py-2 text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          @click="closeMobile"
+        >
+          {{ $t('nav.news') }}
+        </router-link>
       </nav>
       <div class="mt-6 flex items-center justify-between">
         <div class="flex items-center gap-3">

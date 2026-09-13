@@ -1,9 +1,56 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { screen, waitFor } from '@testing-library/vue';
 import userEvent from '@testing-library/user-event';
 import HomeView from '@/views/HomeView.vue';
 import { renderComponent } from '@/test/renderComponent';
+import { fetchPublicNews } from '@/services/newsService';
+
+vi.mock('@/services/newsService', () => ({
+  fetchPublicNews: vi.fn(),
+}));
 
 describe('HomeView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchPublicNews.mockResolvedValue({ items: [], totalCount: 0 });
+  });
+
+  it('shows the latest public news when there is any', async () => {
+    fetchPublicNews.mockResolvedValue({
+      items: [{
+        id: 1,
+        title: 'Platform launch',
+        html: '<p>We are live</p>',
+        visibility: 'Public',
+        publishedAt: '2026-09-10T10:00:00Z',
+        images: [],
+      }],
+      totalCount: 1,
+    });
+
+    renderComponent(HomeView);
+
+    expect(await screen.findByRole('heading', { name: /what's new at the school/i })).toBeInTheDocument();
+    expect(screen.getByText('We are live')).toBeInTheDocument();
+    expect(fetchPublicNews).toHaveBeenCalledWith({ page: 1, pageSize: 3 });
+  });
+
+  it('hides the news block when there is no public news', async () => {
+    renderComponent(HomeView);
+
+    await waitFor(() => expect(fetchPublicNews).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: /what's new at the school/i })).toBeNull();
+  });
+
+  it('hides the news block when the feed fails to load', async () => {
+    fetchPublicNews.mockRejectedValue(new Error('offline'));
+
+    renderComponent(HomeView);
+
+    await waitFor(() => expect(fetchPublicNews).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: /what's new at the school/i })).toBeNull();
+  });
+
   it('renders a single top-level heading and the main section headings', () => {
     const { getAllByRole, getByRole } = renderComponent(HomeView);
 
