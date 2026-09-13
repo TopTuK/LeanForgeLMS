@@ -43,7 +43,10 @@ services:
     # No ports: — internal-only, not host-exposed.
 
   minio:
-    image: minio/minio:latest
+    # MinIO withdrew minio/minio from Docker Hub (2026-09-11); quay.io is its official home.
+    # Pinned rather than :latest — a stateful store should not upgrade as a side effect of an
+    # app deploy, and this is the final community build anyway.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     networks:
       - leanforge-internal

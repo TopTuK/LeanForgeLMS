@@ -15,7 +15,7 @@ Six containers defined by [`docker-compose.production.yml`](./docker-compose.pro
 | Service | Image | Networks | Exposed? |
 |---|---|---|---|
 | `postgres` | `postgres:18-alpine` | `leanforge-internal` | No |
-| `minio` | `minio/minio:latest` | `leanforge-internal` | No |
+| `minio` | `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` | `leanforge-internal` | No |
 | `lf-identityservice` | `ghcr.io/toptuk/leanforgelms/identityservice` | `leanforge-internal` | No |
 | `lf-courseservice` | `ghcr.io/toptuk/leanforgelms/courseservice` | `leanforge-internal` | No |
 | `lf-paymentservice` | `ghcr.io/toptuk/leanforgelms/paymentservice` | `leanforge-internal` | No |
