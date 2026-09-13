@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Menu } from 'lucide-vue-next';
+import { Bell, Menu } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
 import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
 import { Button } from '@/components/ui/button';
@@ -16,9 +17,13 @@ import logo from '@/assets/logo.svg';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const notificationStore = useNotificationStore();
 const mobileOpen = ref(false);
 
 const displayName = computed(() => authStore.user?.firstName ?? '');
+
+const unreadCount = computed(() => notificationStore.unreadCount);
+const unreadBadge = computed(() => (unreadCount.value > 9 ? '9+' : String(unreadCount.value)));
 
 function closeMobile() {
   mobileOpen.value = false;
@@ -61,6 +66,22 @@ function go(name) {
           class="text-sm font-medium text-ink-muted transition hover:text-ink"
         >
           {{ $t('nav.courses') }}
+        </router-link>
+        <router-link
+          :to="{ name: 'Notifications' }"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-ink"
+          :aria-label="unreadCount ? $t('nav.notifications_unread', { count: unreadCount }) : undefined"
+        >
+          <Bell
+            class="size-4"
+            aria-hidden="true"
+          />
+          {{ $t('nav.notifications') }}
+          <span
+            v-if="unreadCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadBadge }}</span>
         </router-link>
         <router-link
           v-if="authStore.isAdmin"
@@ -127,6 +148,19 @@ function go(name) {
         </button>
         <button
           type="button"
+          class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          :aria-label="unreadCount ? $t('nav.notifications_unread', { count: unreadCount }) : undefined"
+          @click="go('Notifications')"
+        >
+          {{ $t('nav.notifications') }}
+          <span
+            v-if="unreadCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadBadge }}</span>
+        </button>
+        <button
+          type="button"
           class="rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
           @click="go('Profile')"
         >
@@ -185,6 +219,21 @@ function go(name) {
   color: var(--color-ink);
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+.app-header__unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--color-accent-coral);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .app-header__avatar {

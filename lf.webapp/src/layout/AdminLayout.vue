@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { BookOpen, PanelLeft, Receipt, Tags, Ticket, Users } from 'lucide-vue-next';
+import { BookOpen, Newspaper, PanelLeft, Receipt, Tags, Ticket, Users } from 'lucide-vue-next';
 
 const route = useRoute();
 const isMinimized = ref(localStorage.getItem('leanforge-admin-sidebar-minimized') === 'true');
@@ -12,7 +12,12 @@ const links = [
   { name: 'AdminCategories', labelKey: 'admin.sidebar.categories', icon: Tags },
   { name: 'AdminPromoCodes', labelKey: 'admin.sidebar.promo_codes', icon: Ticket },
   { name: 'AdminPayments', labelKey: 'admin.sidebar.payments', icon: Receipt },
+  { name: 'AdminNews', labelKey: 'admin.sidebar.news', icon: Newspaper, activeFor: ['AdminNews', 'AdminNewsCreate', 'AdminNewsEdit'] },
 ];
+
+function isActive(link) {
+  return (link.activeFor ?? [link.name]).includes(route.name);
+}
 
 function toggleSidebar() {
   isMinimized.value = !isMinimized.value;
@@ -32,7 +37,7 @@ function toggleSidebar() {
           :key="link.name"
           :to="{ name: link.name }"
           class="admin-sidebar__link"
-          :class="{ 'is-active': route.name === link.name }"
+          :class="{ 'is-active': isActive(link) }"
         >
           <component
             :is="link.icon"

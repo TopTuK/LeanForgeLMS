@@ -44,6 +44,9 @@ const legalLinks = [
         >
           {{ $t(link.labelKey) }}
         </a>
+        <router-link :to="{ name: 'NewsList' }">
+          {{ $t('nav.news') }}
+        </router-link>
         <router-link :to="{ name: 'Login' }">
           {{ $t('nav.login') }}
         </router-link>

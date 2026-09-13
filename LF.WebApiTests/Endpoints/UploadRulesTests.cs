@@ -66,4 +66,28 @@ public class UploadRulesTests
     {
         Assert.Equal(25 * 1024 * 1024, LessonFileUpload.MaxSizeBytes);
     }
+
+    [Fact]
+    public void NewsImageUpload_MaxSize_Is5Mb()
+    {
+        Assert.Equal(5 * 1024 * 1024, NewsImageUpload.MaxSizeBytes);
+    }
+
+    [Theory]
+    [InlineData("image/png")]
+    [InlineData("image/jpeg")]
+    [InlineData("image/webp")]
+    public void NewsImageUpload_AllowsImageTypes(string contentType)
+    {
+        Assert.Contains(contentType, NewsImageUpload.AllowedContentTypes);
+    }
+
+    [Theory]
+    [InlineData("image/gif")]
+    [InlineData("image/svg+xml")]
+    [InlineData("application/pdf")]
+    public void NewsImageUpload_RejectsOtherTypes(string contentType)
+    {
+        Assert.DoesNotContain(contentType, NewsImageUpload.AllowedContentTypes);
+    }
 }

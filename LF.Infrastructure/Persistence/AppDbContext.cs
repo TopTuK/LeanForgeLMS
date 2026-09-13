@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.News;
 using LF.AppDomain.Entities.Payment;
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Entities.User;
@@ -18,6 +19,8 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbC
     public DbSet<CoursePayment> CoursePayments { get; set; } = null!;
     public DbSet<StorageObject> StorageObjects { get; set; } = null!;
     public DbSet<QuizAttempt> QuizAttempts { get; set; } = null!;
+    public DbSet<NewsPost> NewsPosts { get; set; } = null!;
+    public DbSet<NewsReadMarker> NewsReadMarkers { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

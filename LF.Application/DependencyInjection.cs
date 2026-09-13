@@ -6,6 +6,7 @@ using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.News;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
 using LF.Application.Services.Profile;
@@ -39,6 +40,12 @@ public static class DependencyInjection
         // PaymentReportService reads and writes the shared DB directly and stamps timestamps.
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IPaymentReportService, PaymentReportService>();
+
+        // News is owned by LF.WebApi (DB + MinIO in one process); admin-authored bodies are
+        // sanitized here with the same allow-list LF.CourseService applies to lesson HTML.
+        services.TryAddSingleton<IHtmlSanitizer, GanssHtmlSanitizer>();
+        services.AddScoped<INewsService, NewsService>();
+        services.AddScoped<IAdminNewsService, AdminNewsService>();
 
         return services;
     }

@@ -44,6 +44,23 @@ export const fetchPayments = ({ page = 1, pageSize = 20, from, to } = {}) =>
     .get('/admin/payments', { params: { page, pageSize, from: from || undefined, to: to || undefined } })
     .then((r) => r.data);
 
+export const fetchAdminNews = ({ page = 1, pageSize = 20 } = {}) =>
+  api.get('/admin/news', { params: { page, pageSize } }).then((r) => r.data);
+
+export const fetchAdminNewsPost = (id) => api.get(`/admin/news/${id}`).then((r) => r.data);
+
+export const createNewsPost = (payload) => api.post('/admin/news', payload).then((r) => r.data);
+
+export const updateNewsPost = (id, payload) => api.put(`/admin/news/${id}`, payload).then((r) => r.data);
+
+export const deleteNewsPost = (id) => api.delete(`/admin/news/${id}`);
+
+export const uploadNewsImage = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/admin/news/images', formData).then((r) => r.data);
+};
+
 export const downloadPaymentsCsv = async ({ from, to } = {}) => {
   const response = await api.get('/admin/payments/report.csv', {
     params: { from: from || undefined, to: to || undefined },
