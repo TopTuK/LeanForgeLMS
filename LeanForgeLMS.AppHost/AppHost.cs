@@ -34,8 +34,11 @@ var unleashApiKey = builder.AddParameter(
     () => builder.Configuration["UNLEASH_API_KEY"] ?? string.Empty,
     secret: true);
 
+// The toolkit defaults to docker.io/minio/minio, which MinIO withdrew from Docker Hub
+// (2026-09-11). Same image and tag, served from quay.io — MinIO's official registry.
 var minio = builder
     .AddMinioContainer("minio", minioUser, minioPassword, port: 9000)
+    .WithImageRegistry("quay.io")
     .WithDataVolume("leanforge-minio-data");
 
 var identityService = builder
