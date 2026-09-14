@@ -52,7 +52,7 @@ function mediaPlaceholder(part) {
         <div
           v-if="part.type === 'text'"
           v-safe-html="part.html"
-          class="lesson-preview__prose"
+          class="lesson-preview__prose rich-text-content"
         />
 
         <div
@@ -196,7 +196,7 @@ function mediaPlaceholder(part) {
   color: var(--color-ink-muted);
 }
 
-.lesson-preview__prose :deep(code) {
+.lesson-preview__prose :deep(code:not(pre code)) {
   padding: 0.12rem 0.35rem;
   border-radius: 0.2rem;
   background: var(--color-surface-900);

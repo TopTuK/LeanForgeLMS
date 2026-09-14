@@ -1,0 +1,98 @@
+.rich-text-content ul {
+  list-style: disc outside;
+}
+
+.rich-text-content ol {
+  list-style: decimal outside;
+}
+
+.rich-text-content ul ul {
+  list-style-type: circle;
+}
+
+.rich-text-content ul ul ul {
+  list-style-type: square;
+}
+
+.rich-text-content li {
+  margin: 0.28rem 0;
+  padding-left: 0.25rem;
+}
+
+.rich-text-content li::marker {
+  color: var(--color-accent-coral);
+  font-weight: 700;
+}
+
+.rich-text-content pre {
+  max-width: 100%;
+  margin: 0.9rem 0;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 0.55rem;
+  background: #18181b;
+  color: #e4e4e7;
+  tab-size: 2;
+}
+
+.rich-text-content pre > code {
+  display: block;
+  min-width: max-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+.rich-text-content .hljs-comment,
+.rich-text-content .hljs-quote {
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+.rich-text-content .hljs-keyword,
+.rich-text-content .hljs-selector-tag,
+.rich-text-content .hljs-literal,
+.rich-text-content .hljs-section,
+.rich-text-content .hljs-link {
+  color: #fb7185;
+}
+
+.rich-text-content .hljs-string,
+.rich-text-content .hljs-title,
+.rich-text-content .hljs-name,
+.rich-text-content .hljs-type,
+.rich-text-content .hljs-attribute,
+.rich-text-content .hljs-symbol,
+.rich-text-content .hljs-bullet,
+.rich-text-content .hljs-addition,
+.rich-text-content .hljs-variable,
+.rich-text-content .hljs-template-tag,
+.rich-text-content .hljs-template-variable {
+  color: #a7f3d0;
+}
+
+.rich-text-content .hljs-number,
+.rich-text-content .hljs-meta,
+.rich-text-content .hljs-built_in,
+.rich-text-content .hljs-builtin-name,
+.rich-text-content .hljs-params {
+  color: #fde68a;
+}
+
+.rich-text-content .hljs-function,
+.rich-text-content .hljs-class .hljs-title,
+.rich-text-content .hljs-title.function_ {
+  color: #93c5fd;
+}
+
+.rich-text-content .hljs-deletion {
+  color: #fecaca;
+  background: rgb(127 29 29 / 0.4);
+}

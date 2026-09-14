@@ -41,6 +41,22 @@ if (typeof window.IntersectionObserver !== 'function') {
   globalThis.IntersectionObserver = IntersectionObserverStub;
 }
 
+// ProseMirror measures the active selection after block-level editor commands.
+if (typeof Range.prototype.getClientRects !== 'function') {
+  Range.prototype.getClientRects = () => [];
+  Range.prototype.getBoundingClientRect = () => ({
+    bottom: 0,
+    height: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+}
+
 if (!globalThis.crypto?.randomUUID) {
   globalThis.crypto = { ...globalThis.crypto, randomUUID: () => `uuid-${Math.random().toString(16).slice(2)}` };
 }

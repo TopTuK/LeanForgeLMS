@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using GanssXss = Ganss.Xss;
 using LF.Application.Common.Interfaces;
 
@@ -10,6 +11,10 @@ namespace LF.Application.Common.Content;
 /// </summary>
 internal sealed class GanssHtmlSanitizer : IHtmlSanitizer
 {
+    private static readonly Regex CodeLanguageClass = new(
+        "^language-[a-z0-9+#.-]{1,32}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private static readonly GanssXss.HtmlSanitizer Sanitizer = CreateSanitizer();
 
     public string Sanitize(string? html)
@@ -34,7 +39,7 @@ internal sealed class GanssHtmlSanitizer : IHtmlSanitizer
         }
 
         sanitizer.AllowedAttributes.Clear();
-        foreach (var attr in new[] { "href", "target", "rel", "title", "src", "alt", "style" })
+        foreach (var attr in new[] { "href", "target", "rel", "title", "src", "alt", "style", "class" })
         {
             sanitizer.AllowedAttributes.Add(attr);
         }
@@ -57,6 +62,25 @@ internal sealed class GanssHtmlSanitizer : IHtmlSanitizer
         sanitizer.PostProcessNode += (_, e) =>
         {
             if (e.Node is not AngleSharp.Dom.IElement element) return;
+
+            var className = element.GetAttribute("class");
+            if (className is not null)
+            {
+                var languageClass = className
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault(CodeLanguageClass.IsMatch);
+
+                if (string.Equals(element.TagName, "CODE", StringComparison.OrdinalIgnoreCase) &&
+                    languageClass is not null)
+                {
+                    element.SetAttribute("class", languageClass);
+                }
+                else
+                {
+                    element.RemoveAttribute("class");
+                }
+            }
+
             if (!string.Equals(element.TagName, "A", StringComparison.OrdinalIgnoreCase)) return;
 
             element.SetAttribute("target", "_blank");

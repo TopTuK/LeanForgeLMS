@@ -29,11 +29,40 @@ describe('RichEditor', () => {
       'H1',
       'Align left',
       'Bullets',
+      'Inline code',
       'Link',
       'Undo',
     ]) {
       expect(getByRole('button', { name })).toBeVisible();
     }
+  });
+
+  it('shows code-block controls only when enabled', async () => {
+    const hidden = await renderEditor();
+    expect(hidden.queryByRole('button', { name: 'Code block' })).not.toBeInTheDocument();
+    hidden.unmount();
+
+    const enabled = await renderEditor({ allowCodeBlock: true, modelValue: '<p>const answer = 42;</p>' });
+    expect(enabled.getByRole('button', { name: 'Code block' })).toBeVisible();
+    expect(enabled.getByRole('combobox', { name: 'Code language' })).toBeDisabled();
+  });
+
+  it('creates a language-aware multiline code block', async () => {
+    const user = userEvent.setup();
+    const { container, getByRole } = await renderEditor({
+      allowCodeBlock: true,
+      modelValue: '<p>const answer = 42;</p>',
+    });
+
+    await user.click(getByRole('button', { name: 'Code block' }));
+    const language = getByRole('combobox', { name: 'Code language' });
+    expect(language).toBeEnabled();
+
+    await user.selectOptions(language, 'javascript');
+
+    await waitFor(() => {
+      expect(container.querySelector('pre code')).toHaveClass('language-javascript');
+    });
   });
 
   it('hides the image button when allowImage is false', async () => {
