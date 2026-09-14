@@ -51,4 +51,27 @@ public class GanssHtmlSanitizerTests
     [Fact]
     public void Sanitize_KeepsHttpImages()
         => Assert.Contains("src=\"https://cdn.test/a.png\"", _sanitizer.Sanitize("<img src=\"https://cdn.test/a.png\" alt=\"a\">"));
+
+    [Fact]
+    public void Sanitize_KeepsOnlyValidatedLanguageMetadataOnCodeElements()
+    {
+        var result = _sanitizer.Sanitize(
+            "<pre class=\"layout\"><code class=\"language-csharp malicious\">var x = 1;</code></pre><p class=\"hidden\">text</p>");
+
+        Assert.Contains("<code class=\"language-csharp\">", result);
+        Assert.DoesNotContain("malicious", result);
+        Assert.DoesNotContain("layout", result);
+        Assert.DoesNotContain("hidden", result);
+    }
+
+    [Theory]
+    [InlineData("language-javascript<script")]
+    [InlineData("language-")]
+    [InlineData("hljs")]
+    public void Sanitize_RemovesInvalidCodeClasses(string className)
+    {
+        var result = _sanitizer.Sanitize($"<pre><code class=\"{className}\">x</code></pre>");
+
+        Assert.DoesNotContain("class=", result);
+    }
 }

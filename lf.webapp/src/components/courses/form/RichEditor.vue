@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -11,6 +12,7 @@ import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import Typography from '@tiptap/extension-typography';
+import { CODE_LANGUAGES, lowlight } from '@/lib/codeHighlight';
 import { useI18n } from 'vue-i18n';
 import {
   AlignCenter,
@@ -18,6 +20,7 @@ import {
   AlignRight,
   Baseline,
   Bold,
+  Braces,
   Code,
   Heading1,
   Heading2,
@@ -42,6 +45,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
   allowImage: { type: Boolean, default: true },
+  allowCodeBlock: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -69,9 +73,11 @@ const editor = useEditor({
   extensions: [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
+      codeBlock: false,
       link: false,
       underline: false,
     }),
+    CodeBlockLowlight.configure({ lowlight }),
     Underline,
     TextStyle,
     Color,
@@ -91,7 +97,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      class: 'rich-editor__prose',
+      class: 'rich-editor__prose rich-text-content',
     },
   },
   onUpdate: ({ editor: ed }) => {
@@ -142,6 +148,11 @@ const canRedo = computed(() => {
 const currentColor = computed(() => {
   editorTick.value;
   return editor.value?.getAttributes('textStyle').color ?? '';
+});
+
+const currentCodeLanguage = computed(() => {
+  editorTick.value;
+  return editor.value?.getAttributes('codeBlock').language ?? '';
 });
 
 function isActive(nameOrAttrs, attrs = {}) {
@@ -212,6 +223,12 @@ function setColor(value) {
     editor.value.chain().focus().setColor(value).run();
   }
   colorMenuOpen.value = false;
+}
+
+function setCodeLanguage(event) {
+  if (!editor.value || props.disabled) return;
+  const language = event.target.value || null;
+  editor.value.chain().updateAttributes('codeBlock', { language }).run();
 }
 
 function toggleColorMenu() {
@@ -441,8 +458,8 @@ const tools = [
           class="rich-editor__btn"
           :class="{ 'is-active': isActive('code') }"
           :disabled="disabled || !editor"
-          :aria-label="$t('courses.lessonEditor.toolbar.code')"
-          :title="$t('courses.lessonEditor.toolbar.code')"
+          :aria-label="$t('courses.lessonEditor.toolbar.inline_code')"
+          :title="$t('courses.lessonEditor.toolbar.inline_code')"
           @click="run((chain) => chain.toggleCode())"
         >
           <Code
@@ -450,6 +467,43 @@ const tools = [
             aria-hidden="true"
           />
         </button>
+        <button
+          v-if="allowCodeBlock"
+          type="button"
+          class="rich-editor__btn"
+          :class="{ 'is-active': isActive('codeBlock') }"
+          :aria-pressed="isActive('codeBlock')"
+          :disabled="disabled || !editor"
+          :aria-label="$t('courses.lessonEditor.toolbar.code_block')"
+          :title="$t('courses.lessonEditor.toolbar.code_block')"
+          @click="run((chain) => chain.toggleCodeBlock())"
+        >
+          <Braces
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
+        </button>
+        <label
+          v-if="allowCodeBlock"
+          class="rich-editor__language-wrap"
+        >
+          <span class="sr-only">{{ $t('courses.lessonEditor.toolbar.code_language') }}</span>
+          <select
+            class="rich-editor__language"
+            :value="currentCodeLanguage"
+            :disabled="disabled || !editor || !isActive('codeBlock')"
+            :title="$t('courses.lessonEditor.toolbar.code_language')"
+            @change="setCodeLanguage"
+          >
+            <option
+              v-for="language in CODE_LANGUAGES"
+              :key="language.value"
+              :value="language.value"
+            >
+              {{ language.value === '' ? $t('courses.lessonEditor.toolbar.code_language_auto') : language.label }}
+            </option>
+          </select>
+        </label>
       </div>
 
       <span
@@ -772,7 +826,7 @@ const tools = [
   color: var(--color-ink-muted);
 }
 
-.rich-editor__surface :deep(.ProseMirror code) {
+.rich-editor__surface :deep(.ProseMirror code:not(pre code)) {
   padding: 0.12rem 0.35rem;
   border-radius: 0.2rem;
   background: var(--color-surface-900);
@@ -824,6 +878,26 @@ const tools = [
 .rich-editor__btn.is-active {
   background: var(--color-accent-soft);
   color: var(--color-accent-coral);
+}
+
+.rich-editor__language-wrap {
+  display: inline-flex;
+}
+
+.rich-editor__language {
+  height: 1.85rem;
+  max-width: 8rem;
+  padding: 0 1.5rem 0 0.45rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.35rem;
+  background: var(--color-surface-950);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.rich-editor__language:disabled {
+  opacity: 0.45;
 }
 
 .rich-editor__btn:disabled {

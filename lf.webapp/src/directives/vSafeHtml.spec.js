@@ -29,4 +29,18 @@ describe('v-safe-html directive', () => {
     expect(getByTestId('target').innerHTML).toContain('<p>two</p>');
     expect(getByTestId('target').innerHTML).not.toContain('onerror');
   });
+
+  it('highlights sanitized code blocks without interpreting code as markup', () => {
+    const { getByTestId } = render(Host, {
+      props: {
+        html: '<pre><code class="language-javascript">const value = "&lt;script&gt;";</code></pre>',
+      },
+    });
+    const code = getByTestId('target').querySelector('code');
+
+    expect(code).toHaveClass('language-javascript', 'hljs');
+    expect(code.querySelector('.hljs-keyword')).toHaveTextContent('const');
+    expect(code.querySelector('script')).toBeNull();
+    expect(code.textContent).toContain('<script>');
+  });
 });

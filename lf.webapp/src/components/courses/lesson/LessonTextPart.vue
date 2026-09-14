@@ -32,6 +32,7 @@ function onUpdate(html) {
     :model-value="modelValue"
     compact
     :allow-image="false"
+    allow-code-block
     :disabled="disabled"
     :placeholder="$t('courses.lessonEditor.parts.text_placeholder')"
     @update:model-value="onUpdate"

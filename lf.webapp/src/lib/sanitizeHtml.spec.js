@@ -44,4 +44,21 @@ describe('sanitizeHtml', () => {
     const out = sanitizeHtml('<img src="https://cdn.test/a.png" alt="a">');
     expect(out).toContain('src="https://cdn.test/a.png"');
   });
+
+  it('keeps only validated language metadata on code elements', () => {
+    const out = sanitizeHtml(
+      '<pre class="layout"><code class="language-csharp malicious">var x = 1;</code></pre><p class="hidden">text</p>',
+    );
+
+    expect(out).toContain('<code class="language-csharp">');
+    expect(out).not.toContain('malicious');
+    expect(out).not.toContain('layout');
+    expect(out).not.toContain('hidden');
+  });
+
+  it('removes invalid language classes', () => {
+    const out = sanitizeHtml('<pre><code class="language-javascript&quot; onclick=&quot;alert(1)">x</code></pre>');
+
+    expect(out).toBe('<pre><code>x</code></pre>');
+  });
 });

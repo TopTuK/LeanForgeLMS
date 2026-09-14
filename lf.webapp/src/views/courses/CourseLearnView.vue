@@ -326,7 +326,7 @@ function goToCourses() {
               <div
                 v-if="part.type === 'text'"
                 v-safe-html="part.html"
-                class="course-learn__prose"
+                class="course-learn__prose rich-text-content"
               />
               <LearnerQuizPart
                 v-else-if="part.type === 'quiz'"
@@ -391,7 +391,7 @@ function goToCourses() {
           <div
             v-else
             v-safe-html="selectedLesson.content"
-            class="course-learn__prose"
+            class="course-learn__prose rich-text-content"
           />
 
           <div class="course-learn__actions">

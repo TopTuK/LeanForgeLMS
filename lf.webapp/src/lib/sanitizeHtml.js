@@ -12,7 +12,7 @@ const CONFIG = {
     'blockquote', 'pre', 'code', 'hr',
     'a', 'img',
   ],
-  ALLOWED_ATTR: ['href', 'target', 'rel', 'title', 'src', 'alt', 'style'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'title', 'src', 'alt', 'style', 'class'],
   ALLOW_DATA_ATTR: false,
   // http(s), mailto, protocol-relative, and fragment/relative links only — blocks javascript:.
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i,
@@ -23,6 +23,16 @@ let hookInstalled = false;
 function ensureHook() {
   if (hookInstalled) return;
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.hasAttribute('class')) {
+      const classes = node.getAttribute('class').split(/\s+/);
+      const languageClass = classes.find((value) => /^language-[a-z0-9+#.-]{1,32}$/.test(value));
+      if (node.tagName === 'CODE' && languageClass) {
+        node.setAttribute('class', languageClass);
+      } else {
+        node.removeAttribute('class');
+      }
+    }
+
     if (node.tagName === 'A' && node.hasAttribute('href')) {
       node.setAttribute('target', '_blank');
       node.setAttribute('rel', 'noopener noreferrer');

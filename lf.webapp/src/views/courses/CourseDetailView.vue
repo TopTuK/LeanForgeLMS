@@ -423,7 +423,7 @@ async function downloadFile(lesson, part, file) {
                           <div
                             v-if="part.type === 'text'"
                             v-safe-html="part.html"
-                            class="course-detail__prose"
+                            class="course-detail__prose rich-text-content"
                           />
 
                           <p
@@ -490,7 +490,7 @@ async function downloadFile(lesson, part, file) {
                       <div
                         v-else
                         v-safe-html="lesson.content"
-                        class="course-detail__prose"
+                        class="course-detail__prose rich-text-content"
                       />
                     </details>
 
