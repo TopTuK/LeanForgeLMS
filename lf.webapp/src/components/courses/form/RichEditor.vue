@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -19,9 +20,12 @@ import {
   AlignLeft,
   AlignRight,
   Baseline,
+  BetweenHorizontalStart,
+  BetweenVerticalStart,
   Bold,
   Braces,
   Code,
+  Columns3,
   Heading1,
   Heading2,
   Heading3,
@@ -34,7 +38,10 @@ import {
   Quote,
   Redo2,
   RemoveFormatting,
+  Rows3,
   Strikethrough,
+  Table2,
+  Trash2,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-vue-next';
@@ -78,6 +85,10 @@ const editor = useEditor({
       underline: false,
     }),
     CodeBlockLowlight.configure({ lowlight }),
+    Table.configure({ allowTableNodeSelection: true }),
+    TableRow,
+    TableHeader,
+    TableCell,
     Underline,
     TextStyle,
     Color,
@@ -229,6 +240,10 @@ function setCodeLanguage(event) {
   if (!editor.value || props.disabled) return;
   const language = event.target.value || null;
   editor.value.chain().updateAttributes('codeBlock', { language }).run();
+}
+
+function insertTable() {
+  run((chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }));
 }
 
 function toggleColorMenu() {
@@ -504,6 +519,94 @@ const tools = [
             </option>
           </select>
         </label>
+      </div>
+
+      <span
+        class="rich-editor__sep"
+        aria-hidden="true"
+      />
+
+      <div class="rich-editor__group">
+        <button
+          type="button"
+          class="rich-editor__btn"
+          :disabled="disabled || !editor"
+          :aria-label="$t('courses.lessonEditor.toolbar.table_insert')"
+          :title="$t('courses.lessonEditor.toolbar.table_insert')"
+          @click="insertTable"
+        >
+          <Table2
+            :size="ICON_SIZE"
+            aria-hidden="true"
+          />
+        </button>
+        <template v-if="isActive('table')">
+          <button
+            type="button"
+            class="rich-editor__btn"
+            :disabled="disabled || !editor"
+            :aria-label="$t('courses.lessonEditor.toolbar.table_add_row')"
+            :title="$t('courses.lessonEditor.toolbar.table_add_row')"
+            @click="run((chain) => chain.addRowAfter())"
+          >
+            <BetweenHorizontalStart
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            class="rich-editor__btn"
+            :disabled="disabled || !editor"
+            :aria-label="$t('courses.lessonEditor.toolbar.table_add_column')"
+            :title="$t('courses.lessonEditor.toolbar.table_add_column')"
+            @click="run((chain) => chain.addColumnAfter())"
+          >
+            <BetweenVerticalStart
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            class="rich-editor__btn"
+            :disabled="disabled || !editor"
+            :aria-label="$t('courses.lessonEditor.toolbar.table_delete_row')"
+            :title="$t('courses.lessonEditor.toolbar.table_delete_row')"
+            @click="run((chain) => chain.deleteRow())"
+          >
+            <Rows3
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            class="rich-editor__btn"
+            :disabled="disabled || !editor"
+            :aria-label="$t('courses.lessonEditor.toolbar.table_delete_column')"
+            :title="$t('courses.lessonEditor.toolbar.table_delete_column')"
+            @click="run((chain) => chain.deleteColumn())"
+          >
+            <Columns3
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            class="rich-editor__btn"
+            :disabled="disabled || !editor"
+            :aria-label="$t('courses.lessonEditor.toolbar.table_delete')"
+            :title="$t('courses.lessonEditor.toolbar.table_delete')"
+            @click="run((chain) => chain.deleteTable())"
+          >
+            <Trash2
+              :size="ICON_SIZE"
+              aria-hidden="true"
+            />
+          </button>
+        </template>
       </div>
 
       <span

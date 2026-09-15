@@ -13,6 +13,7 @@ import {
 import { createCheckout } from '@/services/paymentService';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 import { usePlatformStore } from '@/stores/platformStore';
+import LessonImageRow from '@/components/courses/lesson/LessonImageRow.vue';
 import awaitingPaymentImage from '@/assets/payments/awaiting-payment.jpg';
 import awaitingPaymentDetailImage from '@/assets/payments/awaiting-payment-detail.jpg';
 
@@ -170,16 +171,44 @@ async function onLessonToggle(lesson, event) {
   if (!event.target.open || expandedLessonIds.value.has(lesson.id)) return;
   expandedLessonIds.value = new Set(expandedLessonIds.value).add(lesson.id);
 
-  const pending = lessonParts(lesson).filter(
+  const parts = lessonParts(lesson);
+  const pending = parts.filter(
     (part) => part.mediaUrl && !mediaObjectUrls.value[part.id],
   );
-  await Promise.all(pending.map(async (part) => {
-    try {
-      const objectUrl = await fetchCoursePreviewLessonMediaObjectUrl(course.value.id, lesson.id, part.id);
-      mediaObjectUrls.value = { ...mediaObjectUrls.value, [part.id]: objectUrl };
-    } catch {
-      // Leave unresolved; the media block just won't render for this part.
-    }
+  const pendingImages = parts
+    .filter((part) => part.type === 'image')
+    .flatMap((part) => part.files.map((file) => ({ part, file, key: imageKey(part.id, file.id) })))
+    .filter(({ key }) => !mediaObjectUrls.value[key]);
+
+  await Promise.all([
+    ...pending.map(async (part) => {
+      try {
+        const objectUrl = await fetchCoursePreviewLessonMediaObjectUrl(course.value.id, lesson.id, part.id);
+        mediaObjectUrls.value = { ...mediaObjectUrls.value, [part.id]: objectUrl };
+      } catch {
+        // Leave unresolved; the media block just won't render for this part.
+      }
+    }),
+    ...pendingImages.map(async ({ part, file, key }) => {
+      try {
+        const objectUrl = await fetchCoursePreviewLessonPartFileObjectUrl(course.value.id, lesson.id, part.id, file.id);
+        mediaObjectUrls.value = { ...mediaObjectUrls.value, [key]: objectUrl };
+      } catch {
+        // Leave unresolved; the tile just stays empty.
+      }
+    }),
+  ]);
+}
+
+function imageKey(partId, fileId) {
+  return `${partId}:${fileId}`;
+}
+
+function rowImages(part) {
+  return part.files.map((file) => ({
+    key: file.id,
+    src: mediaObjectUrls.value[imageKey(part.id, file.id)] ?? null,
+    alt: '',
   }));
 }
 
@@ -459,6 +488,11 @@ async function downloadFile(lesson, part, file) {
                               </span>
                             </li>
                           </ul>
+
+                          <LessonImageRow
+                            v-else-if="part.type === 'image' && part.files.length > 0"
+                            :images="rowImages(part)"
+                          />
 
                           <div
                             v-else

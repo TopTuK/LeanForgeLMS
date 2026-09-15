@@ -30,6 +30,7 @@ describe('RichEditor', () => {
       'Align left',
       'Bullets',
       'Inline code',
+      'Insert table',
       'Link',
       'Undo',
     ]) {
@@ -63,6 +64,35 @@ describe('RichEditor', () => {
     await waitFor(() => {
       expect(container.querySelector('pre code')).toHaveClass('language-javascript');
     });
+  });
+
+  it('creates and edits a table with accessible toolbar actions', async () => {
+    const user = userEvent.setup();
+    const { container, getByRole, queryByRole } = await renderEditor();
+
+    expect(queryByRole('button', { name: 'Add row below' })).not.toBeInTheDocument();
+
+    await user.click(getByRole('button', { name: 'Insert table' }));
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('table tr')).toHaveLength(3);
+      expect(container.querySelectorAll('table th')).toHaveLength(3);
+    });
+
+    await user.click(getByRole('button', { name: 'Add row below' }));
+    expect(container.querySelectorAll('table tr')).toHaveLength(4);
+
+    await user.click(getByRole('button', { name: 'Add column after' }));
+    expect(container.querySelectorAll('table tr:first-child > *')).toHaveLength(4);
+
+    await user.click(getByRole('button', { name: 'Delete row' }));
+    expect(container.querySelectorAll('table tr')).toHaveLength(3);
+
+    await user.click(getByRole('button', { name: 'Delete column' }));
+    expect(container.querySelectorAll('table tr:first-child > *')).toHaveLength(3);
+
+    await user.click(getByRole('button', { name: 'Delete table' }));
+    expect(container.querySelector('table')).not.toBeInTheDocument();
   });
 
   it('hides the image button when allowImage is false', async () => {

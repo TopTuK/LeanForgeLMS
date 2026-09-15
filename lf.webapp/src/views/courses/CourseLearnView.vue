@@ -10,6 +10,7 @@ import {
   fetchEnrollmentLessonPartFileObjectUrl,
 } from '@/services/enrollmentService';
 import LearnerQuizPart from '@/components/courses/lesson/LearnerQuizPart.vue';
+import LessonImageRow from '@/components/courses/lesson/LessonImageRow.vue';
 import CourseOutlineRail from '@/components/courses/learn/CourseOutlineRail.vue';
 
 const OUTLINE_STORAGE_KEY = 'course-learn-outline-collapsed';
@@ -106,13 +107,40 @@ async function loadMediaForSelectedLesson() {
   const pending = selectedLessonParts.value.filter(
     (part) => part.type !== 'text' && part.mediaUrl && !mediaObjectUrls.value[part.id],
   );
-  await Promise.all(pending.map(async (part) => {
-    try {
-      const objectUrl = await fetchEnrollmentLessonMediaObjectUrl(enrollmentId.value, lesson.id, part.id);
-      mediaObjectUrls.value = { ...mediaObjectUrls.value, [part.id]: objectUrl };
-    } catch {
-      // Leave unresolved; the media block just won't render for this part.
-    }
+  const pendingImages = selectedLessonParts.value
+    .filter((part) => part.type === 'image')
+    .flatMap((part) => part.files.map((file) => ({ part, file, key: imageKey(part.id, file.id) })))
+    .filter(({ key }) => !mediaObjectUrls.value[key]);
+
+  await Promise.all([
+    ...pending.map(async (part) => {
+      try {
+        const objectUrl = await fetchEnrollmentLessonMediaObjectUrl(enrollmentId.value, lesson.id, part.id);
+        mediaObjectUrls.value = { ...mediaObjectUrls.value, [part.id]: objectUrl };
+      } catch {
+        // Leave unresolved; the media block just won't render for this part.
+      }
+    }),
+    ...pendingImages.map(async ({ part, file, key }) => {
+      try {
+        const objectUrl = await fetchEnrollmentLessonPartFileObjectUrl(enrollmentId.value, lesson.id, part.id, file.id);
+        mediaObjectUrls.value = { ...mediaObjectUrls.value, [key]: objectUrl };
+      } catch {
+        // Leave unresolved; the tile just stays empty.
+      }
+    }),
+  ]);
+}
+
+function imageKey(partId, fileId) {
+  return `${partId}:${fileId}`;
+}
+
+function rowImages(part) {
+  return part.files.map((file) => ({
+    key: file.id,
+    src: mediaObjectUrls.value[imageKey(part.id, file.id)] ?? null,
+    alt: '',
   }));
 }
 
@@ -361,6 +389,10 @@ function goToCourses() {
                   </span>
                 </li>
               </ul>
+              <LessonImageRow
+                v-else-if="part.type === 'image' && part.files.length > 0"
+                :images="rowImages(part)"
+              />
               <div
                 v-else
                 class="course-learn__media"

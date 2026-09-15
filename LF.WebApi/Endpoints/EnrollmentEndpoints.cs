@@ -342,12 +342,12 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+        part.StorageObjectKey is null
             ? null
             : $"/api/enrollments/{enrollmentId}/lessons/{lessonId}/parts/{part.Id}/media",
         part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToLearnerQuizQuestionResponse)] : null,
         part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
-        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToLessonPartFileResponse(enrollmentId, lessonId, part.Id, f))] : null);
+        part.PartType is LessonPartType.Files or LessonPartType.Image ? [.. part.Files.Select(f => ToLessonPartFileResponse(enrollmentId, lessonId, part.Id, f))] : null);
 
     private static LessonPartFileResponse ToLessonPartFileResponse(int enrollmentId, int lessonId, int partId, LessonPartFileDto file) => new(
         file.Id,
@@ -399,12 +399,12 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+        part.StorageObjectKey is null
             ? null
             : $"/api/enrollments/catalog/{courseId}/lessons/{lessonId}/parts/{part.Id}/media",
         part.PartType == LessonPartType.Quiz ? [] : null,
         part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
-        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToCoursePreviewLessonPartFileResponse(courseId, lessonId, part.Id, f))] : null);
+        part.PartType is LessonPartType.Files or LessonPartType.Image ? [.. part.Files.Select(f => ToCoursePreviewLessonPartFileResponse(courseId, lessonId, part.Id, f))] : null);
 
     private static LessonPartFileResponse ToCoursePreviewLessonPartFileResponse(int courseId, int lessonId, int partId, LessonPartFileDto file) => new(
         file.Id,

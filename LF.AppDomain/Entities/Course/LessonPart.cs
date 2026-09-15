@@ -1,5 +1,6 @@
 using LF.AppDomain.Entities.Storage;
 using LF.AppDomain.Models.Course.Enums;
+using LF.AppDomain.Models.Storage.Enums;
 
 namespace LF.AppDomain.Entities.Course;
 
@@ -54,6 +55,15 @@ public sealed class LessonPart
             if (files.Count == 0)
                 throw new ArgumentException("Files lesson parts require at least one file.", nameof(files));
         }
+        else if (partType == LessonPartType.Image)
+        {
+            // A row of images lives in Files; a lone storage object is the legacy single-image shape.
+            if (storageObject is null && files is not { Count: > 0 })
+                throw new ArgumentException("Image lesson parts require at least one image.", nameof(files));
+
+            if (files is not null && files.Any(f => f.StorageObject?.ObjectType != StorageObjectType.Image))
+                throw new ArgumentException("Image lesson parts only accept image storage objects.", nameof(files));
+        }
         else
         {
             ArgumentNullException.ThrowIfNull(storageObject);
@@ -74,9 +84,9 @@ public sealed class LessonPart
             for (var i = 0; i < quizQuestions!.Count; i++)
                 part._quizQuestions.Add(QuizQuestion.Create(quizQuestions[i].Text, quizQuestions[i].QuestionType, i + 1, quizQuestions[i].Options));
         }
-        else if (partType == LessonPartType.Files)
+        else if (partType is LessonPartType.Files or LessonPartType.Image && files is not null)
         {
-            for (var i = 0; i < files!.Count; i++)
+            for (var i = 0; i < files.Count; i++)
                 part._files.Add(LessonPartFile.Create(files[i].FileName, i + 1, files[i].StorageObject));
         }
 

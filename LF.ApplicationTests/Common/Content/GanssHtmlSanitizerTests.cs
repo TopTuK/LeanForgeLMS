@@ -53,6 +53,21 @@ public class GanssHtmlSanitizerTests
         => Assert.Contains("src=\"https://cdn.test/a.png\"", _sanitizer.Sanitize("<img src=\"https://cdn.test/a.png\" alt=\"a\">"));
 
     [Fact]
+    public void Sanitize_KeepsTableStructureAndStripsUnsafeAttributes()
+    {
+        var result = _sanitizer.Sanitize(
+            "<table onclick=\"alert(1)\"><thead><tr><th scope=\"col\">Name</th></tr></thead>" +
+            "<tbody><tr><td rowspan=\"2\">Ada</td></tr></tbody></table>");
+
+        Assert.Contains("<table>", result);
+        Assert.Contains("<thead><tr><th>Name</th></tr></thead>", result);
+        Assert.Contains("<tbody><tr><td>Ada</td></tr></tbody>", result);
+        Assert.DoesNotContain("onclick", result, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rowspan", result, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("scope", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Sanitize_KeepsOnlyValidatedLanguageMetadataOnCodeElements()
     {
         var result = _sanitizer.Sanitize(

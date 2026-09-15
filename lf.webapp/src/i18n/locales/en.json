@@ -513,6 +513,12 @@
                 "code_block": "Code block",
                 "code_language": "Code language",
                 "code_language_auto": "Auto detect",
+                "table_insert": "Insert table",
+                "table_add_row": "Add row below",
+                "table_add_column": "Add column after",
+                "table_delete_row": "Delete row",
+                "table_delete_column": "Delete column",
+                "table_delete": "Delete table",
                 "highlight": "Highlight",
                 "color": "Text color",
                 "link": "Link",
@@ -537,7 +543,7 @@
                 "type_quiz": "Quiz",
                 "type_files": "Files",
                 "desc_text": "Write and format lesson content",
-                "desc_image": "Upload a picture",
+                "desc_image": "Upload one or more pictures shown in a row",
                 "desc_video": "Upload a video clip",
                 "desc_audio": "Upload audio",
                 "desc_quiz": "Add questions and a pass score",
@@ -545,7 +551,6 @@
                 "delete": "Remove block",
                 "move_up": "Move up",
                 "move_down": "Move down",
-                "upload_image": "Drop an image or click to upload",
                 "upload_video": "Drop a video or click to upload",
                 "upload_audio": "Drop an audio file or click to upload",
                 "replace": "Replace file",
@@ -573,6 +578,12 @@
                 "files": {
                     "upload": "Drop files or click to upload",
                     "remove": "Remove file"
+                },
+                "images": {
+                    "upload": "Drop images or click to upload. Select several to place them in one row.",
+                    "add_more": "Add more images",
+                    "remove": "Remove image",
+                    "upload_failed": "Upload failed"
                 }
             }
         },

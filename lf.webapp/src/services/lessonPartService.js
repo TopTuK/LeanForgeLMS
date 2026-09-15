@@ -20,3 +20,7 @@ export const replaceLessonParts = (courseId, chapterId, lessonId, parts) =>
 export const fetchLessonMediaObjectUrl = (courseId, chapterId, lessonId, partId) =>
   api.get(`/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}/parts/${partId}/media`, { responseType: 'blob' })
     .then((r) => URL.createObjectURL(r.data));
+
+export const fetchLessonPartFileObjectUrl = (courseId, chapterId, lessonId, partId, fileId) =>
+  api.get(`/courses/${courseId}/chapters/${chapterId}/lessons/${lessonId}/parts/${partId}/files/${fileId}/media`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));

@@ -8,14 +8,25 @@ import {
   PART_TYPES,
   useLessonPartStore,
 } from '@/stores/lessonPartStore';
-import { replaceLessonParts, uploadLessonMedia, uploadLessonFiles } from '@/services/lessonPartService';
+import {
+  replaceLessonParts,
+  uploadLessonMedia,
+  uploadLessonFiles,
+  fetchLessonMediaObjectUrl,
+  fetchLessonPartFileObjectUrl,
+} from '@/services/lessonPartService';
 
 vi.mock('@/services/lessonPartService', () => ({
   uploadLessonMedia: vi.fn(),
   uploadLessonFiles: vi.fn(),
   replaceLessonParts: vi.fn().mockResolvedValue(undefined),
   fetchLessonMediaObjectUrl: vi.fn(),
+  fetchLessonPartFileObjectUrl: vi.fn(),
 }));
+
+function png(name) {
+  return new File([name], name, { type: 'image/png' });
+}
 
 describe('isAcceptedFile', () => {
   it('accepts a mime type listed for the part type', () => {
@@ -231,6 +242,138 @@ describe('useLessonPartStore', () => {
       store.removeFileFromPart(lessonId, part.id, firstFileId);
 
       expect(store.partsFor(lessonId)[0].files.map((f) => f.fileName)).toEqual(['b.pdf']);
+    });
+
+    it('addImagesToPart uploads every accepted image into one row', async () => {
+      uploadLessonMedia
+        .mockResolvedValueOnce({ storageObjectId: 11 })
+        .mockResolvedValueOnce({ storageObjectId: 12 });
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const result = await store.addImagesToPart(lessonId, part.id, [png('a.png'), png('b.png')]);
+
+      expect(result).toEqual({ ok: true });
+      expect(uploadLessonMedia).toHaveBeenCalledTimes(2);
+      expect(store.partsFor(lessonId)[0].files).toEqual([
+        expect.objectContaining({ fileName: 'a.png', storageObjectId: 11, uploading: false }),
+        expect.objectContaining({ fileName: 'b.png', storageObjectId: 12, uploading: false }),
+      ]);
+    });
+
+    it('addImagesToPart skips unsupported files and flags failed uploads', async () => {
+      uploadLessonMedia.mockRejectedValueOnce(new Error('boom'));
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const result = await store.addImagesToPart(lessonId, part.id, [
+        png('a.png'),
+        new File(['x'], 'x.pdf', { type: 'application/pdf' }),
+      ]);
+
+      expect(result).toEqual({ ok: false, errorKey: 'courses.lessonEditor.parts.upload_error' });
+      expect(uploadLessonMedia).toHaveBeenCalledTimes(1);
+      expect(store.partsFor(lessonId)[0].files).toEqual([
+        expect.objectContaining({ fileName: 'a.png', uploading: false, uploadError: true }),
+      ]);
+    });
+
+    it('addImagesToPart reports unsupported files when every upload succeeded', async () => {
+      uploadLessonMedia.mockResolvedValueOnce({ storageObjectId: 3 });
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const result = await store.addImagesToPart(lessonId, part.id, [
+        png('a.png'),
+        new File(['x'], 'x.pdf', { type: 'application/pdf' }),
+      ]);
+
+      expect(result).toEqual({ ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' });
+      expect(store.partsFor(lessonId)[0].files).toHaveLength(1);
+    });
+
+    it('reports pending uploads while images are still uploading', async () => {
+      let resolveUpload;
+      uploadLessonMedia.mockReturnValueOnce(new Promise((resolve) => { resolveUpload = resolve; }));
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+
+      const pending = store.addImagesToPart(lessonId, part.id, [png('a.png')]);
+      expect(store.hasPendingUploads(lessonId)).toBe(true);
+
+      resolveUpload({ storageObjectId: 5 });
+      await pending;
+      expect(store.hasPendingUploads(lessonId)).toBe(false);
+    });
+
+    it('commits an image part as a files row, leaving out failed uploads', async () => {
+      uploadLessonMedia
+        .mockResolvedValueOnce({ storageObjectId: 21 })
+        .mockRejectedValueOnce(new Error('boom'));
+      const store = useLessonPartStore();
+      await store.ensureLoaded(lessonId, '', []);
+      const part = store.addPart(lessonId, 'image');
+      await store.addImagesToPart(lessonId, part.id, [png('a.png'), png('b.png')]);
+
+      await store.commit(1, 2, lessonId);
+
+      expect(replaceLessonParts.mock.calls[0][3]).toEqual([{
+        partType: 'image',
+        html: null,
+        storageObjectId: null,
+        files: [{ fileName: 'a.png', storageObjectId: 21 }],
+      }]);
+    });
+
+    it('seeds a legacy single-image part as a one-image row without marking it dirty', async () => {
+      fetchLessonMediaObjectUrl.mockResolvedValueOnce('blob:legacy');
+      const store = useLessonPartStore();
+
+      await store.ensureLoaded(lessonId, '', [
+        { id: 7, partType: 'Image', sortOrder: 0, storageObjectId: 99, files: null },
+      ], { courseId: 1, chapterId: 2 });
+
+      expect(fetchLessonMediaObjectUrl).toHaveBeenCalledWith(1, 2, lessonId, 7);
+      expect(store.partsFor(lessonId)[0].files).toEqual([
+        expect.objectContaining({ storageObjectId: 99, objectUrl: 'blob:legacy' }),
+      ]);
+      expect(store.isDirty(lessonId)).toBe(false);
+    });
+
+    it('resolves each stored image of a multi-image part through its file route', async () => {
+      fetchLessonPartFileObjectUrl.mockImplementation((courseId, chapterId, id, partId, fileId) =>
+        Promise.resolve(`blob:${fileId}`));
+      const store = useLessonPartStore();
+
+      await store.ensureLoaded(lessonId, '', [{
+        id: 7,
+        partType: 'Image',
+        sortOrder: 0,
+        storageObjectId: null,
+        files: [
+          { id: 31, fileName: 'a.png', storageObjectId: 1 },
+          { id: 32, fileName: 'b.png', storageObjectId: 2 },
+        ],
+      }], { courseId: 1, chapterId: 2 });
+
+      expect(fetchLessonMediaObjectUrl).not.toHaveBeenCalled();
+      expect(store.partsFor(lessonId)[0].files.map((f) => f.objectUrl)).toEqual(['blob:31', 'blob:32']);
+      expect(store.isDirty(lessonId)).toBe(false);
+    });
+
+    it('removing an image drops it from the row and revokes its preview url', async () => {
+      uploadLessonMedia.mockResolvedValueOnce({ storageObjectId: 5 });
+      const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      const store = useLessonPartStore();
+      const part = store.addPart(lessonId, 'image');
+      await store.addImagesToPart(lessonId, part.id, [png('a.png')]);
+      const [image] = store.partsFor(lessonId)[0].files;
+
+      store.removeFileFromPart(lessonId, part.id, image.id);
+
+      expect(store.partsFor(lessonId)[0].files).toEqual([]);
+      expect(revoke).toHaveBeenCalledWith(image.objectUrl);
+      revoke.mockRestore();
     });
 
     it('discard restores the last committed snapshot', async () => {

@@ -24,6 +24,61 @@
   font-weight: 700;
 }
 
+.rich-text-content .tableWrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.rich-text-content table {
+  width: 100%;
+  margin: 1rem 0;
+  border: 1px solid var(--color-border-subtle);
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.rich-text-content th,
+.rich-text-content td {
+  min-width: 4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-ink);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.rich-text-content th {
+  background: var(--color-accent-soft);
+  font-weight: 700;
+}
+
+.rich-text-content tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--color-surface-900) 72%, transparent);
+}
+
+.rich-text-content th > :first-child,
+.rich-text-content td > :first-child {
+  margin-top: 0;
+}
+
+.rich-text-content th > :last-child,
+.rich-text-content td > :last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content .selectedCell {
+  position: relative;
+}
+
+.rich-text-content .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background: color-mix(in srgb, var(--color-accent-coral) 16%, transparent);
+}
+
 .rich-text-content pre {
   max-width: 100%;
   margin: 0.9rem 0;
