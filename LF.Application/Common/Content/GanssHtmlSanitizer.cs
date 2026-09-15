@@ -32,6 +32,7 @@ internal sealed class GanssHtmlSanitizer : IHtmlSanitizer
                      "strong", "b", "em", "i", "u", "s", "mark", "sub", "sup",
                      "ul", "ol", "li",
                      "blockquote", "pre", "code", "hr",
+                     "table", "thead", "tbody", "tfoot", "tr", "th", "td",
                      "a", "img",
                  })
         {

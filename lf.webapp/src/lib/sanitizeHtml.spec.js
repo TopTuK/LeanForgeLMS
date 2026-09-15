@@ -45,6 +45,20 @@ describe('sanitizeHtml', () => {
     expect(out).toContain('src="https://cdn.test/a.png"');
   });
 
+  it('keeps table structure while stripping unsafe table attributes', () => {
+    const out = sanitizeHtml(
+      '<table onclick="alert(1)"><thead><tr><th scope="col">Name</th></tr></thead>'
+      + '<tbody><tr><td rowspan="2">Ada</td></tr></tbody></table>',
+    );
+
+    expect(out).toContain('<table>');
+    expect(out).toContain('<thead><tr><th>Name</th></tr></thead>');
+    expect(out).toContain('<tbody><tr><td>Ada</td></tr></tbody>');
+    expect(out).not.toContain('onclick');
+    expect(out).not.toContain('rowspan');
+    expect(out).not.toContain('scope');
+  });
+
   it('keeps only validated language metadata on code elements', () => {
     const out = sanitizeHtml(
       '<pre class="layout"><code class="language-csharp malicious">var x = 1;</code></pre><p class="hidden">text</p>',

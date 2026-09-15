@@ -10,6 +10,7 @@ const CONFIG = {
     'strong', 'b', 'em', 'i', 'u', 's', 'mark', 'sub', 'sup',
     'ul', 'ol', 'li',
     'blockquote', 'pre', 'code', 'hr',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
     'a', 'img',
   ],
   ALLOWED_ATTR: ['href', 'target', 'rel', 'title', 'src', 'alt', 'style', 'class'],
