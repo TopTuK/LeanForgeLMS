@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/vue';
+import { screen, waitFor, within } from '@testing-library/vue';
 import userEvent from '@testing-library/user-event';
 import { createTestingPinia } from '@pinia/testing';
 
@@ -28,7 +28,7 @@ vi.mock('@/services/platformService', () => ({
   fetchPlatformConfig: vi.fn().mockResolvedValue({ studentEnrollmentEnabled: true }),
 }));
 
-import { fetchCoursePreview } from '@/services/enrollmentService';
+import { fetchCoursePreview, fetchCoursePreviewLessonPartFileObjectUrl } from '@/services/enrollmentService';
 import { createCheckout } from '@/services/paymentService';
 import { renderComponent } from '@/test/renderComponent';
 import CourseDetailView from '@/views/courses/CourseDetailView.vue';
@@ -104,6 +104,44 @@ describe('CourseDetailView', () => {
     expect(await screen.findByRole('button', { name: /^continue$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /complete payment/i })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Async in C#' })).toBeInTheDocument();
+  });
+
+  it('shows a multi-image preview part as one row of images', async () => {
+    fetchCoursePreview.mockResolvedValue({
+      ...paidPreview,
+      chapters: [{
+        id: 1,
+        title: 'Basics',
+        sortOrder: 0,
+        lessons: [{
+          id: 3,
+          title: 'Gallery lesson',
+          sortOrder: 0,
+          includeInPreview: true,
+          content: null,
+          parts: [{
+            id: 8,
+            partType: 'Image',
+            sortOrder: 0,
+            html: null,
+            storageObjectId: null,
+            mediaUrl: null,
+            files: [81, 82, 83].map((id) => ({ id, fileName: `${id}.png`, storageObjectId: id })),
+          }],
+        }],
+      }],
+    });
+    fetchCoursePreviewLessonPartFileObjectUrl.mockImplementation((courseId, lessonId, partId, fileId) =>
+      Promise.resolve(`blob:${fileId}`));
+
+    renderDetail();
+
+    const lesson = (await screen.findByText('Gallery lesson')).closest('details');
+    lesson.open = true;
+
+    await waitFor(() => expect(within(lesson).getAllByRole('img')).toHaveLength(3));
+    expect(fetchCoursePreviewLessonPartFileObjectUrl).toHaveBeenCalledTimes(3);
+    expect(fetchCoursePreviewLessonPartFileObjectUrl).toHaveBeenCalledWith(5, 3, 8, 81);
   });
 
   it('redirects to Robokassa from the awaiting-payment CTA', async () => {

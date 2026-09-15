@@ -59,6 +59,25 @@ public class ReplaceLessonPartsValidatorTests
     }
 
     [Fact]
+    public void ImagePart_WithFilesAndNoStorageObjectId_Passes()
+    {
+        var part = new LessonPartRequest(nameof(LessonPartType.Image), Html: null, StorageObjectId: null,
+            Files: [new LessonPartFileRequest("a.png", 3), new LessonPartFileRequest("b.png", 4)]);
+
+        var result = Validator.Validate(Wrap(part));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void ImagePart_WithoutFilesOrStorageObjectId_Fails()
+    {
+        var result = Validator.Validate(Wrap(new LessonPartRequest(nameof(LessonPartType.Image), Html: null, StorageObjectId: null, Files: [])));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
     public void FilesPart_WithoutFiles_Fails()
     {
         var result = Validator.Validate(Wrap(new LessonPartRequest(nameof(LessonPartType.Files), Html: null, StorageObjectId: null, Files: [])));

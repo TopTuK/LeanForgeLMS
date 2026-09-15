@@ -9,6 +9,7 @@ import LessonPartBlock from './LessonPartBlock.vue';
 import LessonPartTypePanel from './LessonPartTypePanel.vue';
 import LessonTextPart from './LessonTextPart.vue';
 import LessonMediaPart from './LessonMediaPart.vue';
+import LessonImagesPart from './LessonImagesPart.vue';
 import LessonQuizPart from './LessonQuizPart.vue';
 import LessonFilesPart from './LessonFilesPart.vue';
 
@@ -72,6 +73,11 @@ async function onFile(part, file) {
 
 async function onFiles(part, fileList) {
   const result = await partStore.addFilesToPart(props.lessonId, part.id, fileList);
+  if (!result.ok) emit('error', t(result.errorKey));
+}
+
+async function onImages(part, fileList) {
+  const result = await partStore.addImagesToPart(props.lessonId, part.id, fileList);
   if (!result.ok) emit('error', t(result.errorKey));
 }
 
@@ -168,6 +174,13 @@ onBeforeUnmount(() => {
                 :model-value="{ quizQuestions: part.quizQuestions, quizPassThreshold: part.quizPassThreshold }"
                 :disabled="disabled"
                 @update:model-value="partStore.updateQuiz(lessonId, part.id, $event)"
+              />
+              <LessonImagesPart
+                v-else-if="part.type === 'image'"
+                :images="part.files"
+                :disabled="disabled"
+                @files="onImages(part, $event)"
+                @remove="partStore.removeFileFromPart(lessonId, part.id, $event)"
               />
               <LessonFilesPart
                 v-else-if="part.type === 'files'"

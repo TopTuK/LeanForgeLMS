@@ -516,12 +516,12 @@ public sealed class CourseEndpoints : IEndpointGroup
         part.SortOrder,
         part.Html,
         part.StorageObjectId,
-        part.PartType is LessonPartType.Text or LessonPartType.Quiz or LessonPartType.Files
+        part.StorageObjectKey is null
             ? null
             : $"/api/courses/{courseId}/chapters/{chapterId}/lessons/{lessonId}/parts/{part.Id}/media",
         part.PartType == LessonPartType.Quiz ? [.. part.QuizQuestions.Select(ToQuizQuestionResponse)] : null,
         part.PartType == LessonPartType.Quiz ? part.QuizPassThresholdPercent : null,
-        part.PartType == LessonPartType.Files ? [.. part.Files.Select(f => ToLessonPartFileResponse(courseId, chapterId, lessonId, part.Id, f))] : null);
+        part.PartType is LessonPartType.Files or LessonPartType.Image ? [.. part.Files.Select(f => ToLessonPartFileResponse(courseId, chapterId, lessonId, part.Id, f))] : null);
 
     private static LessonPartFileResponse ToLessonPartFileResponse(int courseId, int chapterId, int lessonId, int partId, LessonPartFileDto file) => new(
         file.Id,

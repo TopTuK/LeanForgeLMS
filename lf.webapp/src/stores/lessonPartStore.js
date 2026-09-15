@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { uploadLessonMedia, uploadLessonFiles, replaceLessonParts, fetchLessonMediaObjectUrl } from '@/services/lessonPartService';
+import {
+  uploadLessonMedia,
+  uploadLessonFiles,
+  replaceLessonParts,
+  fetchLessonMediaObjectUrl,
+  fetchLessonPartFileObjectUrl,
+} from '@/services/lessonPartService';
 
 export const PART_TYPES = ['text', 'image', 'video', 'audio', 'quiz', 'files'];
 
@@ -54,7 +60,63 @@ function createPart(type, extras = {}) {
   };
 }
 
+function createImageEntry(extras = {}) {
+  return {
+    id: crypto.randomUUID(),
+    fileName: '',
+    storageObjectId: null,
+    objectUrl: null,
+    uploading: false,
+    uploadError: false,
+    legacy: false,
+    ...extras,
+  };
+}
+
+function seedFiles(apiPart) {
+  const files = Array.isArray(apiPart.files) ? apiPart.files : [];
+  if (String(apiPart.partType).toLowerCase() !== 'image') {
+    return files.map((f) => ({
+      id: f.id,
+      fileName: f.fileName,
+      storageObjectId: f.storageObjectId,
+      sizeBytes: f.sizeBytes,
+      contentType: f.contentType,
+      downloadUrl: f.downloadUrl,
+    }));
+  }
+
+  if (files.length > 0) {
+    return files.map((f) => createImageEntry({ id: f.id, fileName: f.fileName, storageObjectId: f.storageObjectId }));
+  }
+
+  // Legacy single-image part: its picture hangs off the part itself rather than a file row.
+  // Seeding it as a one-image row means the next save persists it in the files shape.
+  return apiPart.storageObjectId
+    ? [createImageEntry({ fileName: 'image', storageObjectId: apiPart.storageObjectId, legacy: true })]
+    : [];
+}
+
+function uploadedImages(part) {
+  return (part.files ?? [])
+    .filter((f) => f.storageObjectId != null)
+    .map((f) => ({ fileName: f.fileName, storageObjectId: f.storageObjectId }));
+}
+
+function partUrls(part) {
+  return [part.objectUrl, ...(part.files ?? []).map((f) => f.objectUrl)].filter(Boolean);
+}
+
 function serializePart(part) {
+  if (part.type === 'image') {
+    return {
+      id: part.id,
+      type: part.type,
+      sortOrder: part.sortOrder,
+      files: uploadedImages(part),
+    };
+  }
+
   if (part.type === 'quiz') {
     return {
       id: part.id,
@@ -84,6 +146,15 @@ function serializePart(part) {
 }
 
 function toApiPart(part) {
+  if (part.type === 'image') {
+    return {
+      partType: 'image',
+      html: null,
+      storageObjectId: null,
+      files: uploadedImages(part),
+    };
+  }
+
   if (part.type === 'quiz') {
     return {
       partType: 'quiz',
@@ -150,7 +221,9 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     const key = lessonKey(id);
     const urls = new Set();
     for (const part of [...(partsByLessonId.value[key] ?? []), ...(savedByLessonId.value[key] ?? [])]) {
-      if (part.objectUrl?.startsWith('blob:')) urls.add(part.objectUrl);
+      for (const url of partUrls(part)) {
+        if (url.startsWith('blob:')) urls.add(url);
+      }
     }
     return urls;
   }
@@ -188,7 +261,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
   }
 
   function hasPendingUploads(lessonId) {
-    return partsFor(lessonId).some((part) => part.uploading);
+    return partsFor(lessonId).some((part) => part.uploading || (part.files ?? []).some((f) => f.uploading));
   }
 
   async function ensureLoaded(lessonId, apiContent = '', apiParts = [], mediaContext = {}) {
@@ -216,14 +289,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
           })),
         })) : [],
         quizPassThreshold: p.quizPassThresholdPercent ?? DEFAULT_QUIZ_PASS_THRESHOLD,
-        files: Array.isArray(p.files) ? p.files.map((f) => ({
-          id: f.id,
-          fileName: f.fileName,
-          storageObjectId: f.storageObjectId,
-          sizeBytes: f.sizeBytes,
-          contentType: f.contentType,
-          downloadUrl: f.downloadUrl,
-        })) : [],
+        files: seedFiles(p),
       }));
     } else {
       const html = typeof apiContent === 'string' ? apiContent.trim() : '';
@@ -239,18 +305,34 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     const { courseId, chapterId } = mediaContext;
     if (courseId == null || chapterId == null) return;
 
-    const mediaParts = seeded.filter((part) => part.type !== 'text' && part.storageObjectId);
-    await Promise.all(mediaParts.map(async (part) => {
-      try {
-        const objectUrl = await fetchLessonMediaObjectUrl(courseId, chapterId, lessonId, part.id);
-        setParts(
-          lessonId,
-          partsFor(lessonId).map((item) => (item.id === part.id ? { ...item, objectUrl } : item)),
-        );
-      } catch {
-        // Leave objectUrl null; the media block just shows its empty/dropzone state.
-      }
-    }));
+    const mediaParts = seeded.filter((part) => part.type !== 'text' && part.type !== 'image' && part.storageObjectId);
+    const images = seeded
+      .filter((part) => part.type === 'image')
+      .flatMap((part) => part.files.map((image) => ({ partId: part.id, image })));
+
+    await Promise.all([
+      ...mediaParts.map(async (part) => {
+        try {
+          const objectUrl = await fetchLessonMediaObjectUrl(courseId, chapterId, lessonId, part.id);
+          setParts(
+            lessonId,
+            partsFor(lessonId).map((item) => (item.id === part.id ? { ...item, objectUrl } : item)),
+          );
+        } catch {
+          // Leave objectUrl null; the media block just shows its empty/dropzone state.
+        }
+      }),
+      ...images.map(async ({ partId, image }) => {
+        try {
+          const objectUrl = image.legacy
+            ? await fetchLessonMediaObjectUrl(courseId, chapterId, lessonId, partId)
+            : await fetchLessonPartFileObjectUrl(courseId, chapterId, lessonId, partId, image.id);
+          updateImage(lessonId, partId, image.id, { objectUrl });
+        } catch {
+          // Leave objectUrl null; the tile just stays empty.
+        }
+      }),
+    ]);
   }
 
   function addPart(lessonId, type, index) {
@@ -267,7 +349,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
   function removePart(lessonId, partId) {
     const removed = partsFor(lessonId).find((part) => part.id === partId);
     setParts(lessonId, partsFor(lessonId).filter((part) => part.id !== partId));
-    revokeIfOrphaned(lessonId, removed?.objectUrl);
+    if (removed) partUrls(removed).forEach((url) => revokeIfOrphaned(lessonId, url));
   }
 
   function movePart(lessonId, partId, direction) {
@@ -394,7 +476,56 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     }
   }
 
+  function updateImage(lessonId, partId, imageId, changes) {
+    setParts(
+      lessonId,
+      partsFor(lessonId).map((item) => (
+        item.id === partId
+          ? { ...item, files: (item.files ?? []).map((f) => (f.id === imageId ? { ...f, ...changes } : f)) }
+          : item
+      )),
+    );
+  }
+
+  async function addImagesToPart(lessonId, partId, fileList) {
+    const part = partsFor(lessonId).find((item) => item.id === partId);
+    if (!part || part.type !== 'image') return { ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' };
+
+    const selected = Array.from(fileList ?? []);
+    const accepted = selected.filter((file) => isAcceptedFile('image', file));
+    const entries = accepted.map((file) => createImageEntry({
+      fileName: file.name,
+      objectUrl: URL.createObjectURL(file),
+      uploading: true,
+    }));
+
+    if (entries.length > 0) {
+      setParts(
+        lessonId,
+        partsFor(lessonId).map((item) => (
+          item.id === partId ? { ...item, files: [...(item.files ?? []), ...entries] } : item
+        )),
+      );
+    }
+
+    const results = await Promise.all(entries.map(async (entry, index) => {
+      try {
+        const { storageObjectId } = await uploadLessonMedia(accepted[index]);
+        updateImage(lessonId, partId, entry.id, { storageObjectId, uploading: false });
+        return true;
+      } catch {
+        updateImage(lessonId, partId, entry.id, { uploading: false, uploadError: true });
+        return false;
+      }
+    }));
+
+    if (results.includes(false)) return { ok: false, errorKey: 'courses.lessonEditor.parts.upload_error' };
+    if (accepted.length < selected.length) return { ok: false, errorKey: 'courses.lessonEditor.parts.invalid_type' };
+    return { ok: true };
+  }
+
   function removeFileFromPart(lessonId, partId, fileId) {
+    const removed = partsFor(lessonId).find((item) => item.id === partId)?.files?.find((f) => f.id === fileId);
     setParts(
       lessonId,
       partsFor(lessonId).map((item) => (
@@ -403,6 +534,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
           : item
       )),
     );
+    revokeIfOrphaned(lessonId, removed?.objectUrl);
   }
 
   async function commit(courseId, chapterId, lessonId) {
@@ -415,7 +547,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     const key = lessonKey(lessonId);
     const previous = partsByLessonId.value[key] ?? [];
     const restored = cloneParts(savedByLessonId.value[key] ?? []);
-    const restoredUrls = new Set(restored.map((part) => part.objectUrl).filter(Boolean));
+    const restoredUrls = new Set(restored.flatMap(partUrls));
 
     partsByLessonId.value = {
       ...partsByLessonId.value,
@@ -423,10 +555,8 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     };
     bump();
 
-    for (const part of previous) {
-      if (part.objectUrl && !restoredUrls.has(part.objectUrl)) {
-        revokeIfOrphaned(lessonId, part.objectUrl);
-      }
+    for (const url of previous.flatMap(partUrls)) {
+      if (!restoredUrls.has(url)) revokeIfOrphaned(lessonId, url);
     }
   }
 
@@ -445,6 +575,7 @@ export const useLessonPartStore = defineStore('lessonParts', () => {
     updateQuiz,
     setMediaFile,
     addFilesToPart,
+    addImagesToPart,
     removeFileFromPart,
     commit,
     discard,

@@ -1,14 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Image, Video, AudioLines } from 'lucide-vue-next';
+import { Video, AudioLines } from 'lucide-vue-next';
 import { MEDIA_ACCEPT_ATTR } from '@/stores/lessonPartStore';
 
 const props = defineProps({
   type: {
     type: String,
     required: true,
-    validator: (value) => ['image', 'video', 'audio'].includes(value),
+    validator: (value) => ['video', 'audio'].includes(value),
   },
   fileName: { type: String, default: null },
   objectUrl: { type: String, default: null },
@@ -25,17 +25,13 @@ const inputRef = ref(null);
 const accept = computed(() => MEDIA_ACCEPT_ATTR[props.type] ?? '');
 const hasPreview = computed(() => Boolean(props.objectUrl));
 
-const TypeIcon = computed(() => {
-  if (props.type === 'image') return Image;
-  if (props.type === 'video') return Video;
-  return AudioLines;
-});
+const TypeIcon = computed(() => (props.type === 'video' ? Video : AudioLines));
 
-const uploadLabel = computed(() => {
-  if (props.type === 'image') return t('courses.lessonEditor.parts.upload_image');
-  if (props.type === 'video') return t('courses.lessonEditor.parts.upload_video');
-  return t('courses.lessonEditor.parts.upload_audio');
-});
+const uploadLabel = computed(() => (
+  props.type === 'video'
+    ? t('courses.lessonEditor.parts.upload_video')
+    : t('courses.lessonEditor.parts.upload_audio')
+));
 
 function openPicker() {
   if (props.disabled || props.uploading) return;
@@ -84,14 +80,8 @@ function onDragLeave() {
       v-if="hasPreview"
       class="media-part__preview"
     >
-      <img
-        v-if="type === 'image'"
-        :src="objectUrl"
-        :alt="fileName || ''"
-        class="media-part__image"
-      >
       <video
-        v-else-if="type === 'video'"
+        v-if="type === 'video'"
         :src="objectUrl"
         class="media-part__player"
         controls
@@ -211,14 +201,6 @@ function onDragLeave() {
   flex-direction: column;
   gap: 0.65rem;
   padding: 0.35rem;
-}
-
-.media-part__image {
-  display: block;
-  max-width: 100%;
-  max-height: 22rem;
-  margin: 0 auto;
-  border-radius: 0.55rem;
 }
 
 .media-part__player {

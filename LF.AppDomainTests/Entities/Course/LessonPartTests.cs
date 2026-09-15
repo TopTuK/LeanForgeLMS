@@ -34,10 +34,58 @@ public class LessonPartTests
     {
         // Arrange
         var lesson = CreateLesson();
-        var parts = new[] { new LessonPartInput(LessonPartType.Image, null, null) };
+        var parts = new[] { new LessonPartInput(LessonPartType.Video, null, null) };
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_ImagePartWithoutStorageObjectOrFiles_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[] { new LessonPartInput(LessonPartType.Image, null, null, Files: []) };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_ImagePartWithNonImageFile_Throws()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[]
+        {
+            new LessonPartInput(LessonPartType.Image, null, null,
+                Files: [new LessonPartFileInput("notes.pdf", CreateStorageObject(StorageObjectType.File))]),
+        };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => lesson.ReplaceParts(parts));
+    }
+
+    [Fact]
+    public void ReplaceParts_ImagePartWithFiles_BuildsOrderedImageRow()
+    {
+        // Arrange
+        var lesson = CreateLesson();
+        var parts = new[]
+        {
+            new LessonPartInput(LessonPartType.Image, null, null,
+                Files: [new LessonPartFileInput("a.png", CreateStorageObject()), new LessonPartFileInput("b.png", CreateStorageObject())]),
+        };
+
+        // Act
+        lesson.ReplaceParts(parts);
+
+        // Assert
+        var image = lesson.Parts[0];
+        Assert.Equal(LessonPartType.Image, image.PartType);
+        Assert.Null(image.StorageObject);
+        Assert.Equal(new[] { "a.png", "b.png" }, image.Files.Select(f => f.FileName));
+        Assert.Equal(new[] { 1, 2 }, image.Files.Select(f => f.SortOrder));
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import LessonImageRow from './LessonImageRow.vue';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -18,6 +19,10 @@ function mediaPlaceholder(part) {
     return t('courses.lessonEditor.parts.reupload', { fileName: part.fileName });
   }
   return t('courses.lessonEditor.preview.media_missing');
+}
+
+function rowImages(part) {
+  return part.files.map((image) => ({ key: image.id, src: image.objectUrl, alt: image.fileName || '' }));
 }
 </script>
 
@@ -81,6 +86,11 @@ function mediaPlaceholder(part) {
             </ul>
           </div>
         </div>
+
+        <LessonImageRow
+          v-else-if="part.type === 'image' && part.files?.length > 0"
+          :images="rowImages(part)"
+        />
 
         <div
           v-else

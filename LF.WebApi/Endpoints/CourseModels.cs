@@ -205,8 +205,13 @@ public sealed class ReplaceLessonPartsRequestValidator : AbstractValidator<Repla
                 .WithMessage("Text parts require non-empty content.");
 
             part.RuleFor(p => p.StorageObjectId).GreaterThan(0)
-                .When(p => !IsPartType(p.PartType, LessonPartType.Text) && !IsPartType(p.PartType, LessonPartType.Quiz) && !IsPartType(p.PartType, LessonPartType.Files))
+                .When(p => IsPartType(p.PartType, LessonPartType.Video) || IsPartType(p.PartType, LessonPartType.Audio))
                 .WithMessage("Media parts require a storage object id.");
+
+            // Image parts carry a row of images in Files; a lone StorageObjectId is the legacy single-image shape.
+            part.RuleFor(p => p.Files).Must((p, files) => p.StorageObjectId > 0 || files is { Count: > 0 })
+                .When(p => IsPartType(p.PartType, LessonPartType.Image))
+                .WithMessage("Image parts require at least one image.");
 
             part.RuleFor(p => p.Files).Must(f => f is { Count: > 0 })
                 .When(p => IsPartType(p.PartType, LessonPartType.Files))
