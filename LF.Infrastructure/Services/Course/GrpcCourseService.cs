@@ -221,6 +221,42 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.RemoveLessonAsync(request));
     }
 
+    public async Task<UpdateCourseDetailsResultDto?> UpdateCourseDetailsAsync(int courseId, UpdateCourseDetailsDto dto, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("GrpcCourseService::UpdateCourseDetailsAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var request = dto.Adapt<UpdateCourseDetailsRequest>();
+        request.CourseId = courseId;
+        request.ActingUserId = actingUserId;
+        request.ActingIsAdmin = isAdmin;
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.UpdateCourseDetailsAsync(request);
+            return new UpdateCourseDetailsResultDto
+            {
+                Course = reply.Course.Adapt<CourseDetailDto>(),
+                OrphanedStorageObjectKeys = [.. reply.OrphanedStorageObjectKeys],
+            };
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.PermissionDenied)
+        {
+            throw new CourseAuthorizationException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.InvalidArgument)
+        {
+            throw new ArgumentException(ex.Status.Detail);
+        }
+    }
+
     public async Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("GrpcCourseService::PublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
@@ -246,6 +282,23 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         request.Parts.AddRange(parts.Select(ToLessonPartInput));
 
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.ReplaceLessonPartsAsync(request));
+    }
+
+    public async Task<UnpublishCourseResultDto?> UnpublishCourseAsync(int courseId, int actingUserId)
+    {
+        _logger.LogInformation("GrpcCourseService::UnpublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var request = new UnpublishCourseRequest { CourseId = courseId, ActingUserId = actingUserId };
+
+        try
+        {
+            var reply = await _courseServiceRpcClient.UnpublishCourseAsync(request);
+            return reply.Found ? new UnpublishCourseResultDto { AffectedEnrollmentCount = reply.AffectedEnrollmentCount } : null;
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.FailedPrecondition)
+        {
+            throw new InvalidOperationException(ex.Status.Detail);
+        }
     }
 
     public async Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingUserId, bool force)

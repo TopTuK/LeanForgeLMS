@@ -410,6 +410,64 @@ internal sealed class CourseService(
         return course.Adapt<CourseDetailDto>();
     }
 
+    public async Task<UpdateCourseDetailsResultDto?> UpdateCourseDetailsAsync(int courseId, UpdateCourseDetailsDto dto, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::UpdateCourseDetailsAsync: called with CourseId={CourseId} CategoryId={CategoryId} ActingUserId={ActingUserId}",
+            courseId, dto.CategoryId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        var category = await _dbContext.Categories.FirstOrDefaultAsync(c => c.Id == dto.CategoryId);
+        if (category is null)
+            throw new ArgumentException($"Category {dto.CategoryId} not found.", nameof(dto));
+
+        // Runs first: it is the draft-only guard, so a published course is rejected before its cover is touched.
+        course.UpdateDetails(dto.Title, dto.ShortIntroduction, _htmlSanitizer.Sanitize(dto.Description), category,
+            dto.PricingType, dto.Price, dto.EnrollmentMode);
+
+        var previousImage = course.CoverImageStorageObject;
+
+        switch (dto.CoverType)
+        {
+            case CourseCoverType.Color when dto.CoverColor is { } color:
+                course.SetColorCover(color);
+                break;
+            case CourseCoverType.Image when dto.CoverImageStorageObjectId is { } storageObjectId:
+                if (storageObjectId != previousImage?.Id)
+                {
+                    var storageObject = await _dbContext.StorageObjects.FirstOrDefaultAsync(s => s.Id == storageObjectId);
+                    if (storageObject is null)
+                        throw new ArgumentException($"Storage object {storageObjectId} not found.", nameof(dto));
+                    course.SetImageCover(storageObject);
+                }
+                break;
+            case CourseCoverType.Image when previousImage is null:
+                throw new ArgumentException("An image cover requires an uploaded image.", nameof(dto));
+            case CourseCoverType.None:
+                course.ClearCover();
+                break;
+        }
+
+        List<string> orphanedKeys = [];
+        if (previousImage is not null && course.CoverImageStorageObjectId != previousImage.Id)
+        {
+            _dbContext.StorageObjects.Remove(previousImage);
+            orphanedKeys.Add(previousImage.ObjectKey);
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        return new UpdateCourseDetailsResultDto
+        {
+            Course = course.Adapt<CourseDetailDto>(),
+            OrphanedStorageObjectKeys = orphanedKeys,
+        };
+    }
+
     public async Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseService::PublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
@@ -424,6 +482,24 @@ internal sealed class CourseService(
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
+    }
+
+    // Admin-only (enforced by the AdminOnly endpoint policy). Enrollments stay untouched; while the
+    // course is unpublished EnrollmentService withholds its content from enrolled students.
+    public async Task<UnpublishCourseResultDto?> UnpublishCourseAsync(int courseId, int actingUserId)
+    {
+        _logger.LogInformation("CourseService::UnpublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var course = await _dbContext.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
+        if (course is null)
+            return null;
+
+        course.Unpublish();
+
+        var affectedEnrollmentCount = await _dbContext.Enrollments.CountAsync(e => e.CourseId == courseId);
+        await _dbContext.SaveChangesAsync();
+
+        return new UnpublishCourseResultDto { AffectedEnrollmentCount = affectedEnrollmentCount };
     }
 
     // Admin-only (enforced by the AdminOnly endpoint policy). The removal order below is dictated by

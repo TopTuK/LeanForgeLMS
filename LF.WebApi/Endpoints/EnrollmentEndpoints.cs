@@ -260,9 +260,10 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         group.MapGet("/courses/{courseId:int}/cover/image", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
             (int courseId, ClaimsPrincipal user, IEnrollmentLearningService enrollmentService, [FromKeyedServices("storage")] IFileStorageService fileStorageService, CancellationToken ct) =>
         {
-            if (user.GetUserId() is null) return TypedResults.Unauthorized();
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
 
-            var cover = await enrollmentService.GetCourseCoverAsync(courseId);
+            var cover = await enrollmentService.GetCourseCoverAsync(courseId, userId.Value);
             if (cover is null) return TypedResults.NotFound();
 
             var download = await fileStorageService.DownloadAsync(cover.CoverImageKey, ct);
@@ -299,7 +300,8 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CoverColor?.ToString(),
         dto.CoverType == CourseCoverType.Image ? $"/api/enrollments/courses/{dto.CourseId}/cover/image" : null,
         dto.Status.ToString(),
-        dto.PricePaid);
+        dto.PricePaid,
+        dto.IsCourseUnavailable);
 
     private static QuizSubmissionResponse ToQuizSubmissionResponse(QuizSubmissionDto dto) => new(
         new QuizAttemptResultResponse(
@@ -317,7 +319,8 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
         dto.CompletedAt,
         [.. dto.Chapters.Select(ch => ToChapterResponse(dto.Id, ch))],
         dto.Status.ToString(),
-        dto.PricePaid);
+        dto.PricePaid,
+        dto.IsCourseUnavailable);
 
     private static EnrollmentChapterResponse ToChapterResponse(int enrollmentId, EnrollmentChapterDto chapter) => new(
         chapter.Id,

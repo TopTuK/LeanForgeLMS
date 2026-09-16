@@ -19,8 +19,10 @@ public interface IGrpcCourseService
     Task<CourseDetailDto?> UpdateLessonAsync(int courseId, int chapterId, int lessonId, UpdateLessonDto dto, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> MoveLessonAsync(int courseId, int chapterId, int lessonId, MoveDirection direction, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> RemoveLessonAsync(int courseId, int chapterId, int lessonId, int actingUserId, bool isAdmin);
+    Task<UpdateCourseDetailsResultDto?> UpdateCourseDetailsAsync(int courseId, UpdateCourseDetailsDto dto, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> ReplaceLessonPartsAsync(int courseId, int chapterId, int lessonId, IReadOnlyList<ReplaceLessonPartInputDto> parts, int actingUserId, bool isAdmin);
+    Task<UnpublishCourseResultDto?> UnpublishCourseAsync(int courseId, int actingUserId);
     Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingUserId, bool force);
     Task<PagedCourseEnrollmentsDto?> ListCourseEnrollmentsAsync(int courseId, int actingUserId, int page, int pageSize);
     Task<RemoveEnrollmentResultDto?> RemoveEnrollmentAsync(int courseId, int enrollmentId, int actingUserId);

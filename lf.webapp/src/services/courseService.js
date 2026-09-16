@@ -9,6 +9,8 @@ export const fetchCourse = (id) => api.get(`/courses/${id}`).then((r) => r.data)
 
 export const createCourse = (payload) => api.post('/courses', payload).then((r) => r.data);
 
+export const updateCourse = (courseId, payload) => api.put(`/courses/${courseId}`, payload).then((r) => r.data);
+
 export const uploadCourseCoverImage = (file) => {
   const formData = new FormData();
   formData.append('file', file);

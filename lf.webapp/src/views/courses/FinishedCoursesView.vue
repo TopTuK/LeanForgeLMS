@@ -93,6 +93,7 @@ function onReview(enrollmentId) {
         :cover-type="item.coverType"
         :cover-color="item.coverColor"
         :cover-image-url="coverImageUrls[item.courseId] ?? null"
+        :unavailable="item.isCourseUnavailable"
         @continue="onReview(item.id)"
       />
     </div>

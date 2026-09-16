@@ -183,6 +183,35 @@ public class RpcCourseService(
         return ToReply(course);
     }
 
+    public override async Task<UpdateCourseDetailsReply> UpdateCourseDetails(UpdateCourseDetailsRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::UpdateCourseDetails: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
+
+        var dto = request.Adapt<UpdateCourseDetailsDto>();
+
+        try
+        {
+            var result = await _courseService.UpdateCourseDetailsAsync(request.CourseId, dto, request.ActingUserId, request.ActingIsAdmin)
+                ?? throw new RpcException(new Status(StatusCode.NotFound, "Course not found."));
+
+            var reply = new UpdateCourseDetailsReply { Course = ToReply(result.Course) };
+            reply.OrphanedStorageObjectKeys.AddRange(result.OrphanedStorageObjectKeys);
+            return reply;
+        }
+        catch (CourseAuthorizationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+    }
+
     public override async Task<CourseDetailReply> PublishCourse(PublishCourseRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::PublishCourse: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
@@ -301,6 +330,23 @@ public class RpcCourseService(
         catch (CourseAuthorizationException ex)
         {
             throw new RpcException(new Status(StatusCode.PermissionDenied, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, ex.Message));
+        }
+    }
+
+    public override async Task<UnpublishCourseReply> UnpublishCourse(UnpublishCourseRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::UnpublishCourse: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
+
+        try
+        {
+            var result = await _courseService.UnpublishCourseAsync(request.CourseId, request.ActingUserId);
+            return result is null
+                ? new UnpublishCourseReply { Found = false }
+                : new UnpublishCourseReply { Found = true, AffectedEnrollmentCount = result.AffectedEnrollmentCount };
         }
         catch (InvalidOperationException ex)
         {
@@ -508,9 +554,9 @@ public class RpcCourseService(
 
     public override async Task<CourseCoverReply> GetCourseCover(GetCourseCoverRequest request, ServerCallContext context)
     {
-        _logger.LogInformation("RpcCourseService::GetCourseCover: called with CourseId={CourseId}", request.CourseId);
+        _logger.LogInformation("RpcCourseService::GetCourseCover: called with CourseId={CourseId} ActingUserId={ActingUserId}", request.CourseId, request.ActingUserId);
 
-        var cover = await _enrollmentService.GetCourseCoverAsync(request.CourseId);
+        var cover = await _enrollmentService.GetCourseCoverAsync(request.CourseId, request.ActingUserId);
         if (cover is null)
             throw new RpcException(new Status(StatusCode.NotFound, "Course not found or has no cover image."));
 

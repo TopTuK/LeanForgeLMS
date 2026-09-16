@@ -469,7 +469,28 @@ const lessonCount = computed(() => (
             class="studio-cover studio-cover--image"
           >
           <div class="studio-details__card">
-            <h2>{{ $t('courses.editor.details_title') }}</h2>
+            <div class="studio-details__head">
+              <h2>{{ $t('courses.editor.details_title') }}</h2>
+              <router-link
+                v-if="!course.isPublished"
+                :to="{ name: 'CourseSettings', params: { id: course.id } }"
+                class="studio-link"
+              >
+                {{ $t('courses.editor.edit_details') }}
+              </router-link>
+            </div>
+            <dl class="studio-details__summary">
+              <dt>{{ $t('courses.create.field_category') }}</dt>
+              <dd>{{ course.categoryName }}</dd>
+              <dt>{{ $t('courses.create.field_pricing') }}</dt>
+              <dd>
+                {{ course.pricingType === 'Paid'
+                  ? $t('courses.editor.price_summary', { price: course.price })
+                  : $t('courses.create.pricing_free') }}
+              </dd>
+              <dt>{{ $t('courses.create.field_enrollment_mode') }}</dt>
+              <dd>{{ course.enrollmentMode === 'Managed' ? $t('courses.create.mode_managed') : $t('courses.create.mode_open') }}</dd>
+            </dl>
             <p>{{ $t('courses.editor.subtitle') }}</p>
             <p class="studio-details__tip">
               {{ $t('courses.editor.details_tip') }}
@@ -800,10 +821,38 @@ const lessonCount = computed(() => (
   background: var(--color-surface-900);
 }
 
+.studio-details__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
 .studio-details__card h2 {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 1rem;
   font-weight: 700;
+}
+
+.studio-details__summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.85rem;
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+}
+
+.studio-details__summary dt {
+  color: var(--color-ink-muted);
+  font-weight: 600;
+}
+
+.studio-details__summary dd {
+  margin: 0;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
 }
 
 .studio-details__card p {

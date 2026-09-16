@@ -13,4 +13,8 @@ public sealed class EnrollmentDetailDto
     public DateTime EnrolledAt { get; init; }
     public DateTime? CompletedAt { get; init; }
     public IReadOnlyList<EnrollmentChapterDto> Chapters { get; init; } = [];
+
+    // Set when an admin has unpublished the course; Chapters is then empty for a student.
+    // Phrased negatively so every DTO built without it defaults to "available".
+    public bool IsCourseUnavailable { get; init; }
 }

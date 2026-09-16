@@ -936,4 +936,214 @@ public class CourseServiceTests
 
         Assert.Null(await service.ListCourseEnrollmentsAsync(courseId: 42, actingUserId: 1, page: 1, pageSize: 20));
     }
+
+    [Fact]
+    public async Task UnpublishCourseAsync_PublishedCourse_UnpublishesAndCountsEnrollments()
+    {
+        var course = CreatePublishedManagedCourse(id: 1);
+        var otherCourseEnrollment = DomainEnrollment.Create(2, userId: 9, DateTime.UtcNow);
+        var service = CreateServiceWithEnrollments([course],
+            [DomainEnrollment.Create(1, userId: 7, DateTime.UtcNow), DomainEnrollment.Create(1, userId: 8, DateTime.UtcNow), otherCourseEnrollment],
+            out var dbContextMock);
+
+        var result = await service.UnpublishCourseAsync(course.Id, actingUserId: 42);
+
+        Assert.Equal(2, result!.AffectedEnrollmentCount);
+        Assert.False(course.IsPublished);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UnpublishCourseAsync_DraftCourse_ThrowsAndDoesNotSave()
+    {
+        var course = CreateDraftCourse(Category.Create("Backend"));
+        var service = CreateServiceWithEnrollments([course], [], out var dbContextMock);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UnpublishCourseAsync(course.Id, actingUserId: 42));
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UnpublishCourseAsync_MissingCourse_ReturnsNull()
+    {
+        var service = CreateServiceWithEnrollments([], [], out _);
+
+        Assert.Null(await service.UnpublishCourseAsync(courseId: 42, actingUserId: 1));
+    }
+
+    private static DomainCourse CreateDraftCourse(Category category, int id = 1, int ownerId = 1)
+    {
+        var course = DomainCourse.Create("Draft", "Short", "Description", category, ownerId, DateTime.UtcNow);
+        EntityIdSetter.SetId(course, id);
+        return course;
+    }
+
+    private static StorageObject CreateImage(int id, string key)
+    {
+        var storageObject = StorageObject.Create(StorageObjectType.Image, key, "image/png", 100, 1, DateTime.UtcNow);
+        EntityIdSetter.SetId(storageObject, id);
+        return storageObject;
+    }
+
+    private static UpdateCourseDetailsDto CreateUpdateDto(int categoryId, CourseCoverType coverType = CourseCoverType.Color,
+        CourseCoverColor? coverColor = CourseCoverColor.Forest, int? coverImageStorageObjectId = null) => new()
+        {
+            Title = "Renamed",
+            ShortIntroduction = "New intro",
+            Description = "New description",
+            CategoryId = categoryId,
+            PricingType = CoursePricingType.Paid,
+            Price = 2500m,
+            EnrollmentMode = CourseEnrollmentMode.Managed,
+            CoverType = coverType,
+            CoverColor = coverColor,
+            CoverImageStorageObjectId = coverImageStorageObjectId,
+        };
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_Owner_UpdatesDetailsAndCover()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category);
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act
+        var result = await service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(category.Id), actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Renamed", result!.Course.Title);
+        Assert.Equal(CoursePricingType.Paid, result.Course.PricingType);
+        Assert.Equal(2500m, result.Course.Price);
+        Assert.Equal(CourseEnrollmentMode.Managed, result.Course.EnrollmentMode);
+        Assert.Equal(CourseCoverType.Color, result.Course.CoverType);
+        Assert.Equal(CourseCoverColor.Forest, result.Course.CoverColor);
+        Assert.Empty(result.OrphanedStorageObjectKeys);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_MissingCourse_ReturnsNull()
+    {
+        var category = Category.Create("Backend");
+        var service = CreateService([], [category], out _);
+
+        Assert.Null(await service.UpdateCourseDetailsAsync(42, CreateUpdateDto(category.Id), actingUserId: 1, isAdmin: false));
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_NonOwner_ThrowsAuthorization()
+    {
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category, ownerId: 1);
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        await Assert.ThrowsAsync<CourseAuthorizationException>(
+            () => service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(category.Id), actingUserId: 99, isAdmin: false));
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_AdminOnOthersDraft_Succeeds()
+    {
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category, ownerId: 1);
+        var service = CreateService([course], [category], out _);
+
+        var result = await service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(category.Id), actingUserId: 42, isAdmin: true);
+
+        Assert.Equal("Renamed", result!.Course.Title);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_PublishedCourse_ThrowsAndDoesNotSave()
+    {
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category);
+        EntityIdSetter.SetId(course.AddChapter("Chapter 1").AddLesson("Lesson 1"), 1);
+        course.Publish();
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(category.Id), actingUserId: 1, isAdmin: true));
+
+        Assert.Equal("Draft", course.Title);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_UnknownCategory_ThrowsArgumentException()
+    {
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category);
+        var service = CreateService([course], [category], out _);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(categoryId: 999), actingUserId: 1, isAdmin: false));
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_ReplacedImage_RemovesOldStorageObjectAndReportsKey()
+    {
+        var category = Category.Create("Backend");
+        var oldImage = CreateImage(10, "images/old.png");
+        var newImage = CreateImage(11, "images/new.png");
+        var course = CreateDraftCourse(category);
+        course.SetImageCover(oldImage);
+        var service = CreateService([course], [category], [oldImage, newImage], out var dbContextMock);
+
+        var result = await service.UpdateCourseDetailsAsync(course.Id,
+            CreateUpdateDto(category.Id, CourseCoverType.Image, null, coverImageStorageObjectId: 11), actingUserId: 1, isAdmin: false);
+
+        Assert.Equal("images/new.png", result!.Course.CoverImageKey);
+        Assert.Equal(["images/old.png"], result.OrphanedStorageObjectKeys);
+        Mock.Get(dbContextMock.Object.StorageObjects).Verify(s => s.Remove(oldImage), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_ImageWithoutNewId_KeepsCurrentImage()
+    {
+        var category = Category.Create("Backend");
+        var image = CreateImage(10, "images/current.png");
+        var course = CreateDraftCourse(category);
+        course.SetImageCover(image);
+        var service = CreateService([course], [category], [image], out var dbContextMock);
+
+        var result = await service.UpdateCourseDetailsAsync(course.Id,
+            CreateUpdateDto(category.Id, CourseCoverType.Image, null, coverImageStorageObjectId: null), actingUserId: 1, isAdmin: false);
+
+        Assert.Equal("images/current.png", result!.Course.CoverImageKey);
+        Assert.Empty(result.OrphanedStorageObjectKeys);
+        Mock.Get(dbContextMock.Object.StorageObjects).Verify(s => s.Remove(It.IsAny<StorageObject>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_ImageToColor_ReportsOrphanedImage()
+    {
+        var category = Category.Create("Backend");
+        var image = CreateImage(10, "images/current.png");
+        var course = CreateDraftCourse(category);
+        course.SetImageCover(image);
+        var service = CreateService([course], [category], [image], out _);
+
+        var result = await service.UpdateCourseDetailsAsync(course.Id, CreateUpdateDto(category.Id), actingUserId: 1, isAdmin: false);
+
+        Assert.Equal(CourseCoverType.Color, result!.Course.CoverType);
+        Assert.Equal(["images/current.png"], result.OrphanedStorageObjectKeys);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_ImageWithoutIdOnColorCourse_ThrowsArgumentException()
+    {
+        var category = Category.Create("Backend");
+        var course = CreateDraftCourse(category);
+        course.SetColorCover(CourseCoverColor.Coral);
+        var service = CreateService([course], [category], out _);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateCourseDetailsAsync(course.Id,
+            CreateUpdateDto(category.Id, CourseCoverType.Image, null, coverImageStorageObjectId: null), actingUserId: 1, isAdmin: false));
+    }
 }

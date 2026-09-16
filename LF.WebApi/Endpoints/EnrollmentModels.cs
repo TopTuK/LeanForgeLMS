@@ -51,7 +51,8 @@ public sealed record EnrollmentSummaryResponse(
     string? CoverColor,
     string? CoverImageUrl,
     string Status,
-    decimal PricePaid);
+    decimal PricePaid,
+    bool IsCourseUnavailable);
 
 public sealed record EnrollmentLessonResponse(int Id, string Title, string Content, int SortOrder, bool IsCompleted, IReadOnlyList<LessonPartResponse> Parts);
 
@@ -66,7 +67,8 @@ public sealed record EnrollmentDetailResponse(
     DateTime? CompletedAt,
     IReadOnlyList<EnrollmentChapterResponse> Chapters,
     string Status,
-    decimal PricePaid);
+    decimal PricePaid,
+    bool IsCourseUnavailable);
 
 public sealed record QuizAnswerRequest(int QuestionId, IReadOnlyList<int> SelectedOptionIds);
 

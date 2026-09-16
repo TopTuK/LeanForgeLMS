@@ -1,14 +1,20 @@
+using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Course;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace LF.Application.Services.CourseAuthoring;
 
-internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> logger, IGrpcCourseService grpcCourseService) : ICourseAuthoringService
+internal sealed class CourseAuthoringService(
+    ILogger<CourseAuthoringService> logger,
+    IGrpcCourseService grpcCourseService,
+    [FromKeyedServices("storage")] IFileStorageService fileStorageService) : ICourseAuthoringService
 {
     private readonly ILogger<CourseAuthoringService> _logger = logger;
     private readonly IGrpcCourseService _grpcCourseService = grpcCourseService;
+    private readonly IFileStorageService _fileStorageService = fileStorageService;
 
     public async Task<CourseDetailDto> CreateCourseAsync(CreateCourseDto dto, int createdByUserId)
     {
@@ -115,6 +121,18 @@ internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> log
         return await _grpcCourseService.RemoveLessonAsync(courseId, chapterId, lessonId, actingUserId, isAdmin);
     }
 
+    public async Task<CourseDetailDto?> UpdateCourseDetailsAsync(int courseId, UpdateCourseDetailsDto dto, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseAuthoringService::UpdateCourseDetailsAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
+
+        var result = await _grpcCourseService.UpdateCourseDetailsAsync(courseId, dto, actingUserId, isAdmin);
+        if (result is null)
+            return null;
+
+        await DeleteStorageObjectsAsync(result.OrphanedStorageObjectKeys);
+        return result.Course;
+    }
+
     public async Task<CourseDetailDto?> PublishCourseAsync(int courseId, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseAuthoringService::PublishCourseAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
@@ -129,5 +147,23 @@ internal sealed class CourseAuthoringService(ILogger<CourseAuthoringService> log
             courseId, chapterId, lessonId, actingUserId);
 
         return await _grpcCourseService.ReplaceLessonPartsAsync(courseId, chapterId, lessonId, parts, actingUserId, isAdmin);
+    }
+
+    // The update has already committed, so a storage failure must not surface as a failed save.
+    // A leaked blob is recoverable; a misleading error is not. The catch stays broad because the
+    // concrete MinIO exception types live in LF.Infrastructure; cancellation still unwinds.
+    private async Task DeleteStorageObjectsAsync(IReadOnlyList<string> objectKeys)
+    {
+        foreach (var objectKey in objectKeys)
+        {
+            try
+            {
+                await _fileStorageService.DeleteAsync(objectKey);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "CourseAuthoringService::UpdateCourseDetailsAsync: failed to delete storage object {ObjectKey}", objectKey);
+            }
+        }
     }
 }

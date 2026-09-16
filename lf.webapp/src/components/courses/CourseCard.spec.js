@@ -37,6 +37,25 @@ describe('CourseCard', () => {
     expect(emitted().continue).toHaveLength(1);
   });
 
+  it('warns and disables continue when the course has been unpublished', async () => {
+    const { getByRole, emitted } = renderComponent(CourseCard, {
+      props: { ...base, status: 'active', progress: 50, unavailable: true },
+    });
+    expect(getByRole('status')).toHaveTextContent('Temporarily unavailable. Access will be restored soon.');
+    const button = getByRole('button', { name: /continue/i });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(emitted().continue).toBeUndefined();
+  });
+
+  it('warns and disables review on a finished course that has been unpublished', () => {
+    const { getByRole } = renderComponent(CourseCard, {
+      props: { ...base, status: 'finished', completedOn: '2024-03-01', unavailable: true },
+    });
+    expect(getByRole('status')).toHaveTextContent('Temporarily unavailable');
+    expect(getByRole('button', { name: /review/i })).toBeDisabled();
+  });
+
   it('renders the student count, a manage action and a status badge in the teaching state', async () => {
     const { getByText, getByRole, emitted } = renderComponent(CourseCard, {
       props: { ...base, status: 'teaching', studentsCount: 3, isPublished: false },

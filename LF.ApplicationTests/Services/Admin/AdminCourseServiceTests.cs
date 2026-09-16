@@ -159,6 +159,19 @@ public class AdminCourseServiceTests
     }
 
     [Fact]
+    public async Task UnpublishCourseAsync_DelegatesToGrpcCourseService()
+    {
+        var expected = new UnpublishCourseResultDto { AffectedEnrollmentCount = 3 };
+        var service = CreateService(out var courseMock, out _, out _);
+        courseMock.Setup(s => s.UnpublishCourseAsync(5, 42)).ReturnsAsync(expected);
+
+        var result = await service.UnpublishCourseAsync(courseId: 5, actingAdminId: 42);
+
+        Assert.Same(expected, result);
+        courseMock.Verify(s => s.UnpublishCourseAsync(5, 42), Times.Once);
+    }
+
+    [Fact]
     public async Task DeleteCourseAsync_DeletesOrphanedStorageObjects()
     {
         // Arrange

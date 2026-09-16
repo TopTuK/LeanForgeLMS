@@ -169,6 +169,8 @@ async function load() {
 
   try {
     enrollment.value = await fetchEnrollment(enrollmentId.value);
+    if (enrollment.value.isCourseUnavailable) return;
+
     const firstIncomplete = flatLessons.value.find((l) => !l.isCompleted);
     selectedLessonId.value = (firstIncomplete ?? flatLessons.value[0])?.id ?? null;
     await loadMediaForSelectedLesson();
@@ -274,6 +276,24 @@ function goToCourses() {
       class="course-learn__state"
     >
       <h1>{{ $t('courses.learn.forbidden') }}</h1>
+      <button
+        type="button"
+        class="course-learn__text-btn"
+        @click="goToCourses"
+      >
+        {{ $t('courses.learn.back') }}
+      </button>
+    </div>
+
+    <div
+      v-else-if="enrollment?.isCourseUnavailable"
+      class="course-learn__state"
+      role="status"
+    >
+      <h1>{{ $t('courses.learn.unavailable_title') }}</h1>
+      <p class="course-learn__state-text">
+        {{ $t('courses.learn.unavailable_text') }}
+      </p>
       <button
         type="button"
         class="course-learn__text-btn"
@@ -528,6 +548,13 @@ function goToCourses() {
   color: var(--color-ink);
   font-size: 1.75rem;
   font-weight: 800;
+}
+
+.course-learn__state-text {
+  margin: -0.5rem 0 1.25rem;
+  color: var(--color-ink-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .course-learn__text-btn {

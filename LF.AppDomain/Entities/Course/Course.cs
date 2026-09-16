@@ -55,23 +55,10 @@ public sealed class Course
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description cannot be empty.", nameof(description));
 
-        if (!Enum.IsDefined(pricingType))
-            throw new ArgumentException("Unknown course pricing type.", nameof(pricingType));
+        var effectivePrice = ResolvePrice(pricingType, price);
 
         if (!Enum.IsDefined(enrollmentMode))
             throw new ArgumentException("Unknown course enrollment mode.", nameof(enrollmentMode));
-
-        decimal? effectivePrice = null;
-        if (pricingType == CoursePricingType.Paid)
-        {
-            if (price is not > 0)
-                throw new ArgumentException("A paid course requires a price greater than zero.", nameof(price));
-
-            if (price > MaxPrice)
-                throw new ArgumentException($"Course price cannot exceed {MaxPrice} rubles.", nameof(price));
-
-            effectivePrice = decimal.Round(price.Value, 2);
-        }
 
         return new Course
         {
@@ -87,6 +74,62 @@ public sealed class Course
             Price = effectivePrice,
             EnrollmentMode = enrollmentMode
         };
+    }
+
+    private static decimal? ResolvePrice(CoursePricingType pricingType, decimal? price)
+    {
+        if (!Enum.IsDefined(pricingType))
+            throw new ArgumentException("Unknown course pricing type.", nameof(pricingType));
+
+        if (pricingType != CoursePricingType.Paid)
+            return null;
+
+        if (price is not > 0)
+            throw new ArgumentException("A paid course requires a price greater than zero.", nameof(price));
+
+        if (price > MaxPrice)
+            throw new ArgumentException($"Course price cannot exceed {MaxPrice} rubles.", nameof(price));
+
+        return decimal.Round(price.Value, 2);
+    }
+
+    // Only a draft is editable: enrollment and checkout both require a published course, so changing
+    // price or enrollment mode here can never affect a student who has already enrolled or paid.
+    public void UpdateDetails(
+        string title,
+        string shortIntroduction,
+        string description,
+        Category category,
+        CoursePricingType pricingType,
+        decimal? price,
+        CourseEnrollmentMode enrollmentMode)
+    {
+        if (IsPublished)
+            throw new InvalidOperationException("Cannot edit the details of a published course.");
+
+        ArgumentNullException.ThrowIfNull(category);
+
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Course title cannot be empty.", nameof(title));
+
+        if (string.IsNullOrWhiteSpace(shortIntroduction))
+            throw new ArgumentException("Short introduction cannot be empty.", nameof(shortIntroduction));
+
+        if (string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("Description cannot be empty.", nameof(description));
+
+        var effectivePrice = ResolvePrice(pricingType, price);
+
+        if (!Enum.IsDefined(enrollmentMode))
+            throw new ArgumentException("Unknown course enrollment mode.", nameof(enrollmentMode));
+
+        Title = title.Trim();
+        ShortIntroduction = shortIntroduction.Trim();
+        Description = description.Trim();
+        SetCategory(category);
+        PricingType = pricingType;
+        Price = effectivePrice;
+        EnrollmentMode = enrollmentMode;
     }
 
     public Chapter AddChapter(string title)
@@ -129,7 +172,15 @@ public sealed class Course
         IsPublished = true;
     }
 
-    public void Unpublish() => IsPublished = false;
+    // Enrollments are deliberately left intact: students keep their progress and payment, and
+    // regain access as soon as the course is published again.
+    public void Unpublish()
+    {
+        if (!IsPublished)
+            throw new InvalidOperationException("Course is not published.");
+
+        IsPublished = false;
+    }
 
     public void Rename(string title)
     {

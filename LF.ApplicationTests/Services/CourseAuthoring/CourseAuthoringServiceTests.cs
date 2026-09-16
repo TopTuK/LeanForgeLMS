@@ -1,4 +1,5 @@
 using LF.AppDomain.Models.Course.Enums;
+using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
@@ -17,7 +18,7 @@ public class CourseAuthoringServiceTests
         var expected = new CourseDetailDto { Id = 1, Title = "Title", CreatedByUserId = 5 };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.CreateCourseAsync(dto, 5)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.CreateCourseAsync(dto, createdByUserId: 5);
@@ -34,7 +35,7 @@ public class CourseAuthoringServiceTests
         var expected = new CourseDetailDto { Id = 1, Title = "Title" };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.GetCourseAsync(1, 5, false)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.GetCourseAsync(1, actingUserId: 5, isAdmin: false);
@@ -50,7 +51,7 @@ public class CourseAuthoringServiceTests
         var expected = new PagedCoursesDto { TotalCount = 1 };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.ListCoursesAsync(1, 20, 5, true)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.ListCoursesAsync(1, 20, actingUserId: 5, isAdmin: true);
@@ -66,7 +67,7 @@ public class CourseAuthoringServiceTests
         IReadOnlyList<CategoryDto> expected = [new CategoryDto { Id = 1, Name = "Backend" }];
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.ListCategoriesAsync()).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.ListCategoriesAsync();
@@ -82,7 +83,7 @@ public class CourseAuthoringServiceTests
         var expected = new CategoryDto { Id = 1, Name = "Backend" };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.CreateCategoryAsync("Backend")).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.CreateCategoryAsync("Backend");
@@ -98,7 +99,7 @@ public class CourseAuthoringServiceTests
         // Arrange
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.DeleteCategoryAsync(1)).ReturnsAsync(true);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.DeleteCategoryAsync(1);
@@ -115,7 +116,7 @@ public class CourseAuthoringServiceTests
         var expected = new CourseDetailDto { Id = 1, Title = "Title" };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.AddChapterAsync(1, "Chapter 1", 5, false)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.AddChapterAsync(1, "Chapter 1", actingUserId: 5, isAdmin: false);
@@ -131,7 +132,7 @@ public class CourseAuthoringServiceTests
         var expected = new CourseDetailDto { Id = 1, Title = "Title", IsPublished = true };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.PublishCourseAsync(1, 5, false)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.PublishCourseAsync(1, actingUserId: 5, isAdmin: false);
@@ -142,6 +143,67 @@ public class CourseAuthoringServiceTests
     }
 
     [Fact]
+    public async Task UpdateCourseDetailsAsync_ReturnsCourseAndDeletesOrphanedBlobs()
+    {
+        // Arrange
+        var dto = new UpdateCourseDetailsDto { Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = 1 };
+        var course = new CourseDetailDto { Id = 1, Title = "Title" };
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.UpdateCourseDetailsAsync(1, dto, 5, false))
+            .ReturnsAsync(new UpdateCourseDetailsResultDto { Course = course, OrphanedStorageObjectKeys = ["images/old.png"] });
+        var storageMock = new Mock<IFileStorageService>();
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, storageMock.Object);
+
+        // Act
+        var result = await service.UpdateCourseDetailsAsync(1, dto, actingUserId: 5, isAdmin: false);
+
+        // Assert
+        Assert.Same(course, result);
+        storageMock.Verify(s => s.DeleteAsync("images/old.png", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // The update has already committed by the time blobs are cleaned up, so a storage failure
+    // must not turn a successful save into an error.
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_StorageFailure_StillReturnsCourse()
+    {
+        // Arrange
+        var dto = new UpdateCourseDetailsDto { Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = 1 };
+        var course = new CourseDetailDto { Id = 1, Title = "Title" };
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.UpdateCourseDetailsAsync(1, dto, 5, false))
+            .ReturnsAsync(new UpdateCourseDetailsResultDto { Course = course, OrphanedStorageObjectKeys = ["images/old.png"] });
+        var storageMock = new Mock<IFileStorageService>();
+        storageMock.Setup(s => s.DeleteAsync("images/old.png", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("minio down"));
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, storageMock.Object);
+
+        // Act
+        var result = await service.UpdateCourseDetailsAsync(1, dto, actingUserId: 5, isAdmin: false);
+
+        // Assert
+        Assert.Same(course, result);
+    }
+
+    [Fact]
+    public async Task UpdateCourseDetailsAsync_NotFound_ReturnsNullWithoutTouchingStorage()
+    {
+        // Arrange
+        var dto = new UpdateCourseDetailsDto { Title = "Title", ShortIntroduction = "Short", Description = "Description", CategoryId = 1 };
+        var grpcMock = new Mock<IGrpcCourseService>();
+        grpcMock.Setup(s => s.UpdateCourseDetailsAsync(1, dto, 5, false)).ReturnsAsync((UpdateCourseDetailsResultDto?)null);
+        var storageMock = new Mock<IFileStorageService>();
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, storageMock.Object);
+
+        // Act
+        var result = await service.UpdateCourseDetailsAsync(1, dto, actingUserId: 5, isAdmin: false);
+
+        // Assert
+        Assert.Null(result);
+        storageMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task ReplaceLessonPartsAsync_DelegatesToGrpcCourseService()
     {
         // Arrange
@@ -149,7 +211,7 @@ public class CourseAuthoringServiceTests
         var expected = new CourseDetailDto { Id = 1, Title = "Title" };
         var grpcMock = new Mock<IGrpcCourseService>();
         grpcMock.Setup(s => s.ReplaceLessonPartsAsync(1, 2, 3, parts, 5, false)).ReturnsAsync(expected);
-        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object);
+        var service = new CourseAuthoringService(NullLogger<CourseAuthoringService>.Instance, grpcMock.Object, Mock.Of<IFileStorageService>());
 
         // Act
         var result = await service.ReplaceLessonPartsAsync(1, 2, 3, parts, actingUserId: 5, isAdmin: false);

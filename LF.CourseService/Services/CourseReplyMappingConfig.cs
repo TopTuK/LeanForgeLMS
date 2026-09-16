@@ -17,6 +17,9 @@ internal sealed class CourseReplyMappingConfig : IRegister
         config.NewConfig<CreateCourseRequest, CreateCourseDto>()
             .Map(dest => dest.Price, src => ToPrice(src.PriceRub));
 
+        config.NewConfig<UpdateCourseDetailsRequest, UpdateCourseDetailsDto>()
+            .Map(dest => dest.Price, src => ToPrice(src.PriceRub));
+
         config.NewConfig<CourseDetailDto, CourseDetailReply>()
             .Map(dest => dest.CreatedAt, src => Timestamp.FromDateTime(DateTime.SpecifyKind(src.CreatedAt, DateTimeKind.Utc)))
             .Map(dest => dest.PriceRub, src => ToText(src.Price));
