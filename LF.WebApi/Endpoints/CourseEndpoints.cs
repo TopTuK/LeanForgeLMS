@@ -193,6 +193,54 @@ public sealed class CourseEndpoints : IEndpointGroup
             }
         });
 
+        group.MapPut("/{id:int}", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult, Conflict<string>>>
+            (int id, UpdateCourseRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var validation = new UpdateCourseRequestValidator().Validate(request);
+            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+            var coverType = Enum.Parse<CourseCoverType>(request.CoverType, ignoreCase: true);
+            var pricingType = Enum.Parse<CoursePricingType>(request.PricingType, ignoreCase: true);
+            var dto = new UpdateCourseDetailsDto
+            {
+                Title = request.Title,
+                ShortIntroduction = request.ShortIntroduction,
+                Description = request.Description,
+                CategoryId = request.CategoryId,
+                CoverType = coverType,
+                CoverColor = coverType == CourseCoverType.Color ? Enum.Parse<CourseCoverColor>(request.CoverColor!, ignoreCase: true) : null,
+                CoverImageStorageObjectId = coverType == CourseCoverType.Image ? request.CoverImageStorageObjectId : null,
+                PricingType = pricingType,
+                Price = pricingType == CoursePricingType.Paid ? request.Price : null,
+                EnrollmentMode = Enum.Parse<CourseEnrollmentMode>(request.EnrollmentMode, ignoreCase: true),
+            };
+
+            try
+            {
+                var course = await courseService.UpdateCourseDetailsAsync(id, dto, userId.Value, isAdmin);
+                return course is null ? TypedResults.NotFound() : TypedResults.Ok(ToDetailResponse(course));
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.Conflict(ex.Message);
+            }
+            catch (ArgumentException)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["categoryId"] = ["Category or cover image not found."],
+                });
+            }
+        });
+
         group.MapPost("/{id:int}/chapters", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult>>
             (int id, AddChapterRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
         {

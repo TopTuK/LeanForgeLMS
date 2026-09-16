@@ -23,6 +23,9 @@ export const removeEnrollment = (courseId, enrollmentId) =>
 
 // force acknowledges that paid students lose access without a refund; without it the API
 // refuses a course anyone has paid for.
+export const unpublishCourse = (courseId) =>
+  api.post(`/admin/courses/${courseId}/unpublish`).then((r) => r.data);
+
 export const deleteCourse = (courseId, { force = false } = {}) =>
   api.delete(`/admin/courses/${courseId}`, { params: { force: force || undefined } }).then((r) => r.data);
 

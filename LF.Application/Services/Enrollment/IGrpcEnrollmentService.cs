@@ -13,6 +13,6 @@ public interface IGrpcEnrollmentService
     Task<EnrollmentDetailDto?> GetEnrollmentAsync(int id, int actingUserId, bool isAdmin);
     Task<EnrollmentDetailDto?> CompleteLessonAsync(int id, int lessonId, int actingUserId, bool isAdmin);
     Task<QuizSubmissionDto?> SubmitQuizAttemptAsync(int id, int lessonId, int partId, IReadOnlyList<QuizAnswerInputDto> answers, int actingUserId, bool isAdmin);
-    Task<CourseCoverDto?> GetCourseCoverAsync(int courseId);
+    Task<CourseCoverDto?> GetCourseCoverAsync(int courseId, int actingUserId);
     Task<CoursePreviewDto?> GetCoursePreviewAsync(int courseId, int actingUserId);
 }

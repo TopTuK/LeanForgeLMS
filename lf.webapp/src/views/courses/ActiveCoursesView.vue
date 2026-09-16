@@ -89,6 +89,7 @@ function onContinue(enrollmentId) {
         :cover-type="item.coverType"
         :cover-color="item.coverColor"
         :cover-image-url="coverImageUrls[item.courseId] ?? null"
+        :unavailable="item.isCourseUnavailable"
         @continue="onContinue(item.id)"
       />
     </div>

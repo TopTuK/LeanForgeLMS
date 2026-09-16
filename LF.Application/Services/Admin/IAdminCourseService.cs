@@ -9,5 +9,6 @@ public interface IAdminCourseService
     Task<PagedCourseEnrollmentsDto?> ListCourseEnrollmentsAsync(int courseId, int actingAdminId, int page, int pageSize);
     Task<EnrollmentSummaryDto?> EnrollStudentAsync(int courseId, int targetUserId, int actingAdminId);
     Task<RemoveEnrollmentResultDto?> RemoveEnrollmentAsync(int courseId, int enrollmentId, int actingAdminId);
+    Task<UnpublishCourseResultDto?> UnpublishCourseAsync(int courseId, int actingAdminId);
     Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingAdminId, bool force);
 }

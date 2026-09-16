@@ -59,3 +59,5 @@ public sealed record PagedAdminCourseEnrollmentsResponse(
 public sealed record RemoveEnrollmentResponse(int UserId, bool WasPaid, decimal PricePaid);
 
 public sealed record DeleteCourseResponse(int RemovedEnrollmentCount, int PaidEnrollmentCount);
+
+public sealed record UnpublishCourseResponse(int AffectedEnrollmentCount);

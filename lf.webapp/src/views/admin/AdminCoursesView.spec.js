@@ -9,6 +9,7 @@ import {
   enrollStudent,
   removeEnrollment,
   deleteCourse,
+  unpublishCourse,
   fetchUsers,
 } from '@/services/adminService';
 
@@ -23,6 +24,7 @@ vi.mock('@/services/adminService', () => ({
   enrollStudent: vi.fn(),
   removeEnrollment: vi.fn(),
   deleteCourse: vi.fn(),
+  unpublishCourse: vi.fn(),
   fetchUsers: vi.fn(),
 }));
 
@@ -68,6 +70,7 @@ describe('AdminCoursesView', () => {
     enrollStudent.mockResolvedValue({});
     removeEnrollment.mockResolvedValue({});
     deleteCourse.mockResolvedValue({});
+    unpublishCourse.mockResolvedValue({ affectedEnrollmentCount: 1 });
   });
 
   it('renders courses and labels a managed course as private', async () => {
@@ -209,5 +212,53 @@ describe('AdminCoursesView', () => {
     await user.click(confirm);
 
     expect(await screen.findByText('2 student(s) have paid for this course.')).toBeInTheDocument();
+  });
+
+  it('offers unpublish only on published courses', async () => {
+    fetchAdminCourses.mockResolvedValue({
+      items: [managedCourse, { ...managedCourse, id: 6, title: 'Draft course', isPublished: false }],
+      totalCount: 2,
+    });
+    renderComponent(AdminCoursesView);
+    await screen.findByText('Draft course');
+
+    expect(screen.getAllByRole('button', { name: 'Unpublish' })).toHaveLength(1);
+  });
+
+  it('blocks unpublishing a course with enrolled students until the admin acknowledges', async () => {
+    const user = userEvent.setup();
+    renderComponent(AdminCoursesView);
+    await screen.findByText('Async in C#');
+
+    await user.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await screen.findByText('Unpublish course');
+    expect(await screen.findByText('1 student(s) enrolled, 0 of whom have paid.')).toBeInTheDocument();
+
+    const confirm = screen.getAllByRole('button', { name: 'Unpublish' })
+      .find((b) => b.closest('[role="dialog"]'));
+    expect(confirm).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(confirm);
+
+    await waitFor(() => expect(unpublishCourse).toHaveBeenCalledWith(5));
+    await waitFor(() => expect(fetchAdminCourses).toHaveBeenCalledTimes(2));
+  });
+
+  it('unpublishes a course with no students without an acknowledgement', async () => {
+    const user = userEvent.setup();
+    fetchCourseEnrollments.mockResolvedValue({ items: [], totalCount: 0 });
+    renderComponent(AdminCoursesView);
+    await screen.findByText('Async in C#');
+
+    await user.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await screen.findByText('0 student(s) enrolled, 0 of whom have paid.');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+
+    const confirm = screen.getAllByRole('button', { name: 'Unpublish' })
+      .find((b) => b.closest('[role="dialog"]'));
+    await user.click(confirm);
+
+    await waitFor(() => expect(unpublishCourse).toHaveBeenCalledWith(5));
   });
 });

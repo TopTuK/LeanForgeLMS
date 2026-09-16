@@ -568,7 +568,7 @@ public class EnrollmentServiceTests
         var service = CreateService([course], [], out _);
 
         // Act
-        var result = await service.GetCourseCoverAsync(course.Id);
+        var result = await service.GetCourseCoverAsync(course.Id, actingUserId: 7);
 
         // Assert
         Assert.NotNull(result);
@@ -577,7 +577,7 @@ public class EnrollmentServiceTests
     }
 
     [Fact]
-    public async Task GetCourseCoverAsync_UnpublishedCourse_ReturnsNull()
+    public async Task GetCourseCoverAsync_UnpublishedCourseNotEnrolled_ReturnsNull()
     {
         // Arrange
         var category = Category.Create("Backend");
@@ -587,10 +587,28 @@ public class EnrollmentServiceTests
         var service = CreateService([course], [], out _);
 
         // Act
-        var result = await service.GetCourseCoverAsync(course.Id);
+        var result = await service.GetCourseCoverAsync(course.Id, actingUserId: 7);
 
         // Assert
         Assert.Null(result);
+    }
+
+    // An admin can unpublish a course students are already in; their course cards keep the cover.
+    [Fact]
+    public async Task GetCourseCoverAsync_UnpublishedCourseButEnrolled_ReturnsCover()
+    {
+        // Arrange
+        var course = CreatePublishedCourse();
+        course.SetImageCover(StorageObject.Create(StorageObjectType.Image, "images/a.png", "image/png", 100, 1, DateTime.UtcNow));
+        course.Unpublish();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        // Act
+        var result = await service.GetCourseCoverAsync(course.Id, actingUserId: 7);
+
+        // Assert
+        Assert.Equal("images/a.png", result?.CoverImageKey);
     }
 
     [Fact]
@@ -602,7 +620,7 @@ public class EnrollmentServiceTests
         var service = CreateService([course], [], out _);
 
         // Act
-        var result = await service.GetCourseCoverAsync(course.Id);
+        var result = await service.GetCourseCoverAsync(course.Id, actingUserId: 7);
 
         // Assert
         Assert.Null(result);
@@ -615,7 +633,7 @@ public class EnrollmentServiceTests
         var service = CreateService([], [], out _);
 
         // Act
-        var result = await service.GetCourseCoverAsync(courseId: 999);
+        var result = await service.GetCourseCoverAsync(courseId: 999, actingUserId: 7);
 
         // Assert
         Assert.Null(result);
@@ -760,5 +778,92 @@ public class EnrollmentServiceTests
         var service = CreateService([], [], out _);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ActivatePaidEnrollmentAsync(999, 100m));
+    }
+
+    [Fact]
+    public async Task GetEnrollmentAsync_UnpublishedCourse_FlagsUnavailableAndWithholdsContent()
+    {
+        var course = CreatePublishedCourse(lessonCount: 2);
+        course.Unpublish();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        var result = await service.GetEnrollmentAsync(enrollment.Id, actingUserId: 7, isAdmin: false);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsCourseUnavailable);
+        Assert.Empty(result.Chapters);
+    }
+
+    [Fact]
+    public async Task GetEnrollmentAsync_UnpublishedCourseAsAdmin_ReturnsContent()
+    {
+        var course = CreatePublishedCourse(lessonCount: 2);
+        course.Unpublish();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        var result = await service.GetEnrollmentAsync(enrollment.Id, actingUserId: 42, isAdmin: true);
+
+        Assert.False(result!.IsCourseUnavailable);
+        Assert.Equal(2, result.Chapters[0].Lessons.Count);
+    }
+
+    [Fact]
+    public async Task GetEnrollmentAsync_PublishedCourse_IsAvailable()
+    {
+        var course = CreatePublishedCourse();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out _);
+
+        var result = await service.GetEnrollmentAsync(enrollment.Id, actingUserId: 7, isAdmin: false);
+
+        Assert.False(result!.IsCourseUnavailable);
+        Assert.NotEmpty(result.Chapters);
+    }
+
+    [Fact]
+    public async Task CompleteLessonAsync_UnpublishedCourse_ThrowsAndDoesNotSave()
+    {
+        var course = CreatePublishedCourse();
+        course.Unpublish();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out var dbContextMock);
+
+        await Assert.ThrowsAsync<EnrollmentAuthorizationException>(
+            () => service.CompleteLessonAsync(enrollment.Id, course.Chapters[0].Lessons[0].Id, actingUserId: 7, isAdmin: false));
+
+        Assert.Empty(enrollment.CompletedLessonIds);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SubmitQuizAttemptAsync_UnpublishedCourse_ThrowsAndDoesNotSave()
+    {
+        var (course, lessonId, partId, correctOptionId, _) = CreatePublishedCourseWithQuiz();
+        course.Unpublish();
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow);
+        var service = CreateService([course], [enrollment], out var dbContextMock);
+        var answers = new List<QuizAnswerInputDto> { new() { QuestionId = 1, SelectedOptionIds = [correctOptionId] } };
+
+        await Assert.ThrowsAsync<EnrollmentAuthorizationException>(
+            () => service.SubmitQuizAttemptAsync(enrollment.Id, lessonId, partId, answers, actingUserId: 7, isAdmin: false));
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ListMyEnrollmentsAsync_FlagsUnpublishedCourses()
+    {
+        var availableCourse = CreatePublishedCourse(id: 1);
+        var unpublishedCourse = CreatePublishedCourse(id: 2);
+        unpublishedCourse.Unpublish();
+        var service = CreateService([availableCourse, unpublishedCourse],
+            [DomainEnrollment.Create(1, userId: 7, DateTime.UtcNow), DomainEnrollment.Create(2, userId: 7, DateTime.UtcNow)], out _);
+
+        var result = await service.ListMyEnrollmentsAsync(actingUserId: 7, EnrollmentStatusFilter.All);
+
+        Assert.False(result.Single(e => e.CourseId == 1).IsCourseUnavailable);
+        Assert.True(result.Single(e => e.CourseId == 2).IsCourseUnavailable);
     }
 }

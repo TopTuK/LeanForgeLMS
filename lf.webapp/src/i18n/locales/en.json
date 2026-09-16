@@ -57,6 +57,7 @@
     "courses_teaching_view_title": "Teaching — High Managers School",
     "courses_create_view_title": "New course — High Managers School",
     "courses_edit_view_title": "Edit course — High Managers School",
+    "courses_settings_view_title": "Course details — High Managers School",
     "courses_lesson_edit_view_title": "Edit lesson — High Managers School",
     "courses_learn_view_title": "Learning — High Managers School",
     "news_view_title": "News — High Managers School",
@@ -212,6 +213,12 @@
             "delete_stats": "{total} student(s) enrolled, {paid} of whom have paid.",
             "delete_paid_ack": "I understand {paid} paying student(s) will lose access with no refund.",
             "delete_error": "Could not delete this course. Please try again.",
+            "unpublish": "Unpublish",
+            "unpublish_title": "Unpublish course",
+            "unpublish_confirm": "Take \"{title}\" back to draft? It disappears from the catalog and enrolled students cannot open it until it is published again. Their enrollments, progress and payments are kept.",
+            "unpublish_stats": "{total} student(s) enrolled, {paid} of whom have paid.",
+            "unpublish_ack": "I understand {total} enrolled student(s) will temporarily lose access to this course.",
+            "unpublish_error": "Could not unpublish this course. Please try again.",
             "close": "Close",
             "cancel": "Cancel",
             "load_error": "Could not load courses. Please try again.",
@@ -348,6 +355,8 @@
             "forbidden": "You do not have access to this enrollment.",
             "back": "Back to courses",
             "load_error": "Could not load this course. Please try again.",
+            "unavailable_title": "This course is temporarily unavailable",
+            "unavailable_text": "The course is being updated. Your enrollment and progress are saved, and access will be restored soon.",
             "complete_error": "Could not mark this lesson complete. Please try again.",
             "mark_complete": "Mark lesson complete",
             "completing": "Saving…",
@@ -460,7 +469,21 @@
             "back_to_courses": "Back to courses",
             "outline_summary": "{chapters} chapters · {lessons} lessons",
             "details_title": "Course details",
-            "details_tip": "Add a chapter to start. Add a lesson to open the editor and write content."
+            "details_tip": "Add a chapter to start. Add a lesson to open the editor and write content.",
+            "edit_details": "Edit details",
+            "price_summary": "{price} ₽"
+        },
+        "settings": {
+            "title": "Course details",
+            "subtitle": "Change the title, description, category, pricing, enrollment and cover while the course is still a draft.",
+            "back": "Back to course editor",
+            "submit": "Save changes",
+            "submitting": "Saving…",
+            "locked_published": "This course is published, so its details can no longer be changed.",
+            "load_error": "Could not load the course. Please try again.",
+            "save_error": "Could not save changes. Please try again.",
+            "validation_error": "Please fill in all required fields.",
+            "conflict_error": "This course has been published, so its details can no longer be changed."
         },
         "lessonEditor": {
             "eyebrow": "Lesson",
@@ -589,7 +612,8 @@
         },
         "search_placeholder": "Search by title",
         "card": {
-            "free": "Free"
+            "free": "Free",
+            "unavailable": "Temporarily unavailable. Access will be restored soon."
         }
     },
     "events": {

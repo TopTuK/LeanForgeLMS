@@ -20,4 +20,7 @@ public sealed class EnrollmentSummaryDto
     public CourseCoverColor? CoverColor { get; init; }
     public string? CoverImageKey { get; init; }
     public string? CoverImageContentType { get; init; }
+
+    // Set when an admin has unpublished the course. Phrased negatively so it defaults to "available".
+    public bool IsCourseUnavailable { get; init; }
 }

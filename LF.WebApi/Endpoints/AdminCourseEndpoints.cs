@@ -87,6 +87,27 @@ public sealed class AdminCourseEndpoints : IEndpointGroup
                 : TypedResults.Ok(new RemoveEnrollmentResponse(result.UserId, result.WasPaid, result.PricePaid));
         });
 
+        // Back to draft without touching enrollments: students keep progress and payment but cannot
+        // reach the content until the course is published again.
+        group.MapPost("/{id:int}/unpublish", async Task<Results<Ok<UnpublishCourseResponse>, UnauthorizedHttpResult, NotFound, Conflict<string>>>
+            (int id, ClaimsPrincipal user, IAdminCourseService adminCourseService, CancellationToken ct) =>
+        {
+            var adminId = user.GetUserId();
+            if (adminId is null) return TypedResults.Unauthorized();
+
+            try
+            {
+                var result = await adminCourseService.UnpublishCourseAsync(id, adminId.Value);
+                return result is null
+                    ? TypedResults.NotFound()
+                    : TypedResults.Ok(new UnpublishCourseResponse(result.AffectedEnrollmentCount));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.Conflict(ex.Message);
+            }
+        });
+
         // force=true is the admin's explicit acknowledgement that paid students lose access
         // without a refund; without it a paid course refuses to delete.
         group.MapDelete("/{id:int}", async Task<Results<Ok<DeleteCourseResponse>, UnauthorizedHttpResult, NotFound, Conflict<string>>>

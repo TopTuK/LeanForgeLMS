@@ -110,6 +110,54 @@ public sealed class CreateCourseRequestValidator : AbstractValidator<CreateCours
     }
 }
 
+// CoverImageStorageObjectId may be null with an Image cover: the course keeps its current image.
+public sealed record UpdateCourseRequest(
+    string Title,
+    string ShortIntroduction,
+    string Description,
+    int CategoryId,
+    string CoverType,
+    string? CoverColor,
+    int? CoverImageStorageObjectId,
+    string PricingType,
+    decimal? Price,
+    string EnrollmentMode);
+
+public sealed class UpdateCourseRequestValidator : AbstractValidator<UpdateCourseRequest>
+{
+    private const decimal MaxPrice = 10_000_000m;
+
+    public UpdateCourseRequestValidator()
+    {
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.ShortIntroduction).NotEmpty().MaximumLength(500);
+        RuleFor(x => x.Description).NotEmpty();
+        RuleFor(x => x.CategoryId).GreaterThan(0);
+
+        RuleFor(x => x.PricingType).Must(t => Enum.TryParse<CoursePricingType>(t, ignoreCase: true, out _))
+            .WithMessage("Pricing type must be Free or Paid.");
+
+        RuleFor(x => x.EnrollmentMode).Must(m => Enum.TryParse<CourseEnrollmentMode>(m, ignoreCase: true, out _))
+            .WithMessage("Enrollment mode must be Open or Managed.");
+
+        RuleFor(x => x.Price).NotNull().GreaterThan(0).LessThanOrEqualTo(MaxPrice)
+            .When(x => string.Equals(x.PricingType, nameof(CoursePricingType.Paid), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("A paid course requires a price between 0 and 10000000 rubles.");
+
+        RuleFor(x => x.CoverType).Must(t => Enum.TryParse<CourseCoverType>(t, out _))
+            .WithMessage("Cover type must be one of None, Color, Image.");
+
+        RuleFor(x => x.CoverColor).Must(c => Enum.TryParse<CourseCoverColor>(c, out _))
+            .When(x => string.Equals(x.CoverType, nameof(CourseCoverType.Color), StringComparison.OrdinalIgnoreCase))
+            .WithMessage("A valid cover color is required when cover type is Color.");
+
+        RuleFor(x => x.CoverImageStorageObjectId).GreaterThan(0)
+            .When(x => string.Equals(x.CoverType, nameof(CourseCoverType.Image), StringComparison.OrdinalIgnoreCase)
+                && x.CoverImageStorageObjectId is not null)
+            .WithMessage("A cover image storage object id must be positive.");
+    }
+}
+
 public sealed record UploadCoverImageResponse(int StorageObjectId);
 
 public static class CourseCoverImageUpload

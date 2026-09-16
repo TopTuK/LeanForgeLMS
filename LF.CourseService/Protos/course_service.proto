@@ -35,10 +35,16 @@ service CourseServiceRpc {
   rpc MoveLesson (MoveLessonRequest) returns (CourseDetailReply);
   // Remove a lesson from its chapter
   rpc RemoveLesson (RemoveLessonRequest) returns (CourseDetailReply);
+  // Update a draft course's details (title, descriptions, category, pricing, enrollment mode, cover).
+  // A published course is rejected with FailedPrecondition.
+  rpc UpdateCourseDetails (UpdateCourseDetailsRequest) returns (UpdateCourseDetailsReply);
   // Publish a course (requires at least one chapter, each with at least one lesson)
   rpc PublishCourse (PublishCourseRequest) returns (CourseDetailReply);
   // Enroll another user in a course (admin only); the only way into a managed-enrollment course
   rpc EnrollUser (EnrollUserRequest) returns (EnrollmentSummaryReply);
+  // Take a published course back to draft (admin only). Enrollments are kept, but enrolled students
+  // cannot reach its content until it is published again. Refuses a course that is not published.
+  rpc UnpublishCourse (UnpublishCourseRequest) returns (UnpublishCourseReply);
   // Delete a course and everything cascading from it, including every enrollment (admin only).
   // Refuses when any student has actually paid unless force is set.
   rpc DeleteCourse (DeleteCourseRequest) returns (DeleteCourseReply);
@@ -384,6 +390,30 @@ message RemoveLessonRequest {
   bool acting_is_admin = 5;
 }
 
+message UpdateCourseDetailsRequest {
+  int32 course_id = 1;
+  string title = 2;
+  string short_introduction = 3;
+  string description = 4;
+  int32 category_id = 5;
+  CourseCoverType cover_type = 6;
+  CourseCoverColor cover_color = 7;
+  // Unset with an image cover type keeps the course's current image.
+  google.protobuf.Int32Value cover_image_storage_object_id = 8;
+  CoursePricingType pricing_type = 9;
+  google.protobuf.StringValue price_rub = 10;
+  CourseEnrollmentMode enrollment_mode = 11;
+  int32 acting_user_id = 12;
+  bool acting_is_admin = 13;
+}
+
+message UpdateCourseDetailsReply {
+  CourseDetailReply course = 1;
+  // MinIO object keys of a replaced cover image. LF.CourseService has no MinIO client, so the
+  // caller (LF.WebApi) deletes the blobs themselves once this RPC has committed.
+  repeated string orphaned_storage_object_keys = 2;
+}
+
 message PublishCourseRequest {
   int32 course_id = 1;
   int32 acting_user_id = 2;
@@ -427,6 +457,8 @@ message CourseCatalogItemReply {
 
 message GetCourseCoverRequest {
   int32 course_id = 1;
+  // An enrolled user still sees the cover of a course that has been unpublished.
+  int32 acting_user_id = 2;
 }
 
 message CourseCoverReply {
@@ -457,6 +489,16 @@ message EnrollUserRequest {
   int32 target_user_id = 2;
   int32 acting_user_id = 3;
   bool acting_is_admin = 4;
+}
+
+message UnpublishCourseRequest {
+  int32 course_id = 1;
+  int32 acting_user_id = 2;
+}
+
+message UnpublishCourseReply {
+  bool found = 1;
+  int32 affected_enrollment_count = 2;
 }
 
 message DeleteCourseRequest {
@@ -595,6 +637,8 @@ message EnrollmentSummaryReply {
   google.protobuf.StringValue cover_image_content_type = 14;
   EnrollmentStatus status = 15;
   google.protobuf.StringValue price_paid = 16;
+  // The course has been unpublished by an admin; content is withheld until it is published again.
+  bool is_course_unavailable = 17;
 }
 
 message GetEnrollmentRequest {
@@ -620,6 +664,8 @@ message EnrollmentDetailReply {
   repeated EnrollmentChapterReply chapters = 7;
   EnrollmentStatus status = 8;
   google.protobuf.StringValue price_paid = 9;
+  // The course has been unpublished by an admin; chapters come back empty until it is published again.
+  bool is_course_unavailable = 10;
 }
 
 message EnrollmentChapterReply {

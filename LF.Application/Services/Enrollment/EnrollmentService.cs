@@ -247,6 +247,7 @@ internal sealed class EnrollmentService(
                     CoverColor = course.CoverColor,
                     CoverImageKey = course.CoverImageStorageObject?.ObjectKey,
                     CoverImageContentType = course.CoverImageStorageObject?.ContentType,
+                    IsCourseUnavailable = !course.IsPublished,
                 };
             })];
     }
@@ -263,7 +264,9 @@ internal sealed class EnrollmentService(
         EnsureAccessible(enrollment, isAdmin);
 
         var course = await LoadCourseAsync(enrollment.CourseId);
-        return course is null ? null : ToDetailDto(enrollment, course);
+        // Withholding the chapters is the enforcement: the lesson media/file endpoints resolve parts
+        // through this same read, so they 404 for as long as the course stays unpublished.
+        return course is null ? null : ToDetailDto(enrollment, course, withholdContent: IsUnavailableTo(course, isAdmin));
     }
 
     public async Task<EnrollmentDetailDto?> CompleteLessonAsync(int id, int lessonId, int actingUserId, bool isAdmin)
@@ -281,6 +284,8 @@ internal sealed class EnrollmentService(
         var course = await LoadCourseAsync(enrollment.CourseId);
         if (course is null)
             return null;
+
+        EnsureCourseAvailable(course, isAdmin);
 
         var lesson = course.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId);
         if (lesson is null)
@@ -316,6 +321,8 @@ internal sealed class EnrollmentService(
         if (course is null)
             return null;
 
+        EnsureCourseAvailable(course, isAdmin);
+
         var lesson = course.Chapters.SelectMany(ch => ch.Lessons).FirstOrDefault(l => l.Id == lessonId);
         var quizPart = lesson?.Parts.FirstOrDefault(p => p.Id == partId && p.PartType == LessonPartType.Quiz);
         if (quizPart is null)
@@ -350,17 +357,20 @@ internal sealed class EnrollmentService(
         return new QuizSubmissionDto { Result = result, Enrollment = ToDetailDto(enrollment, course) };
     }
 
-    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId, int actingUserId)
     {
-        _logger.LogInformation("EnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+        _logger.LogInformation("EnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
-        // No ownership/enrollment check beyond "published" — a course can only be enrolled in once
-        // published, so this single check already covers both the catalog and enrolled-course cases.
+        // A published course's cover is public to signed-in users via the catalog. Once an admin
+        // unpublishes it, only students already enrolled keep seeing it on their course cards.
         var course = await _dbContext.Courses.AsNoTracking()
             .Include(c => c.CoverImageStorageObject)
-            .FirstOrDefaultAsync(c => c.Id == courseId && c.IsPublished);
+            .FirstOrDefaultAsync(c => c.Id == courseId);
 
         if (course?.CoverImageStorageObject is not { } storageObject)
+            return null;
+
+        if (!course.IsPublished && !await _dbContext.Enrollments.AnyAsync(e => e.CourseId == courseId && e.UserId == actingUserId))
             return null;
 
         return new CourseCoverDto { CoverImageKey = storageObject.ObjectKey, CoverImageContentType = storageObject.ContentType };
@@ -480,6 +490,14 @@ internal sealed class EnrollmentService(
             throw new EnrollmentAuthorizationException("This enrollment is awaiting payment.");
     }
 
+    private static bool IsUnavailableTo(DomainCourse course, bool isAdmin) => !isAdmin && !course.IsPublished;
+
+    private static void EnsureCourseAvailable(DomainCourse course, bool isAdmin)
+    {
+        if (IsUnavailableTo(course, isAdmin))
+            throw new EnrollmentAuthorizationException("This course is temporarily unavailable.");
+    }
+
     private Task<DomainCourse?> LoadCourseAsync(int courseId) =>
         _dbContext.Courses
             .AsNoTracking()
@@ -500,7 +518,7 @@ internal sealed class EnrollmentService(
             .ThenInclude(f => f.StorageObject)
             .FirstOrDefaultAsync(c => c.Id == courseId);
 
-    private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course) => new()
+    private static EnrollmentDetailDto ToDetailDto(DomainEnrollment enrollment, DomainCourse course, bool withholdContent = false) => new()
     {
         Id = enrollment.Id,
         CourseId = course.Id,
@@ -510,7 +528,8 @@ internal sealed class EnrollmentService(
         PricePaid = enrollment.PricePaid,
         EnrolledAt = enrollment.EnrolledAt,
         CompletedAt = enrollment.CompletedAt,
-        Chapters = [.. course.Chapters
+        IsCourseUnavailable = withholdContent,
+        Chapters = withholdContent ? [] : [.. course.Chapters
             .OrderBy(ch => ch.SortOrder)
             .Select(ch => new EnrollmentChapterDto
             {

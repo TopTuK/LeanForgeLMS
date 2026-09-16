@@ -84,11 +84,11 @@ internal sealed class EnrollmentLearningService(
         return await _grpcEnrollmentService.SubmitQuizAttemptAsync(id, lessonId, partId, answers, actingUserId, isAdmin);
     }
 
-    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId, int actingUserId)
     {
-        _logger.LogInformation("EnrollmentLearningService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+        _logger.LogInformation("EnrollmentLearningService::GetCourseCoverAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
-        return await _grpcEnrollmentService.GetCourseCoverAsync(courseId);
+        return await _grpcEnrollmentService.GetCourseCoverAsync(courseId, actingUserId);
     }
 
     public async Task<CoursePreviewDto?> GetCoursePreviewAsync(int courseId, int actingUserId)

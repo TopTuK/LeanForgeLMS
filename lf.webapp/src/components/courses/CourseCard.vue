@@ -25,6 +25,8 @@ const props = defineProps({
     coverImageUrl: { type: String, default: null },
     pricingType: { type: String, default: null },
     price: { type: Number, default: null },
+    // An admin has unpublished the course: the enrollment is kept but its content is withheld.
+    unavailable: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -133,9 +135,16 @@ const coverStyle = computed(() => (
             :style="{ width: `${progress}%` }"
           />
         </div>
+        <p
+          v-if="unavailable"
+          class="course-card__unavailable"
+          role="status"
+        >
+          {{ $t('courses.card.unavailable') }}
+        </p>
         <button
           type="button"
-          :disabled="busy"
+          :disabled="busy || unavailable"
           class="course-card__submit"
           @click="$emit('continue')"
         >
@@ -171,9 +180,17 @@ const coverStyle = computed(() => (
           </svg>
           {{ $t('courses.finished.completed_on', { date: completedOn }) }}
         </div>
+        <p
+          v-if="unavailable"
+          class="course-card__unavailable"
+          role="status"
+        >
+          {{ $t('courses.card.unavailable') }}
+        </p>
         <button
           type="button"
           class="course-card__outline"
+          :disabled="unavailable"
           @click="$emit('continue')"
         >
           {{ $t('courses.finished.review') }}
@@ -419,9 +436,26 @@ const coverStyle = computed(() => (
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.course-card__outline:hover {
+.course-card__outline:hover:not(:disabled) {
   color: var(--color-ink);
   border-color: var(--color-ink-faint);
+}
+
+.course-card__outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.course-card__unavailable {
+  margin: 0 0 0.9rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-accent-coral);
+  border-radius: 0.5rem;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-coral-dark);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .course-card__gauge-head {

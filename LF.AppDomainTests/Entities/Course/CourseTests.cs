@@ -251,4 +251,105 @@ public class CourseTests
         Assert.Null(course.CoverColor);
         Assert.Null(course.CoverImageStorageObjectId);
     }
+
+    [Fact]
+    public void UpdateDetails_ValidArgs_UpdatesAllFieldsAndTrims()
+    {
+        // Arrange
+        var course = CreateCourse();
+        var category = Category.Create("Frontend");
+        EntityIdSetter.SetId(category, 7);
+
+        // Act
+        course.UpdateDetails("  New title ", " New intro ", " New description ", category,
+            CoursePricingType.Paid, 1499.999m, CourseEnrollmentMode.Managed);
+
+        // Assert
+        Assert.Equal("New title", course.Title);
+        Assert.Equal("New intro", course.ShortIntroduction);
+        Assert.Equal("New description", course.Description);
+        Assert.Equal(7, course.CategoryId);
+        Assert.Equal(CoursePricingType.Paid, course.PricingType);
+        Assert.Equal(1500.00m, course.Price);
+        Assert.Equal(CourseEnrollmentMode.Managed, course.EnrollmentMode);
+    }
+
+    [Fact]
+    public void UpdateDetails_PaidToFree_ClearsPrice()
+    {
+        // Arrange
+        var course = Course.Create("Title", "Short intro", "Description", CreateCategory(), 1, DateTime.UtcNow, CoursePricingType.Paid, 500m);
+
+        // Act
+        course.UpdateDetails("Title", "Short intro", "Description", CreateCategory(), CoursePricingType.Free, 500m, CourseEnrollmentMode.Open);
+
+        // Assert
+        Assert.Equal(CoursePricingType.Free, course.PricingType);
+        Assert.Null(course.Price);
+    }
+
+    [Fact]
+    public void UpdateDetails_PaidWithoutPrice_ThrowsAndLeavesCourseUnchanged()
+    {
+        // Arrange
+        var course = CreateCourse();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            course.UpdateDetails("New title", "New intro", "New description", CreateCategory(), CoursePricingType.Paid, null, CourseEnrollmentMode.Managed));
+
+        Assert.Equal("Title", course.Title);
+        Assert.Equal(CoursePricingType.Free, course.PricingType);
+        Assert.Equal(CourseEnrollmentMode.Open, course.EnrollmentMode);
+    }
+
+    [Fact]
+    public void UpdateDetails_EmptyTitle_Throws()
+    {
+        // Arrange
+        var course = CreateCourse();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            course.UpdateDetails("  ", "Intro", "Description", CreateCategory(), CoursePricingType.Free, null, CourseEnrollmentMode.Open));
+    }
+
+    [Fact]
+    public void Unpublish_PublishedCourse_ClearsIsPublished()
+    {
+        // Arrange
+        var course = CreateCourse();
+        course.AddChapter("Chapter 1").AddLesson("Lesson 1");
+        course.Publish();
+
+        // Act
+        course.Unpublish();
+
+        // Assert
+        Assert.False(course.IsPublished);
+    }
+
+    [Fact]
+    public void Unpublish_DraftCourse_Throws()
+    {
+        // Arrange
+        var course = CreateCourse();
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(course.Unpublish);
+    }
+
+    [Fact]
+    public void UpdateDetails_PublishedCourse_Throws()
+    {
+        // Arrange
+        var course = CreateCourse();
+        course.AddChapter("Chapter 1").AddLesson("Lesson 1");
+        course.Publish();
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            course.UpdateDetails("New title", "Intro", "Description", CreateCategory(), CoursePricingType.Free, null, CourseEnrollmentMode.Open));
+        Assert.Equal("Title", course.Title);
+    }
 }

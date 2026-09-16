@@ -17,6 +17,72 @@ public class CourseModelsValidatorTests
         Price: null,
         EnrollmentMode: nameof(CourseEnrollmentMode.Open));
 
+    private static UpdateCourseRequest ValidUpdateCourse() => new(
+        Title: "Intro to Lean",
+        ShortIntroduction: "A short intro.",
+        Description: "The full description.",
+        CategoryId: 1,
+        CoverType: nameof(CourseCoverType.Color),
+        CoverColor: nameof(CourseCoverColor.Ocean),
+        CoverImageStorageObjectId: null,
+        PricingType: nameof(CoursePricingType.Free),
+        Price: null,
+        EnrollmentMode: nameof(CourseEnrollmentMode.Managed));
+
+    [Fact]
+    public void UpdateCourse_Valid_Passes()
+    {
+        Assert.True(new UpdateCourseRequestValidator().Validate(ValidUpdateCourse()).IsValid);
+    }
+
+    // An unchanged image cover is sent without a storage object id — the course keeps its current image.
+    [Fact]
+    public void UpdateCourse_ImageCoverWithoutId_Passes()
+    {
+        var result = new UpdateCourseRequestValidator().Validate(
+            ValidUpdateCourse() with { CoverType = nameof(CourseCoverType.Image), CoverColor = null, CoverImageStorageObjectId = null });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void UpdateCourse_ImageCoverWithNonPositiveId_Fails()
+    {
+        var result = new UpdateCourseRequestValidator().Validate(
+            ValidUpdateCourse() with { CoverType = nameof(CourseCoverType.Image), CoverImageStorageObjectId = 0 });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCourseRequest.CoverImageStorageObjectId));
+    }
+
+    [Fact]
+    public void UpdateCourse_PaidWithoutPrice_Fails()
+    {
+        var result = new UpdateCourseRequestValidator().Validate(
+            ValidUpdateCourse() with { PricingType = nameof(CoursePricingType.Paid), Price = null });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCourseRequest.Price));
+    }
+
+    [Fact]
+    public void UpdateCourse_UnknownEnrollmentMode_Fails()
+    {
+        var result = new UpdateCourseRequestValidator().Validate(ValidUpdateCourse() with { EnrollmentMode = "InviteOnly" });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCourseRequest.EnrollmentMode));
+    }
+
+    [Fact]
+    public void UpdateCourse_ColorCoverWithoutColor_Fails()
+    {
+        var result = new UpdateCourseRequestValidator().Validate(ValidUpdateCourse() with { CoverColor = null });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCourseRequest.CoverColor));
+    }
+
     [Fact]
     public void CreateCourse_PaidWithoutPrice_Fails()
     {

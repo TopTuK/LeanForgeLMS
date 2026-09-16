@@ -116,15 +116,15 @@ public class EnrollmentLearningServiceTests
         // Arrange
         var expected = new CourseCoverDto { CoverImageKey = "images/a.png", CoverImageContentType = "image/png" };
         var grpcMock = new Mock<IGrpcEnrollmentService>();
-        grpcMock.Setup(s => s.GetCourseCoverAsync(3)).ReturnsAsync(expected);
+        grpcMock.Setup(s => s.GetCourseCoverAsync(3, 7)).ReturnsAsync(expected);
         var service = CreateService(grpcMock);
 
         // Act
-        var result = await service.GetCourseCoverAsync(3);
+        var result = await service.GetCourseCoverAsync(3, 7);
 
         // Assert
         Assert.Same(expected, result);
-        grpcMock.Verify(s => s.GetCourseCoverAsync(3), Times.Once);
+        grpcMock.Verify(s => s.GetCourseCoverAsync(3, 7), Times.Once);
     }
 
     [Fact]

@@ -1,34 +1,27 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { fetchCategories, fetchCourses, createCourse, uploadCourseCoverImage } from '@/services/courseService';
-import FormField from '@/components/courses/form/FormField.vue';
-import RichEditor from '@/components/courses/form/RichEditor.vue';
+import { fetchCategories, fetchCourses, createCourse } from '@/services/courseService';
+import CourseDetailsForm from '@/components/courses/form/CourseDetailsForm.vue';
 import StudioShell from '@/components/courses/studio/StudioShell.vue';
-import StudioButton from '@/components/courses/studio/StudioButton.vue';
 
 const { t } = useI18n();
 const router = useRouter();
 
-const COVER_COLORS = ['Coral', 'Ocean', 'Forest', 'Amber', 'Slate', 'Berry'];
-
-const title = ref('');
-const shortIntroduction = ref('');
-const description = ref('');
-const category = ref(null);
+const details = ref({
+  title: '',
+  shortIntroduction: '',
+  description: '',
+  categoryId: null,
+  pricingType: 'Free',
+  price: null,
+  enrollmentMode: 'Open',
+  coverType: 'Color',
+  coverColor: 'Coral',
+  coverImageStorageObjectId: null,
+});
 const categories = ref([]);
-
-const pricingType = ref('Free');
-const price = ref(null);
-const enrollmentMode = ref('Open');
-
-const coverMode = ref('Color');
-const coverColor = ref(COVER_COLORS[0]);
-const coverImagePreviewUrl = ref('');
-const coverImageStorageObjectId = ref(null);
-const coverImageUploading = ref(false);
-const coverImageError = ref('');
 
 const submitting = ref(false);
 const errorMessage = ref('');
@@ -36,10 +29,6 @@ const errorMessage = ref('');
 const drafts = ref([]);
 const draftsLoading = ref(false);
 const draftsError = ref('');
-
-function descriptionHasText(html) {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0;
-}
 
 async function loadCategories() {
   try {
@@ -67,65 +56,26 @@ onMounted(() => {
   loadDrafts();
 });
 
-onBeforeUnmount(() => {
-  if (coverImagePreviewUrl.value) URL.revokeObjectURL(coverImagePreviewUrl.value);
-});
-
-async function onCoverImageSelected(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  coverImageError.value = '';
-  coverImageStorageObjectId.value = null;
-  if (coverImagePreviewUrl.value) URL.revokeObjectURL(coverImagePreviewUrl.value);
-
-  coverImagePreviewUrl.value = URL.createObjectURL(file);
-  coverImageUploading.value = true;
-
-  try {
-    const uploaded = await uploadCourseCoverImage(file);
-    coverImageStorageObjectId.value = uploaded.storageObjectId;
-  } catch {
-    coverImageError.value = t('courses.create.cover_image_upload_error');
-  } finally {
-    coverImageUploading.value = false;
-  }
+function handleInvalid() {
+  errorMessage.value = t('courses.create.validation_error');
 }
 
-const priceIsValid = computed(() => pricingType.value === 'Free' || Number(price.value) > 0);
-
-const canSubmit = computed(() =>
-  Boolean(
-    title.value.trim()
-    && shortIntroduction.value.trim()
-    && descriptionHasText(description.value)
-    && category.value
-    && priceIsValid.value
-    && (coverMode.value === 'Color' ? coverColor.value : coverImageStorageObjectId.value),
-  ),
-);
-
-async function submit() {
+async function handleSubmit() {
   errorMessage.value = '';
-
-  if (!canSubmit.value) {
-    errorMessage.value = t('courses.create.validation_error');
-    return;
-  }
-
   submitting.value = true;
+  const d = details.value;
   try {
     const course = await createCourse({
-      title: title.value,
-      shortIntroduction: shortIntroduction.value,
-      description: description.value,
-      categoryId: category.value,
-      pricingType: pricingType.value,
-      price: pricingType.value === 'Paid' ? Number(price.value) : null,
-      enrollmentMode: enrollmentMode.value,
-      coverType: coverMode.value,
-      coverColor: coverMode.value === 'Color' ? coverColor.value : null,
-      coverImageStorageObjectId: coverMode.value === 'Image' ? coverImageStorageObjectId.value : null,
+      title: d.title,
+      shortIntroduction: d.shortIntroduction,
+      description: d.description,
+      categoryId: d.categoryId,
+      pricingType: d.pricingType,
+      price: d.pricingType === 'Paid' ? Number(d.price) : null,
+      enrollmentMode: d.enrollmentMode,
+      coverType: d.coverType,
+      coverColor: d.coverType === 'Color' ? d.coverColor : null,
+      coverImageStorageObjectId: d.coverType === 'Image' ? d.coverImageStorageObjectId : null,
     });
     router.push({ name: 'CourseEdit', params: { id: course.id } });
   } catch (err) {
@@ -170,209 +120,15 @@ async function submit() {
     </div>
 
     <div class="create-layout">
-      <form
-        class="create-form"
-        @submit.prevent="submit"
-      >
-        <FormField
-          v-model="title"
-          :label="$t('courses.create.field_title')"
-          required
-        />
-        <FormField
-          v-model="shortIntroduction"
-          type="textarea"
-          :rows="3"
-          :label="$t('courses.create.field_short_introduction')"
-          required
-        />
-
-        <div class="create-field">
-          <span class="create-field__label">{{ $t('courses.create.field_description') }}</span>
-          <RichEditor
-            v-model="description"
-            :placeholder="$t('courses.create.field_description')"
-            :allow-image="false"
-          />
-        </div>
-
-        <fieldset class="create-fieldset">
-          <legend>{{ $t('courses.create.field_category') }}</legend>
-          <p
-            v-if="!categories.length"
-            class="create-hint"
-          >
-            {{ $t('courses.create.category_placeholder') }}
-          </p>
-          <div
-            v-else
-            class="create-chips"
-            role="listbox"
-            :aria-label="$t('courses.create.field_category')"
-          >
-            <button
-              v-for="item in categories"
-              :key="item.id"
-              type="button"
-              class="create-chip"
-              role="option"
-              :aria-selected="category === item.id"
-              :class="{ 'is-active': category === item.id }"
-              @click="category = item.id"
-            >
-              {{ item.name }}
-            </button>
-          </div>
-        </fieldset>
-
-        <fieldset class="create-fieldset">
-          <legend>{{ $t('courses.create.field_pricing') }}</legend>
-          <div
-            class="create-chips"
-            role="listbox"
-            :aria-label="$t('courses.create.field_pricing')"
-          >
-            <button
-              v-for="option in ['Free', 'Paid']"
-              :key="option"
-              type="button"
-              class="create-chip"
-              role="option"
-              :aria-selected="pricingType === option"
-              :class="{ 'is-active': pricingType === option }"
-              @click="pricingType = option"
-            >
-              {{ option === 'Free' ? $t('courses.create.pricing_free') : $t('courses.create.pricing_paid') }}
-            </button>
-          </div>
-          <label
-            v-if="pricingType === 'Paid'"
-            class="create-field"
-          >
-            <span class="create-field__label">{{ $t('courses.create.field_price') }}</span>
-            <input
-              v-model.number="price"
-              type="number"
-              min="1"
-              step="1"
-              inputmode="numeric"
-              class="create-price-input"
-            >
-          </label>
-        </fieldset>
-
-        <fieldset class="create-fieldset">
-          <legend>{{ $t('courses.create.field_enrollment_mode') }}</legend>
-          <div
-            class="create-chips"
-            role="listbox"
-            :aria-label="$t('courses.create.field_enrollment_mode')"
-          >
-            <button
-              v-for="option in ['Open', 'Managed']"
-              :key="option"
-              type="button"
-              class="create-chip"
-              role="option"
-              :aria-selected="enrollmentMode === option"
-              :class="{ 'is-active': enrollmentMode === option }"
-              @click="enrollmentMode = option"
-            >
-              {{ option === 'Open' ? $t('courses.create.mode_open') : $t('courses.create.mode_managed') }}
-            </button>
-          </div>
-          <p class="create-hint">
-            {{ enrollmentMode === 'Open' ? $t('courses.create.mode_open_hint') : $t('courses.create.mode_managed_hint') }}
-          </p>
-        </fieldset>
-
-        <fieldset class="create-fieldset">
-          <legend>{{ $t('courses.create.field_cover') }}</legend>
-          <div
-            class="create-chips"
-            role="listbox"
-            :aria-label="$t('courses.create.field_cover')"
-          >
-            <button
-              type="button"
-              class="create-chip"
-              role="option"
-              :aria-selected="coverMode === 'Color'"
-              :class="{ 'is-active': coverMode === 'Color' }"
-              @click="coverMode = 'Color'"
-            >
-              {{ $t('courses.create.cover_mode_color') }}
-            </button>
-            <button
-              type="button"
-              class="create-chip"
-              role="option"
-              :aria-selected="coverMode === 'Image'"
-              :class="{ 'is-active': coverMode === 'Image' }"
-              @click="coverMode = 'Image'"
-            >
-              {{ $t('courses.create.cover_mode_image') }}
-            </button>
-          </div>
-
-          <div
-            v-if="coverMode === 'Color'"
-            class="create-swatches"
-            role="listbox"
-            :aria-label="$t('courses.create.cover_mode_color')"
-          >
-            <button
-              v-for="color in COVER_COLORS"
-              :key="color"
-              type="button"
-              class="create-swatch"
-              role="option"
-              :aria-selected="coverColor === color"
-              :class="{ 'is-active': coverColor === color }"
-              :style="{ backgroundColor: `var(--color-cover-${color.toLowerCase()})` }"
-              :title="$t(`courses.create.cover_colors.${color.toLowerCase()}`)"
-              @click="coverColor = color"
-            />
-          </div>
-
-          <div
-            v-else
-            class="create-cover-image"
-          >
-            <label class="create-cover-upload">
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                class="create-cover-input"
-                @change="onCoverImageSelected"
-              >
-              <span>{{ coverImageUploading ? $t('courses.create.cover_image_uploading') : $t('courses.create.cover_image_choose') }}</span>
-            </label>
-            <img
-              v-if="coverImagePreviewUrl"
-              :src="coverImagePreviewUrl"
-              :alt="$t('courses.create.cover_image_preview_alt')"
-              class="create-cover-preview"
-            >
-            <p
-              v-if="coverImageError"
-              class="create-hint create-hint--error"
-            >
-              {{ coverImageError }}
-            </p>
-          </div>
-        </fieldset>
-
-        <div class="create-actions">
-          <StudioButton
-            type="submit"
-            variant="primary"
-            :disabled="submitting"
-          >
-            {{ submitting ? $t('courses.create.submitting') : $t('courses.create.submit') }}
-          </StudioButton>
-        </div>
-      </form>
+      <CourseDetailsForm
+        v-model="details"
+        :categories="categories"
+        :submitting="submitting"
+        :submit-label="$t('courses.create.submit')"
+        :submitting-label="$t('courses.create.submitting')"
+        @submit="handleSubmit"
+        @invalid="handleInvalid"
+      />
 
       <aside class="create-rail">
         <h2>{{ $t('courses.create.your_drafts_title') }}</h2>
@@ -490,41 +246,6 @@ async function submit() {
   }
 }
 
-.create-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.15rem;
-}
-
-.create-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.create-field__label {
-  color: var(--color-ink-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.create-fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.create-fieldset legend {
-  margin-bottom: 0.15rem;
-  color: var(--color-ink-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 0;
-}
-
 .create-hint {
   margin: 0;
   color: var(--color-ink-muted);
@@ -533,111 +254,6 @@ async function submit() {
 
 .create-hint--error {
   color: var(--color-accent-coral-dark);
-}
-
-.create-price-input {
-  width: 12rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.45rem;
-  background: var(--color-surface-950);
-  color: var(--color-ink);
-  font: inherit;
-}
-
-.create-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.create-chip {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 0.45rem;
-  background: var(--color-surface-950);
-  color: var(--color-ink-muted);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.create-chip:hover {
-  color: var(--color-ink);
-  background: var(--color-surface-900);
-}
-
-.create-chip.is-active {
-  border-color: transparent;
-  background: var(--color-accent-soft);
-  color: var(--color-accent-coral-dark);
-}
-
-.create-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.create-swatch {
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.create-swatch.is-active {
-  border-color: var(--color-ink);
-  outline: 2px solid var(--color-surface-950);
-  outline-offset: -4px;
-}
-
-.create-cover-image {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.create-cover-upload {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: fit-content;
-  padding: 0.55rem 0.9rem;
-  border: 1px dashed var(--color-border-subtle);
-  border-radius: 0.5rem;
-  color: var(--color-ink-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.create-cover-upload:hover {
-  color: var(--color-ink);
-  background: var(--color-surface-900);
-}
-
-.create-cover-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  overflow: hidden;
-}
-
-.create-cover-preview {
-  max-width: 16rem;
-  max-height: 10rem;
-  object-fit: cover;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-border-subtle);
-}
-
-.create-actions {
-  padding-top: 0.35rem;
 }
 
 .create-rail {

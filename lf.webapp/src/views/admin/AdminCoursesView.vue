@@ -8,6 +8,7 @@ import {
   enrollStudent,
   removeEnrollment,
   deleteCourse,
+  unpublishCourse,
   fetchUsers,
 } from '@/services/adminService';
 import { Button } from '@/components/ui/button';
@@ -224,6 +225,53 @@ async function confirmDeleteCourse() {
     deleting.value = false;
   }
 }
+
+/* ---- Unpublish dialog ---- */
+
+const unpublishModalShown = ref(false);
+const unpublishTarget = ref(null);
+const unpublishStats = ref(null);
+const unpublishError = ref('');
+const unpublishAcknowledged = ref(false);
+const unpublishing = ref(false);
+
+async function openUnpublishModal(course) {
+  unpublishTarget.value = course;
+  unpublishStats.value = null;
+  unpublishError.value = '';
+  unpublishAcknowledged.value = false;
+  unpublishModalShown.value = true;
+
+  // Enrolled students lose access until the course is republished, so show who is affected first.
+  try {
+    const result = await fetchCourseEnrollments(course.id, { page: 1, pageSize: 100 });
+    unpublishStats.value = {
+      total: result.totalCount,
+      paid: result.items.filter((e) => e.isPaid).length,
+    };
+  } catch {
+    unpublishStats.value = null;
+  }
+}
+
+const hasEnrolledStudents = computed(() => (unpublishStats.value?.total ?? 0) > 0);
+const unpublishDisabled = computed(() =>
+  unpublishing.value || (hasEnrolledStudents.value && !unpublishAcknowledged.value));
+
+async function confirmUnpublishCourse() {
+  if (unpublishDisabled.value) return;
+  unpublishing.value = true;
+  unpublishError.value = '';
+  try {
+    await unpublishCourse(unpublishTarget.value.id);
+    unpublishModalShown.value = false;
+    await loadCourses();
+  } catch (err) {
+    unpublishError.value = toMessage(err, 'admin.courses.unpublish_error');
+  } finally {
+    unpublishing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -331,6 +379,14 @@ async function confirmDeleteCourse() {
                   @click="openStudentsModal(row)"
                 >
                   {{ $t('admin.courses.students') }}
+                </Button>
+                <Button
+                  v-if="row.isPublished"
+                  variant="outline"
+                  size="sm"
+                  @click="openUnpublishModal(row)"
+                >
+                  {{ $t('admin.courses.unpublish') }}
                 </Button>
                 <Button
                   variant="destructive"
@@ -489,6 +545,57 @@ async function confirmDeleteCourse() {
       danger
       @confirm="confirmRemoveStudent"
     />
+
+    <Dialog
+      v-model:open="unpublishModalShown"
+      :title="$t('admin.courses.unpublish_title')"
+      :description="$t('admin.courses.unpublish_confirm', { title: unpublishTarget?.title ?? '' })"
+      :cancel-label="$t('admin.courses.cancel')"
+    >
+      <div class="space-y-3 text-sm">
+        <p
+          v-if="unpublishStats"
+          class="text-ink-muted"
+        >
+          {{ $t('admin.courses.unpublish_stats', { total: unpublishStats.total, paid: unpublishStats.paid }) }}
+        </p>
+
+        <label
+          v-if="hasEnrolledStudents"
+          class="flex items-start gap-2 rounded-md border border-accent-coral bg-accent-soft px-3 py-2 font-semibold text-accent-coral"
+        >
+          <input
+            v-model="unpublishAcknowledged"
+            type="checkbox"
+            class="mt-0.5"
+          >
+          <span>{{ $t('admin.courses.unpublish_ack', { total: unpublishStats.total }) }}</span>
+        </label>
+
+        <p
+          v-if="unpublishError"
+          class="rounded-md border border-accent-coral bg-accent-soft px-3 py-2 font-semibold text-accent-coral"
+        >
+          {{ unpublishError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <Button
+          variant="outline"
+          @click="unpublishModalShown = false"
+        >
+          {{ $t('admin.courses.cancel') }}
+        </Button>
+        <Button
+          variant="destructive"
+          :disabled="unpublishDisabled"
+          @click="confirmUnpublishCourse"
+        >
+          {{ $t('admin.courses.unpublish') }}
+        </Button>
+      </template>
+    </Dialog>
 
     <Dialog
       v-model:open="deleteModalShown"

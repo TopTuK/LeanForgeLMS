@@ -173,11 +173,11 @@ internal sealed class GrpcEnrollmentService(ILogger<GrpcEnrollmentService> logge
         Enrollment = reply.Enrollment.Adapt<EnrollmentDetailDto>(),
     };
 
-    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId)
+    public async Task<CourseCoverDto?> GetCourseCoverAsync(int courseId, int actingUserId)
     {
-        _logger.LogInformation("GrpcEnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId}", courseId);
+        _logger.LogInformation("GrpcEnrollmentService::GetCourseCoverAsync: called with CourseId={CourseId} ActingUserId={ActingUserId}", courseId, actingUserId);
 
-        var request = new GetCourseCoverRequest { CourseId = courseId };
+        var request = new GetCourseCoverRequest { CourseId = courseId, ActingUserId = actingUserId };
         try
         {
             var reply = await _courseServiceRpcClient.GetCourseCoverAsync(request);

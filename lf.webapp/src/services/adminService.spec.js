@@ -23,6 +23,7 @@ import {
   enrollStudent,
   removeEnrollment,
   deleteCourse,
+  unpublishCourse,
   fetchAdminNews,
   fetchAdminNewsPost,
   createNewsPost,
@@ -138,6 +139,11 @@ describe('adminService', () => {
     it('deleteCourse forwards force when the admin acknowledged paid students', async () => {
       await deleteCourse(5, { force: true });
       expect(api.delete).toHaveBeenCalledWith('/admin/courses/5', { params: { force: true } });
+    });
+
+    it('unpublishCourse posts to the unpublish endpoint', async () => {
+      await unpublishCourse(5);
+      expect(api.post).toHaveBeenCalledWith('/admin/courses/5/unpublish');
     });
   });
 

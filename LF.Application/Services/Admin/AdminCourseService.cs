@@ -90,6 +90,13 @@ internal sealed class AdminCourseService(
         return await _courseService.RemoveEnrollmentAsync(courseId, enrollmentId, actingAdminId);
     }
 
+    public async Task<UnpublishCourseResultDto?> UnpublishCourseAsync(int courseId, int actingAdminId)
+    {
+        _logger.LogInformation("AdminCourseService::UnpublishCourseAsync: called with CourseId={CourseId} ActingAdminId={adminId}", courseId, actingAdminId);
+
+        return await _courseService.UnpublishCourseAsync(courseId, actingAdminId);
+    }
+
     public async Task<DeleteCourseResultDto?> DeleteCourseAsync(int courseId, int actingAdminId, bool force)
     {
         _logger.LogInformation("AdminCourseService::DeleteCourseAsync: called with CourseId={CourseId} ActingAdminId={adminId} Force={Force}",
