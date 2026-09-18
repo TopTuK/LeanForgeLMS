@@ -30,7 +30,9 @@
         "approach": "Approach",
         "news": "News",
         "notifications": "Notifications",
-        "notifications_unread": "Notifications, {count} unread"
+        "notifications_unread": "Notifications, {count} unread",
+        "questions": "Q&A",
+        "questions_unread": "Q&A, {count} unread"
     },
     "footer": {
         "privacy": "Privacy policy",
@@ -62,6 +64,8 @@
     "courses_learn_view_title": "Learning — High Managers School",
     "news_view_title": "News — High Managers School",
     "notifications_view_title": "Notifications — High Managers School",
+    "questions_view_title": "Q&A — High Managers School",
+    "admin_questions_view_title": "Q&A — Administration",
     "admin_news_view_title": "Administration — News — High Managers School",
     "admin_news_editor_view_title": "Administration — News post — High Managers School",
     "admin": {
@@ -72,7 +76,8 @@
             "toggle": "Toggle sidebar",
             "promo_codes": "Promo codes",
             "payments": "Payments",
-            "news": "News"
+            "news": "News",
+            "questions": "Q&A"
         },
         "news": {
             "title": "News",
@@ -264,6 +269,31 @@
             "empty": "No promo codes yet.",
             "load_error": "Could not load promo codes. Please try again.",
             "save_error": "Could not save. Please try again."
+        },
+        "questions": {
+            "title": "Q&A",
+            "subtitle": "Every question asked across the platform, with the full conversation.",
+            "search_placeholder": "Search by subject, course or student",
+            "filter_status": "Filter by status",
+            "status_any": "Any status",
+            "apply_filters": "Apply",
+            "empty": "No questions match these filters.",
+            "open": "Open",
+            "delete": "Delete",
+            "col_question": "Question",
+            "col_course": "Course / lesson",
+            "col_student": "Student",
+            "col_status": "Status",
+            "col_last_message": "Last message",
+            "delete_message_title": "Delete this message?",
+            "delete_message_confirm": "The message stays in the thread but its text is hidden from everyone.",
+            "delete_thread": "Delete the whole question",
+            "delete_thread_title": "Delete this question?",
+            "delete_thread_confirm": "Delete «{title}»? The question and every message in it are removed permanently.",
+            "load_error": "Could not load questions. Please try again.",
+            "send_error": "Could not send your reply. Please try again.",
+            "delete_message_error": "Could not delete the message. Please try again.",
+            "delete_error": "Could not delete the question. Please try again."
         }
     },
     "courses": {
@@ -614,6 +644,18 @@
         "card": {
             "free": "Free",
             "unavailable": "Temporarily unavailable. Access will be restored soon."
+        },
+        "teaching_team": {
+            "title": "Teaching team",
+            "subtitle": "These people receive and answer students’ questions about this course.",
+            "creator": "Author",
+            "email_label": "Add an instructor by email",
+            "email_placeholder": "instructor{'@'}example.com",
+            "assign": "Add",
+            "remove": "Remove from the team",
+            "load_error": "Could not load the teaching team.",
+            "assign_error": "Could not add this instructor.",
+            "remove_error": "Could not remove this instructor."
         }
     },
     "events": {
@@ -649,6 +691,51 @@
         "empty": "Nothing here yet — news appears as soon as it is published.",
         "load_error": "Could not load notifications. Please try again later.",
         "new_badge": "New"
+    },
+    "questions": {
+        "eyebrow": "Ask your instructors",
+        "title": "Questions & answers",
+        "subtitle": "Ask about a specific lesson and talk it through with the people who teach the course.",
+        "tab_mine": "My questions",
+        "tab_incoming": "Incoming",
+        "loading": "Loading…",
+        "empty_mine": "You have not asked anything yet. Open a lesson and use \"Ask a question\".",
+        "empty_incoming": "No questions have been sent to you yet.",
+        "empty_lesson": "No questions on this lesson yet.",
+        "select_hint": "Pick a question to read the conversation.",
+        "lesson_panel_title": "Questions about this lesson",
+        "ask_action": "Ask a question",
+        "title_label": "Subject",
+        "title_placeholder": "Briefly, what is unclear?",
+        "body_label": "Your question",
+        "body_placeholder": "Describe what you tried and where you got stuck.",
+        "reply_label": "Your reply",
+        "reply_placeholder": "Write a reply…",
+        "send": "Send",
+        "sending": "Sending…",
+        "cancel": "Cancel",
+        "previous": "Previous",
+        "next": "Next",
+        "close_thread": "Mark as resolved",
+        "reopen_thread": "Reopen",
+        "closed_hint": "This question is closed. Reopen it to continue the conversation.",
+        "unread_marker": "Unread reply",
+        "message_deleted": "This message was removed by an administrator.",
+        "delete_message": "Delete message",
+        "not_enrolled": "Only students enrolled in this course can ask questions about its lessons.",
+        "load_error": "Could not load questions. Please try again.",
+        "send_error": "Could not send your message. Please try again.",
+        "status_error": "Could not change the status of this question.",
+        "status": {
+            "open": "Open",
+            "answered": "Answered",
+            "closed": "Closed"
+        },
+        "author_role": {
+            "student": "Student",
+            "instructor": "Instructor",
+            "admin": "Administrator"
+        }
     },
     "profile": {
         "eyebrow": "Account",

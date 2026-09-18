@@ -132,6 +132,36 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFCourses", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseInstructor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("AssignedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CourseId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LFCourseInstructors", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Enrollment", b =>
                 {
                     b.Property<int>("Id")
@@ -638,6 +668,119 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFPaymentOrders", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LastMessageAuthorUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StudentUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("CourseId", "LastMessageAt");
+
+                    b.HasIndex("StudentUserId", "LastMessageAt");
+
+                    b.ToTable("LFLessonQuestions", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestionMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorRole")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AuthorUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("character varying(5000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DeletedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("LessonQuestionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonQuestionId", "CreatedAt");
+
+                    b.ToTable("LFLessonQuestionMessages", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestionReadMarker", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LessonQuestionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LessonQuestionId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LFLessonQuestionReadMarkers", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Storage.StorageObject", b =>
                 {
                     b.Property<int>("Id")
@@ -737,6 +880,15 @@ namespace LF.Infrastructure.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CoverImageStorageObject");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseInstructor", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Enrollment", b =>
@@ -858,6 +1010,39 @@ namespace LF.Infrastructure.Migrations
                     b.Navigation("StorageObject");
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestion", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LF.AppDomain.Entities.Course.Lesson", null)
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestionMessage", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Qna.LessonQuestion", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("LessonQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestionReadMarker", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Qna.LessonQuestion", null)
+                        .WithMany()
+                        .HasForeignKey("LessonQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.Chapter", b =>
                 {
                     b.Navigation("Lessons");
@@ -893,6 +1078,11 @@ namespace LF.Infrastructure.Migrations
             modelBuilder.Entity("LF.AppDomain.Entities.News.NewsPost", b =>
                 {
                     b.Navigation("Images");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Qna.LessonQuestion", b =>
+                {
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

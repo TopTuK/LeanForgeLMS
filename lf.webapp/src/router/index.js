@@ -31,9 +31,11 @@ const AdminPromoCodesView = () => import('@/views/admin/AdminPromoCodesView.vue'
 const AdminPaymentsView = () => import('@/views/admin/AdminPaymentsView.vue');
 const AdminNewsView = () => import('@/views/admin/AdminNewsView.vue');
 const AdminNewsEditorView = () => import('@/views/admin/AdminNewsEditorView.vue');
+const AdminQuestionsView = () => import('@/views/admin/AdminQuestionsView.vue');
 const NewsListView = () => import('@/views/news/NewsListView.vue');
 const NewsDetailView = () => import('@/views/news/NewsDetailView.vue');
 const NotificationsView = () => import('@/views/NotificationsView.vue');
+const QuestionsView = () => import('@/views/QuestionsView.vue');
 
 const routes = [
     {
@@ -112,6 +114,15 @@ const routes = [
         component: NotificationsView,
         meta: {
             title: 'notifications_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/questions',
+        name: 'Questions',
+        component: QuestionsView,
+        meta: {
+            title: 'questions_view_title',
             requiresAuth: true,
         }
     },
@@ -352,6 +363,16 @@ const routes = [
                 component: AdminNewsEditorView,
                 meta: {
                     title: 'admin_news_editor_view_title',
+                    requiresAuth: true,
+                    roles: ['Admin'],
+                }
+            },
+            {
+                path: 'questions',
+                name: 'AdminQuestions',
+                component: AdminQuestionsView,
+                meta: {
+                    title: 'admin_questions_view_title',
                     requiresAuth: true,
                     roles: ['Admin'],
                 }

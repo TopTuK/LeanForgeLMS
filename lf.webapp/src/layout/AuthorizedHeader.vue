@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, Menu } from 'lucide-vue-next';
+import { Bell, Menu, MessageCircleQuestion } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useQuestionStore } from '@/stores/questionStore';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
 import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,10 @@ const displayName = computed(() => authStore.user?.firstName ?? '');
 
 const unreadCount = computed(() => notificationStore.unreadCount);
 const unreadBadge = computed(() => (unreadCount.value > 9 ? '9+' : String(unreadCount.value)));
+
+const questionStore = useQuestionStore();
+const unreadQuestionCount = computed(() => questionStore.unreadCount);
+const unreadQuestionBadge = computed(() => (unreadQuestionCount.value > 9 ? '9+' : String(unreadQuestionCount.value)));
 
 function closeMobile() {
   mobileOpen.value = false;
@@ -82,6 +87,22 @@ function go(name) {
             class="app-header__unread"
             aria-hidden="true"
           >{{ unreadBadge }}</span>
+        </router-link>
+        <router-link
+          :to="{ name: 'Questions' }"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-ink"
+          :aria-label="unreadQuestionCount ? $t('nav.questions_unread', { count: unreadQuestionCount }) : undefined"
+        >
+          <MessageCircleQuestion
+            class="size-4"
+            aria-hidden="true"
+          />
+          {{ $t('nav.questions') }}
+          <span
+            v-if="unreadQuestionCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadQuestionBadge }}</span>
         </router-link>
         <router-link
           v-if="authStore.isAdmin"
@@ -158,6 +179,19 @@ function go(name) {
             class="app-header__unread"
             aria-hidden="true"
           >{{ unreadBadge }}</span>
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          :aria-label="unreadQuestionCount ? $t('nav.questions_unread', { count: unreadQuestionCount }) : undefined"
+          @click="go('Questions')"
+        >
+          {{ $t('nav.questions') }}
+          <span
+            v-if="unreadQuestionCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadQuestionBadge }}</span>
         </button>
         <button
           type="button"

@@ -30,6 +30,9 @@ public class EndpointGroupDiscoveryTests
         Assert.Contains(typeof(NewsEndpoints), groups);
         Assert.Contains(typeof(NotificationEndpoints), groups);
         Assert.Contains(typeof(AdminNewsEndpoints), groups);
+        Assert.Contains(typeof(LessonQuestionEndpoints), groups);
+        Assert.Contains(typeof(AdminLessonQuestionEndpoints), groups);
+        Assert.Contains(typeof(CourseInstructorEndpoints), groups);
     }
 
     [Fact]
