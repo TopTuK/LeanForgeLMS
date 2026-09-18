@@ -4,6 +4,7 @@ using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
+using LF.Application.Services.CourseTeaching;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.News;
@@ -12,6 +13,7 @@ using LF.Application.Services.PaymentReporting;
 using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
+using LF.Application.Services.Qna;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
 using Mapster;
@@ -46,6 +48,13 @@ public static class DependencyInjection
         services.TryAddSingleton<IHtmlSanitizer, GanssHtmlSanitizer>();
         services.AddScoped<INewsService, NewsService>();
         services.AddScoped<IAdminNewsService, AdminNewsService>();
+
+        // Lesson Q&A is owned by LF.WebApi for the same reason News is: it needs the shared DB plus
+        // the course, lesson, enrollment and user tables in a single query, and none of the gRPC
+        // hosts have a use for it.
+        services.AddScoped<ILessonQuestionService, LessonQuestionService>();
+        services.AddScoped<IAdminLessonQuestionService, AdminLessonQuestionService>();
+        services.AddScoped<ICourseTeachingTeamService, CourseTeachingTeamService>();
 
         return services;
     }

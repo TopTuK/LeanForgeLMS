@@ -14,6 +14,15 @@ vi.mock('@/services/enrollmentService', () => ({
   submitQuizAttempt: vi.fn(),
 }));
 
+// The lesson page embeds the Q&A panel; it is exercised in its own spec.
+vi.mock('@/services/questionService', () => ({
+  fetchLessonQuestions: vi.fn().mockResolvedValue({ items: [], totalCount: 0 }),
+  fetchQuestionThread: vi.fn(),
+  askQuestion: vi.fn(),
+  postQuestionMessage: vi.fn(),
+  fetchUnreadQuestionCount: vi.fn().mockResolvedValue(0),
+}));
+
 import { fetchEnrollment, fetchEnrollmentLessonMediaObjectUrl } from '@/services/enrollmentService';
 import { renderComponent } from '@/test/renderComponent';
 import CourseLearnView from '@/views/courses/CourseLearnView.vue';
@@ -46,7 +55,7 @@ describe('CourseLearnView', () => {
   it('shows the course when it is available', async () => {
     fetchEnrollment.mockResolvedValue({ ...enrollment });
 
-    renderComponent(CourseLearnView);
+    renderComponent(CourseLearnView, { pinia: true });
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Async in C#' })).toBeInTheDocument();
     expect(screen.queryByText('This course is temporarily unavailable')).not.toBeInTheDocument();
@@ -55,7 +64,7 @@ describe('CourseLearnView', () => {
   it('shows a temporarily-unavailable notice instead of content for an unpublished course', async () => {
     fetchEnrollment.mockResolvedValue({ ...enrollment, isCourseUnavailable: true, chapters: [] });
 
-    renderComponent(CourseLearnView);
+    renderComponent(CourseLearnView, { pinia: true });
 
     expect(await screen.findByRole('heading', { name: 'This course is temporarily unavailable' })).toBeInTheDocument();
     expect(screen.getByText(/access will be restored soon/i)).toBeInTheDocument();

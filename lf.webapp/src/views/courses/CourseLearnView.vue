@@ -11,6 +11,7 @@ import {
 } from '@/services/enrollmentService';
 import LearnerQuizPart from '@/components/courses/lesson/LearnerQuizPart.vue';
 import LessonImageRow from '@/components/courses/lesson/LessonImageRow.vue';
+import LessonQuestionsPanel from '@/components/courses/lesson/LessonQuestionsPanel.vue';
 import CourseOutlineRail from '@/components/courses/learn/CourseOutlineRail.vue';
 
 const OUTLINE_STORAGE_KEY = 'course-learn-outline-collapsed';
@@ -493,6 +494,8 @@ function goToCourses() {
               <ChevronRight :size="16" />
             </button>
           </div>
+
+          <LessonQuestionsPanel :lesson-id="selectedLesson.id" />
         </section>
 
         <div

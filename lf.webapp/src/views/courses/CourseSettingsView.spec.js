@@ -17,6 +17,13 @@ vi.mock('@/services/courseService', () => ({
   uploadCourseCoverImage: vi.fn(),
 }));
 
+// The settings page embeds the teaching-team panel; it is exercised in its own spec.
+vi.mock('@/services/questionService', () => ({
+  fetchCourseInstructors: vi.fn().mockResolvedValue([]),
+  assignCourseInstructor: vi.fn(),
+  removeCourseInstructor: vi.fn(),
+}));
+
 import { fetchCategories, fetchCourse, fetchCourseCoverImageObjectUrl, updateCourse } from '@/services/courseService';
 import { renderComponent } from '@/test/renderComponent';
 import CourseSettingsView from '@/views/courses/CourseSettingsView.vue';

@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { BookOpen, Newspaper, PanelLeft, Receipt, Tags, Ticket, Users } from 'lucide-vue-next';
+import { BookOpen, MessagesSquare, Newspaper, PanelLeft, Receipt, Tags, Ticket, Users } from 'lucide-vue-next';
 
 const route = useRoute();
 const isMinimized = ref(localStorage.getItem('leanforge-admin-sidebar-minimized') === 'true');
@@ -13,6 +13,7 @@ const links = [
   { name: 'AdminPromoCodes', labelKey: 'admin.sidebar.promo_codes', icon: Ticket },
   { name: 'AdminPayments', labelKey: 'admin.sidebar.payments', icon: Receipt },
   { name: 'AdminNews', labelKey: 'admin.sidebar.news', icon: Newspaper, activeFor: ['AdminNews', 'AdminNewsCreate', 'AdminNewsEdit'] },
+  { name: 'AdminQuestions', labelKey: 'admin.sidebar.questions', icon: MessagesSquare },
 ];
 
 function isActive(link) {

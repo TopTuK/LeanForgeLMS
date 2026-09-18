@@ -4,12 +4,15 @@ import BaseLayout from './BaseLayout.vue';
 import AuthorizedHeader from './AuthorizedHeader.vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { useQuestionStore } from '@/stores/questionStore';
 
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
+const questionStore = useQuestionStore();
 
 onMounted(async () => {
   notificationStore.refreshUnreadCount();
+  questionStore.refreshUnreadCount();
   await authStore.fetchUser();
   authStore.refreshAvatar();
 });

@@ -9,6 +9,7 @@ import {
   updateCourse,
 } from '@/services/courseService';
 import CourseDetailsForm from '@/components/courses/form/CourseDetailsForm.vue';
+import CourseTeachingTeam from '@/components/courses/form/CourseTeachingTeam.vue';
 import StudioShell from '@/components/courses/studio/StudioShell.vue';
 
 const { t } = useI18n();
@@ -195,6 +196,8 @@ async function handleSubmit() {
             </router-link>
           </template>
         </CourseDetailsForm>
+
+        <CourseTeachingTeam :course-id="courseId" />
       </div>
     </template>
   </StudioShell>

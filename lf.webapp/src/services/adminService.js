@@ -86,3 +86,26 @@ export const downloadPaymentsCsv = async ({ from, to } = {}) => {
     URL.revokeObjectURL(objectUrl);
   }
 };
+
+export const fetchAdminQuestions = ({ courseId = null, status = null, search = null, page = 1, pageSize = 20 } = {}) =>
+  api
+    .get('/admin/questions', {
+      params: {
+        courseId: courseId || undefined,
+        status: status || undefined,
+        search: search || undefined,
+        page,
+        pageSize,
+      },
+    })
+    .then((r) => r.data);
+
+export const fetchAdminQuestionThread = (id) => api.get(`/admin/questions/${id}`).then((r) => r.data);
+
+export const postAdminQuestionMessage = (id, body) =>
+  api.post(`/admin/questions/${id}/messages`, { body }).then((r) => r.data);
+
+export const deleteAdminQuestionMessage = (id, messageId) =>
+  api.delete(`/admin/questions/${id}/messages/${messageId}`).then((r) => r.data);
+
+export const deleteAdminQuestion = (id) => api.delete(`/admin/questions/${id}`);
