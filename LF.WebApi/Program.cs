@@ -3,6 +3,7 @@ using Duende.IdentityModel.Client;
 using LF.AppDomain.Models.User.Enums;
 using LF.Application;
 using LF.Infrastructure;
+using LF.WebApi.Common;
 using LF.WebApi.Endpoints;
 using LF.WebApi.Models.Options;
 using Microsoft.AspNetCore.Authentication;
@@ -182,16 +183,83 @@ try
             // save tokens
             options.SaveTokens = true;
 
+            // The handlers below other than OnAuthorizationCodeReceived only log. {Instance} is the
+            // container hostname, so callbacks served by a second lf-webapi instance stand out.
+            options.Events.OnRedirectToIdentityProvider = context =>
+            {
+                var clock = PmiOidcDiagnostics.Clock(context.HttpContext);
+                PmiOidcDiagnostics.MarkChallengeStarted(context.Properties, clock);
+
+                var message = context.ProtocolMessage;
+                var pkceMethod = message.Parameters.TryGetValue("code_challenge_method", out var method) ? method : "none";
+                PmiOidcDiagnostics.Logger(context.HttpContext).LogInformation(
+                    "PmiOidc::Challenge: Redirecting to {AuthorizationEndpoint} (client {ClientId}, redirect_uri {RedirectUri}, response_mode {ResponseMode}, PKCE {PkceMethod}) on {Instance}",
+                    message.IssuerAddress, message.ClientId, message.RedirectUri, message.ResponseMode,
+                    pkceMethod, Environment.MachineName);
+
+                return Task.CompletedTask;
+            };
+
+            options.Events.OnMessageReceived = context =>
+            {
+                var message = context.ProtocolMessage;
+                var request = context.HttpContext.Request;
+                var logger = PmiOidcDiagnostics.Logger(context.HttpContext);
+
+                if (!string.IsNullOrEmpty(message.Error))
+                {
+                    logger.LogWarning(
+                        "PmiOidc::Callback: PMI returned error {Error} - {ErrorDescription} ({Method} from {RemoteIp}) on {Instance}",
+                        message.Error, message.ErrorDescription, request.Method,
+                        context.HttpContext.Connection.RemoteIpAddress, Environment.MachineName);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "PmiOidc::Callback: Received {Method} with code {CodeFingerprint} (length {CodeLength}), state present {HasState}, from {RemoteIp}, user agent {UserAgent} on {Instance}",
+                        request.Method, PmiOidcDiagnostics.Fingerprint(message.Code), message.Code?.Length ?? 0,
+                        !string.IsNullOrEmpty(message.State), context.HttpContext.Connection.RemoteIpAddress,
+                        request.Headers.UserAgent.ToString(), Environment.MachineName);
+                }
+
+                return Task.CompletedTask;
+            };
+
             options.Events.OnAuthorizationCodeReceived = async (context) =>
             {
+                var logger = PmiOidcDiagnostics.Logger(context.HttpContext);
+                var clock = PmiOidcDiagnostics.Clock(context.HttpContext);
+
                 //var request = context.HttpContext.Request;
                 var redirectUri = context
                     .Properties
                     ?.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey] ?? "/";
                 var code = context.ProtocolMessage.Code;
+                var codeFingerprint = PmiOidcDiagnostics.Fingerprint(code);
+
+                logger.LogInformation(
+                    "PmiOidc::CodeExchange: Start for code {CodeFingerprint}, {ElapsedSinceChallengeMs} ms after the challenge, redirect_uri {RedirectUri} on {Instance}",
+                    codeFingerprint, PmiOidcDiagnostics.MillisecondsSinceChallenge(context.Properties, clock),
+                    redirectUri, Environment.MachineName);
 
                 using var client = new HttpClient();
+
+                var discoveryStartedAt = clock.GetTimestamp();
                 var discoResponsee = await client.GetDiscoveryDocumentAsync(options.Authority);
+                var discoveryMs = Math.Round(clock.GetElapsedTime(discoveryStartedAt).TotalMilliseconds);
+
+                if (discoResponsee.IsError)
+                {
+                    logger.LogError(
+                        "PmiOidc::CodeExchange: Discovery document from {Authority} failed after {DiscoveryMs} ms: {DiscoveryError} ({DiscoveryErrorType}, HTTP {DiscoveryStatus})",
+                        options.Authority, discoveryMs, discoResponsee.Error, discoResponsee.ErrorType, (int)discoResponsee.HttpStatusCode);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "PmiOidc::CodeExchange: Discovery document loaded in {DiscoveryMs} ms, token endpoint {TokenEndpoint}",
+                        discoveryMs, discoResponsee.TokenEndpoint);
+                }
 
                 var tokenRequest = new AuthorizationCodeTokenRequest
                 {
@@ -204,25 +272,71 @@ try
 
                 // PKCE: the challenge request included a code_challenge (options.UsePkce defaults to true),
                 // so the token endpoint requires the matching code_verifier or it rejects the exchange.
+                var hasCodeVerifier = false;
                 if (context.Properties?.Items.TryGetValue(OAuthConstants.CodeVerifierKey, out var codeVerifier) is true
                     && codeVerifier is not null)
                 {
                     tokenRequest.Parameters.Add(OAuthConstants.CodeVerifierKey, codeVerifier);
+                    hasCodeVerifier = true;
                 }
 
+                var tokenStartedAt = clock.GetTimestamp();
                 var tokenResponse = await client.RequestAuthorizationCodeTokenAsync(tokenRequest);
+                var tokenMs = Math.Round(clock.GetElapsedTime(tokenStartedAt).TotalMilliseconds);
 
                 if (tokenResponse.IsError)
                 {
+                    logger.LogError(
+                        "PmiOidc::CodeExchange: Token request for code {CodeFingerprint} failed after {TokenMs} ms ({ElapsedSinceChallengeMs} ms after the challenge): HTTP {TokenStatus}, {TokenError} - {TokenErrorDescription} ({TokenErrorType}); code_verifier sent {HasCodeVerifier}, redirect_uri {RedirectUri} on {Instance}",
+                        codeFingerprint, tokenMs, PmiOidcDiagnostics.MillisecondsSinceChallenge(context.Properties, clock),
+                        (int)tokenResponse.HttpStatusCode, tokenResponse.Error, tokenResponse.ErrorDescription, tokenResponse.ErrorType,
+                        hasCodeVerifier, redirectUri, Environment.MachineName);
+
                     // Error handler
                     throw new Exception(
                         $"OpenIdConnect::Bad auth. Can't exchange code for access token and id token: {tokenResponse.Error} - {tokenResponse.ErrorDescription}");
                 }
 
+                logger.LogInformation(
+                    "PmiOidc::CodeExchange: Token request for code {CodeFingerprint} succeeded in {TokenMs} ms (id_token {HasIdToken}, access_token {HasAccessToken}, expires in {ExpiresIn} s)",
+                    codeFingerprint, tokenMs, !string.IsNullOrEmpty(tokenResponse.IdentityToken),
+                    !string.IsNullOrEmpty(tokenResponse.AccessToken), tokenResponse.ExpiresIn);
+
                 var accessToken = tokenResponse.AccessToken ?? string.Empty;
                 var idToken = tokenResponse.IdentityToken ?? string.Empty;
 
                 context.HandleCodeRedemption(accessToken, idToken);
+            };
+
+            options.Events.OnTokenValidated = context =>
+            {
+                PmiOidcDiagnostics.Logger(context.HttpContext).LogInformation(
+                    "PmiOidc::TokenValidated: id_token accepted for subject {Subject}",
+                    context.Principal?.FindFirst("sub")?.Value);
+
+                return Task.CompletedTask;
+            };
+
+            options.Events.OnAuthenticationFailed = context =>
+            {
+                PmiOidcDiagnostics.Logger(context.HttpContext).LogError(context.Exception,
+                    "PmiOidc::AuthenticationFailed: {ExceptionType} on {Instance}",
+                    context.Exception.GetType().Name, Environment.MachineName);
+
+                return Task.CompletedTask;
+            };
+
+            // Logs only; without HandleResponse() the handler still surfaces the failure as before.
+            options.Events.OnRemoteFailure = context =>
+            {
+                PmiOidcDiagnostics.Logger(context.HttpContext).LogError(
+                    "PmiOidc::RemoteFailure: {FailureType}: {FailureMessage} ({ElapsedSinceChallengeMs} ms after the challenge) on {Instance}",
+                    context.Failure?.GetType().Name, context.Failure?.Message,
+                    PmiOidcDiagnostics.MillisecondsSinceChallenge(context.Properties,
+                        PmiOidcDiagnostics.Clock(context.HttpContext)),
+                    Environment.MachineName);
+
+                return Task.CompletedTask;
             };
 
             options.MapInboundClaims = false;
