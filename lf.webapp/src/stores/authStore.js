@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
 import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
+import { setUserRole, track, trackLoginCompleted } from '@/lib/analytics';
 
 export const useAuthStore = defineStore('auth', () => {
     // State
@@ -31,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
     });
 
+    watch(() => user.value?.role, setUserRole, { immediate: true });
+
     // Actions
 
     // Resolves auth state from the HttpOnly session cookie exactly once per app load:
@@ -42,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
         initPromise = (async () => {
             try {
                 user.value = await fetchProfile({ skipAuthRedirect: true });
+                trackLoginCompleted();
             } catch {
                 user.value = null;
             } finally {
@@ -91,6 +95,7 @@ export const useAuthStore = defineStore('auth', () => {
             // Session may already be gone — proceed with client-side cleanup regardless.
         }
 
+        track('logout');
         clear();
     };
 

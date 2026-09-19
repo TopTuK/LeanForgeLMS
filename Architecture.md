@@ -218,7 +218,8 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
   Aspire secret parameter (`unleash-api-key`, sourced from `UNLEASH_API_KEY`) for AppHost runs.
 - **Security headers (prod only).** `LF.WebApi/Program.cs` applies
   `NetEscapades.AspNetCore.SecurityHeaders` outside Development: default security headers
-  plus a Content-Security-Policy (`script-src 'self'`, `style-src 'self' 'unsafe-inline'`
+  plus a Content-Security-Policy (`script-src 'self' https://www.googletagmanager.com`,
+  `connect-src` widened to the Google Analytics collection hosts, `style-src 'self' 'unsafe-inline'`
   for Vue scoped styles, `img-src 'self' data: blob: https:`, `frame-ancestors 'none'`,
   `object-src 'none'`, upgrade-insecure-requests). The CSP is the defence-in-depth backstop
   for the sanitized rich-text render path.

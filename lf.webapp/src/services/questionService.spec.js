@@ -11,6 +11,7 @@ import {
   closeQuestion,
   fetchCourseInstructors,
   fetchLessonQuestions,
+  fetchQuestionOverview,
   fetchQuestionThread,
   fetchQuestions,
   fetchUnreadQuestionCount,
@@ -33,17 +34,24 @@ describe('questionService', () => {
     const result = await fetchQuestions();
 
     expect(api.get).toHaveBeenCalledWith('/questions', {
-      params: { scope: 'student', courseId: undefined, status: undefined, page: 1, pageSize: 20 },
+      params: { scope: 'student', courseId: undefined, status: undefined, search: undefined, page: 1, pageSize: 20 },
     });
     expect(result).toEqual({ items: [], totalCount: 0 });
   });
 
   it('fetchQuestions passes the staff scope and filters through', async () => {
-    await fetchQuestions({ scope: 'staff', courseId: 7, status: 'Open', page: 3, pageSize: 5 });
+    await fetchQuestions({ scope: 'staff', courseId: 7, status: 'Open', search: 'scope', page: 3, pageSize: 5 });
 
     expect(api.get).toHaveBeenCalledWith('/questions', {
-      params: { scope: 'staff', courseId: 7, status: 'Open', page: 3, pageSize: 5 },
+      params: { scope: 'staff', courseId: 7, status: 'Open', search: 'scope', page: 3, pageSize: 5 },
     });
+  });
+
+  it('fetchQuestionOverview asks for one inbox', async () => {
+    api.get.mockResolvedValue({ data: { total: 3 } });
+
+    expect(await fetchQuestionOverview('staff')).toEqual({ total: 3 });
+    expect(api.get).toHaveBeenCalledWith('/questions/overview', { params: { scope: 'staff' } });
   });
 
   it('fetchLessonQuestions scopes the request to one lesson', async () => {

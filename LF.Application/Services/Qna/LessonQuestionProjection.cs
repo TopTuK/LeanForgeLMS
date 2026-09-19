@@ -13,6 +13,9 @@ namespace LF.Application.Services.Qna;
 // unread check to client evaluation.
 internal static class LessonQuestionProjection
 {
+    // Long enough for two lines in an inbox row; the full body is only sent with the thread.
+    private const int PreviewLength = 160;
+
     public static IQueryable<LessonQuestionSummaryDto> ToSummaries(
         this IQueryable<LessonQuestion> query,
         IAppDbContext dbContext,
@@ -43,6 +46,23 @@ internal static class LessonQuestionProjection
             HasUnread = q.LastMessageAuthorUserId != viewerUserId
                 && !dbContext.LessonQuestionReadMarkers.Any(m =>
                     m.LessonQuestionId == q.Id && m.UserId == viewerUserId && m.LastSeenAt >= q.LastMessageAt),
+            LastMessagePreview = q.Messages
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Select(m => m.IsDeleted
+                    ? null
+                    : m.Body.Length > PreviewLength ? m.Body.Substring(0, PreviewLength) : m.Body)
+                .FirstOrDefault(),
+            LastMessageAuthorRole = q.Messages
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Select(m => m.AuthorRole)
+                .FirstOrDefault(),
+            StudentEnrollmentId = dbContext.Enrollments
+                .Where(e => e.CourseId == q.CourseId && e.UserId == q.StudentUserId)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefault(),
+            AskedByViewer = q.StudentUserId == viewerUserId,
         });
 
     public static IQueryable<LessonQuestionThreadDto> ToThreads(
@@ -75,6 +95,23 @@ internal static class LessonQuestionProjection
             HasUnread = q.LastMessageAuthorUserId != viewerUserId
                 && !dbContext.LessonQuestionReadMarkers.Any(m =>
                     m.LessonQuestionId == q.Id && m.UserId == viewerUserId && m.LastSeenAt >= q.LastMessageAt),
+            LastMessagePreview = q.Messages
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Select(m => m.IsDeleted
+                    ? null
+                    : m.Body.Length > PreviewLength ? m.Body.Substring(0, PreviewLength) : m.Body)
+                .FirstOrDefault(),
+            LastMessageAuthorRole = q.Messages
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id)
+                .Select(m => m.AuthorRole)
+                .FirstOrDefault(),
+            StudentEnrollmentId = dbContext.Enrollments
+                .Where(e => e.CourseId == q.CourseId && e.UserId == q.StudentUserId)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefault(),
+            AskedByViewer = q.StudentUserId == viewerUserId,
             Messages = q.Messages
                 .OrderBy(m => m.CreatedAt)
                 .ThenBy(m => m.Id)
@@ -92,6 +129,7 @@ internal static class LessonQuestionProjection
                     Body = m.IsDeleted ? null : m.Body,
                     CreatedAt = m.CreatedAt,
                     IsDeleted = m.IsDeleted,
+                    IsMine = m.AuthorUserId == viewerUserId,
                 })
                 .ToList(),
         });

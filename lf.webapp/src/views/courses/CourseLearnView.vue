@@ -13,6 +13,7 @@ import LearnerQuizPart from '@/components/courses/lesson/LearnerQuizPart.vue';
 import LessonImageRow from '@/components/courses/lesson/LessonImageRow.vue';
 import LessonQuestionsPanel from '@/components/courses/lesson/LessonQuestionsPanel.vue';
 import CourseOutlineRail from '@/components/courses/learn/CourseOutlineRail.vue';
+import { track } from '@/lib/analytics';
 
 const OUTLINE_STORAGE_KEY = 'course-learn-outline-collapsed';
 
@@ -172,8 +173,11 @@ async function load() {
     enrollment.value = await fetchEnrollment(enrollmentId.value);
     if (enrollment.value.isCourseUnavailable) return;
 
+    // ?lesson= lets other pages (e.g. Q&A) deep-link to a specific lesson; an id that isn't in this
+    // course falls back to the usual "first incomplete lesson".
+    const requested = flatLessons.value.find((l) => l.id === Number(route.query?.lesson));
     const firstIncomplete = flatLessons.value.find((l) => !l.isCompleted);
-    selectedLessonId.value = (firstIncomplete ?? flatLessons.value[0])?.id ?? null;
+    selectedLessonId.value = (requested ?? firstIncomplete ?? flatLessons.value[0])?.id ?? null;
     await loadMediaForSelectedLesson();
   } catch (err) {
     if (err.response?.status === 404) notFound.value = true;
@@ -198,7 +202,9 @@ async function markComplete() {
   completing.value = true;
   errorMessage.value = '';
   try {
-    enrollment.value = await completeLesson(enrollmentId.value, selectedLesson.value.id);
+    const updated = await completeLesson(enrollmentId.value, selectedLesson.value.id);
+    track('lesson_complete', { course_id: updated.courseId, lesson_id: selectedLesson.value.id });
+    applyEnrollmentUpdate(updated);
     if (nextLesson.value) selectedLessonId.value = nextLesson.value.id;
   } catch {
     errorMessage.value = t('courses.learn.complete_error');
@@ -208,7 +214,14 @@ async function markComplete() {
 }
 
 function onQuizSubmitted(updatedEnrollment) {
-  enrollment.value = updatedEnrollment;
+  applyEnrollmentUpdate(updatedEnrollment);
+}
+
+function applyEnrollmentUpdate(updated) {
+  if (!enrollment.value?.completedAt && updated.completedAt) {
+    track('course_complete', { course_id: updated.courseId });
+  }
+  enrollment.value = updated;
 }
 
 const downloadingFileId = ref(null);

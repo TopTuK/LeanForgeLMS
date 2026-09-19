@@ -22,11 +22,19 @@ public sealed class LessonQuestionEndpoints : IEndpointGroup
         var group = app.MapGroup("/api/questions").WithTags("Questions").RequireAuthorization();
 
         group.MapGet("/", async Task<Results<Ok<PagedLessonQuestionsResponse>, UnauthorizedHttpResult, ValidationProblem>>
-            (string? scope, int? courseId, string? status, int? page, int? pageSize,
+            (string? scope, int? courseId, string? status, string? search, int? page, int? pageSize,
              ClaimsPrincipal user, ILessonQuestionService questionService, CancellationToken ct) =>
         {
             var userId = user.GetUserId();
             if (userId is null) return TypedResults.Unauthorized();
+
+            if (search?.Length > LessonQuestionSearch.MaxLength)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["search"] = [$"Search cannot exceed {LessonQuestionSearch.MaxLength} characters."],
+                });
+            }
 
             LessonQuestionStatus? statusFilter = null;
             if (status is not null)
@@ -43,6 +51,7 @@ public sealed class LessonQuestionEndpoints : IEndpointGroup
                 LessonQuestionResponseMapper.ParseScope(scope),
                 courseId,
                 statusFilter,
+                search,
                 effectivePage,
                 effectivePageSize,
                 ct);
@@ -141,6 +150,16 @@ public sealed class LessonQuestionEndpoints : IEndpointGroup
 
         group.MapPost("/{id:int}/reopen", (int id, ClaimsPrincipal user, ILessonQuestionService questionService, CancellationToken ct) =>
             SetStatusAsync(id, close: false, user, questionService, ct));
+
+        group.MapGet("/overview", async Task<Results<Ok<LessonQuestionOverviewResponse>, UnauthorizedHttpResult>>
+            (string? scope, ClaimsPrincipal user, ILessonQuestionService questionService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var overview = await questionService.GetOverviewAsync(userId.Value, LessonQuestionResponseMapper.ParseScope(scope), ct);
+            return TypedResults.Ok(LessonQuestionResponseMapper.ToResponse(overview));
+        });
 
         group.MapGet("/unread-count", async Task<Results<Ok<QuestionUnreadCountResponse>, UnauthorizedHttpResult>>
             (ClaimsPrincipal user, ILessonQuestionService questionService, CancellationToken ct) =>

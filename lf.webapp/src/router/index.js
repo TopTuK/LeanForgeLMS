@@ -118,7 +118,8 @@ const routes = [
         }
     },
     {
-        path: '/questions',
+        // The optional id deep-links (and back/forward-navigates) straight to one conversation.
+        path: '/questions/:id(\\d+)?',
         name: 'Questions',
         component: QuestionsView,
         meta: {

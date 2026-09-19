@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-vue-next';
 import authPmi from '@/assets/login/auth-pmi.png';
 import authGoogle from '@/assets/login/auth-google.png';
 import authYandex from '@/assets/login/auth-yandex.png';
+import { trackLoginStarted } from '@/lib/analytics';
 
 const { tm } = useI18n();
 
@@ -14,14 +15,17 @@ const benefits = computed(() => {
 });
 
 function signInWithPmi() {
+  trackLoginStarted('pmi');
   window.location.href = '/api/Auth/SignInPmi';
 }
 
 function signInWithGoogle() {
+  trackLoginStarted('google');
   window.location.href = '/api/Auth/SignInGoogle';
 }
 
 function signInWithYandex() {
+  trackLoginStarted('yandex');
   window.location.href = '/api/Auth/SignInYandex';
 }
 </script>

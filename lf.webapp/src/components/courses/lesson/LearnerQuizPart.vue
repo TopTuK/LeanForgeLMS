@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { submitQuizAttempt } from '@/services/enrollmentService';
+import { track } from '@/lib/analytics';
 
 const props = defineProps({
   part: { type: Object, required: true },
@@ -51,6 +52,11 @@ async function submit() {
     const answers = props.part.quizQuestions.map((q) => ({ questionId: q.id, selectedOptionIds: selected[q.id] ?? [] }));
     const submission = await submitQuizAttempt(props.enrollmentId, props.lessonId, props.part.id, answers);
     result.value = submission.result;
+    track('quiz_submit', {
+      lesson_id: props.lessonId,
+      passed: submission.result.passed,
+      score_percent: submission.result.scorePercent,
+    });
     emit('submitted', submission.enrollment);
   } catch {
     error.value = t('courses.learn.quiz.submit_error');

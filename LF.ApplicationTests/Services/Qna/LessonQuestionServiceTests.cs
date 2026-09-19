@@ -310,7 +310,7 @@ public class LessonQuestionServiceTests
             Question(id: 2, studentUserId: OtherStudentId),
         ]);
 
-        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, 1, 10, Ct);
+        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct);
 
         Assert.Equal(1, result.TotalCount);
         Assert.Equal([1], result.Items.Select(i => i.Id));
@@ -327,7 +327,7 @@ public class LessonQuestionServiceTests
             ],
             instructors: [Assignment(CourseId, AssignedInstructorId)]);
 
-        var result = await harness.Service.ListAsync(AssignedInstructorId, LessonQuestionScope.AsStaff, null, null, 1, 10, Ct);
+        var result = await harness.Service.ListAsync(AssignedInstructorId, LessonQuestionScope.AsStaff, null, null, null, 1, 10, Ct);
 
         Assert.Equal(1, result.TotalCount);
         Assert.Equal([1], result.Items.Select(i => i.Id));
@@ -338,7 +338,7 @@ public class LessonQuestionServiceTests
     {
         var harness = CreateHarness(questions: [Question(id: 1)]);
 
-        var result = await harness.Service.ListAsync(CreatorId, LessonQuestionScope.AsStaff, null, null, 1, 10, Ct);
+        var result = await harness.Service.ListAsync(CreatorId, LessonQuestionScope.AsStaff, null, null, null, 1, 10, Ct);
 
         Assert.Equal([1], result.Items.Select(i => i.Id));
     }
@@ -348,7 +348,7 @@ public class LessonQuestionServiceTests
     {
         var harness = CreateHarness(questions: [Question(id: 1)]);
 
-        var result = await harness.Service.ListAsync(UnassignedInstructorId, LessonQuestionScope.AsStaff, null, null, 1, 10, Ct);
+        var result = await harness.Service.ListAsync(UnassignedInstructorId, LessonQuestionScope.AsStaff, null, null, null, 1, 10, Ct);
 
         Assert.Equal(0, result.TotalCount);
         Assert.Empty(result.Items);
@@ -363,7 +363,7 @@ public class LessonQuestionServiceTests
 
         var harness = CreateHarness(questions: [older, newer]);
 
-        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, 1, 10, Ct);
+        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct);
 
         Assert.Equal([2, 1], result.Items.Select(i => i.Id));
     }
@@ -377,7 +377,7 @@ public class LessonQuestionServiceTests
         var harness = CreateHarness(questions: [Question(id: 1), answered]);
 
         var result = await harness.Service.ListAsync(
-            StudentId, LessonQuestionScope.AsStudent, null, LessonQuestionStatus.Answered, 1, 10, Ct);
+            StudentId, LessonQuestionScope.AsStudent, null, LessonQuestionStatus.Answered, null, 1, 10, Ct);
 
         Assert.Equal([2], result.Items.Select(i => i.Id));
     }
@@ -559,5 +559,149 @@ public class LessonQuestionServiceTests
         var harness = CreateHarness(questions: [Question()]);
 
         Assert.Equal(0, await harness.Service.GetUnreadCountAsync(UnassignedInstructorId, Ct));
+    }
+
+    [Theory]
+    [InlineData("DEADLOCK")]
+    [InlineData("rust")]
+    [InlineData("lesson 43")]
+    public async Task ListAsync_SearchMatchesSubjectCourseOrLessonCaseInsensitively(string search)
+    {
+        var harness = CreateHarness(questions:
+        [
+            Question(id: 1, title: "Unrelated"),
+            Question(id: 2, courseId: OtherCourseId, lessonId: OtherLessonId, title: "A deadlock in the scheduler"),
+        ]);
+
+        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, search, 1, 10, Ct);
+
+        Assert.Equal([2], result.Items.Select(i => i.Id));
+    }
+
+    // Search narrows an inbox; it must never widen it to someone else's threads.
+    [Fact]
+    public async Task ListAsync_SearchStaysWithinTheCallersScope()
+    {
+        var harness = CreateHarness(questions: [Question(id: 1, studentUserId: OtherStudentId, title: "Deadlock")]);
+
+        var result = await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, "deadlock", 1, 10, Ct);
+
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task ListAsync_PreviewShowsTheNewestMessageAndWhoWroteIt()
+    {
+        var question = Question();
+        question.AddMessage(CreatorId, QuestionAuthorRole.Instructor, "Try viewModelScope.", Asked.AddMinutes(30));
+        var harness = CreateHarness(questions: [question]);
+
+        var item = Assert.Single((await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct)).Items);
+
+        Assert.Equal("Try viewModelScope.", item.LastMessagePreview);
+        Assert.Equal(QuestionAuthorRole.Instructor, item.LastMessageAuthorRole);
+    }
+
+    [Fact]
+    public async Task ListAsync_PreviewIsTruncatedForLongMessages()
+    {
+        var question = Question();
+        question.AddMessage(CreatorId, QuestionAuthorRole.Instructor, new string('a', 1_000), Asked.AddMinutes(30));
+        var harness = CreateHarness(questions: [question]);
+
+        var item = Assert.Single((await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct)).Items);
+
+        Assert.Equal(160, item.LastMessagePreview!.Length);
+    }
+
+    [Fact]
+    public async Task ListAsync_PreviewOfADeletedMessageIsWithheld()
+    {
+        var question = Question();
+        question.AddMessage(CreatorId, QuestionAuthorRole.Instructor, "Rude reply.", Asked.AddMinutes(30));
+        question.Messages[1].SoftDelete(AdminId, Asked.AddMinutes(40));
+        var harness = CreateHarness(questions: [question]);
+
+        var item = Assert.Single((await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct)).Items);
+
+        Assert.Null(item.LastMessagePreview);
+    }
+
+    [Fact]
+    public async Task ListAsync_CarriesTheStudentsEnrollmentSoTheInboxCanLinkToTheLesson()
+    {
+        var enrollment = ActiveEnrollment();
+        var harness = CreateHarness(questions: [Question()], enrollments: [enrollment]);
+
+        var item = Assert.Single((await harness.Service.ListAsync(StudentId, LessonQuestionScope.AsStudent, null, null, null, 1, 10, Ct)).Items);
+
+        Assert.Equal(enrollment.Id, item.StudentEnrollmentId);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_CountsByStatusCourseAndUnread()
+    {
+        var answered = Question(id: 2);
+        answered.AddMessage(CreatorId, QuestionAuthorRole.Instructor, "Answered.", Asked.AddMinutes(30));
+        var closed = Question(id: 3, courseId: OtherCourseId, lessonId: OtherLessonId);
+        closed.Close();
+
+        var harness = CreateHarness(questions:
+        [
+            Question(id: 1),
+            answered,
+            closed,
+            Question(id: 4, studentUserId: OtherStudentId),
+        ]);
+
+        var overview = await harness.Service.GetOverviewAsync(StudentId, LessonQuestionScope.AsStudent, Ct);
+
+        Assert.Equal(3, overview.Total);
+        Assert.Equal(1, overview.Open);
+        Assert.Equal(1, overview.Answered);
+        Assert.Equal(1, overview.Closed);
+        Assert.Equal(1, overview.Unread);
+        Assert.Equal(["Kotlin Basics", "Rust Basics"], overview.Courses.Select(c => c.CourseTitle));
+        Assert.Equal([2, 1], overview.Courses.Select(c => c.Count));
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_EmptyInbox_IsAllZero()
+    {
+        var harness = CreateHarness();
+
+        var overview = await harness.Service.GetOverviewAsync(StudentId, LessonQuestionScope.AsStudent, Ct);
+
+        Assert.Equal(0, overview.Total);
+        Assert.Empty(overview.Courses);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_AsStaff_CountsOnlyCoursesTheUserTeaches()
+    {
+        var harness = CreateHarness(
+            questions: [Question(id: 1), Question(id: 2, courseId: OtherCourseId, lessonId: OtherLessonId)],
+            instructors: [Assignment()]);
+
+        var overview = await harness.Service.GetOverviewAsync(AssignedInstructorId, LessonQuestionScope.AsStaff, Ct);
+
+        Assert.Equal(1, overview.Total);
+        Assert.Equal([CourseId], overview.Courses.Select(c => c.CourseId));
+    }
+
+    [Fact]
+    public async Task GetThreadAsync_MarksWhichMessagesAndThreadBelongToTheViewer()
+    {
+        var question = Question();
+        question.AddMessage(CreatorId, QuestionAuthorRole.Instructor, "Answered.", Asked.AddMinutes(30));
+        var harness = CreateHarness(questions: [question]);
+
+        var asStudent = await harness.Service.GetThreadAsync(1, StudentId, isAdmin: false, Ct);
+        Assert.True(asStudent!.AskedByViewer);
+        Assert.Equal([true, false], asStudent.Messages.Select(m => m.IsMine));
+
+        var asCreator = await harness.Service.GetThreadAsync(1, CreatorId, isAdmin: false, Ct);
+        Assert.False(asCreator!.AskedByViewer);
+        Assert.Equal([false, true], asCreator.Messages.Select(m => m.IsMine));
     }
 }

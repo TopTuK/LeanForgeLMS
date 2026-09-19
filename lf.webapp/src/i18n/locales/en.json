@@ -702,9 +702,15 @@
         "empty_mine": "You have not asked anything yet. Open a lesson and use \"Ask a question\".",
         "empty_incoming": "No questions have been sent to you yet.",
         "empty_lesson": "No questions on this lesson yet.",
+        "empty_lesson_hint": "Be the first to ask if something needs clarification.",
         "select_hint": "Pick a question to read the conversation.",
         "lesson_panel_title": "Questions about this lesson",
+        "lesson_panel_subtitle": "Stuck on something? Ask here and continue when your instructor replies.",
+        "lesson_history": "Your questions",
+        "conversation": "Conversation",
         "ask_action": "Ask a question",
+        "composer_title": "Ask about this lesson",
+        "composer_hint": "Add enough context for your instructor to understand where you got stuck.",
         "title_label": "Subject",
         "title_placeholder": "Briefly, what is unclear?",
         "body_label": "Your question",
@@ -735,6 +741,39 @@
             "student": "Student",
             "instructor": "Instructor",
             "admin": "Administrator"
+        },
+        "inbox": {
+            "subtitle_student": "Every question you have asked, across all your lessons, in one place.",
+            "subtitle_staff": "Questions students have asked in the courses you teach.",
+            "you": "You",
+            "back": "Back to all questions",
+            "open_lesson": "Open lesson",
+            "send_hint": "Ctrl + Enter to send",
+            "resolved_hint": "This question is resolved.",
+            "new_reply": "New reply",
+            "filter_all": "All",
+            "filter_status": "Filter by status",
+            "search_label": "Search questions",
+            "search_placeholder": "Search by subject, course or lesson",
+            "clear_search": "Clear search",
+            "course_label": "Course",
+            "course_all": "All courses",
+            "load_more": "Show more",
+            "no_match_title": "No questions match these filters.",
+            "clear_filters": "Clear filters",
+            "select_title": "Pick a question",
+            "select_hint": "The whole conversation with your instructors will open here.",
+            "select_hint_staff": "The whole conversation with the student will open here.",
+            "empty_title": "No questions yet",
+            "empty_hint": "Stuck on a lesson? Use “Ask a question” under it — every conversation will show up here.",
+            "empty_cta": "Go to my courses",
+            "empty_staff_title": "No questions yet",
+            "empty_staff_hint": "Questions from students in the courses you teach will appear here.",
+            "status": {
+                "open": "Awaiting reply",
+                "answered": "Answered",
+                "closed": "Resolved"
+            }
         }
     },
     "profile": {
@@ -980,16 +1019,16 @@
     "cookies": {
         "eyebrow": "Privacy and security",
         "title": "Cookie policy",
-        "updated": "Updated 7 September 2026",
+        "updated": "Updated 19 September 2026",
         "back": "Back to home",
-        "intro": "High Managers School uses only the browser data required for secure sign-in and a consistent experience. We do not use advertising, analytics or profiling cookies.",
+        "intro": "High Managers School uses the browser data required for secure sign-in and a consistent experience. With your consent, we also use Google Analytics to understand how the Service is used. We do not use advertising or profiling cookies.",
         "image_alt": "Abstract browser panels, a security shield and small data tokens",
         "image_caption": "Essential by design",
         "highlights_label": "Cookie policy summary",
         "contents_label": "On this page",
         "highlights": [
             { "value": "Essential only", "label": "for secure authentication" },
-            { "value": "No tracking", "label": "or advertising cookies" },
+            { "value": "Analytics", "label": "only with your consent" },
             { "value": "First-party", "label": "browser storage" }
         ],
         "essential_label": "Authentication",
@@ -1012,20 +1051,44 @@
                 "purpose": "Protect external sign-in against request forgery and replay attacks. They are removed after the provider returns you to the Service."
             }
         ],
+        "analytics_label": "Optional",
+        "analytics_heading": "Analytics cookies",
+        "analytics_intro": "These Google Analytics cookies are set only after you accept analytics in the cookie banner. They help us see which pages and features are used, so we can improve courses and the Service.",
+        "analytics_records": [
+            {
+                "name": "_ga",
+                "duration": "Up to 2 years",
+                "purpose": "Distinguishes visitors with a random identifier so that visits can be counted. It does not contain your name, email or account details."
+            },
+            {
+                "name": "_ga_KZGF9HH7RL",
+                "duration": "Up to 2 years",
+                "purpose": "Keeps the state of the current visit for Google Analytics, such as its start time and the number of pages viewed."
+            }
+        ],
+        "analytics_status": {
+            "granted": "You have accepted analytics cookies.",
+            "denied": "You have declined analytics cookies.",
+            "unset": "You have not made a choice about analytics cookies yet."
+        },
+        "analytics_change": "Change my choice",
         "preferences_label": "Local storage",
         "storage_heading": "Browser preferences",
         "storage_intro": "These preferences are stored locally on your device, are not sent with web requests and remain until you clear site data.",
         "storage_records": [
             { "name": "Appearance", "purpose": "Remembers your light or dark theme." },
             { "name": "Language", "purpose": "Remembers whether the interface is displayed in Russian or English." },
-            { "name": "Workspace layout", "purpose": "Remembers the state of navigation panels available in your account." }
+            { "name": "Workspace layout", "purpose": "Remembers the state of navigation panels available in your account." },
+            { "name": "Analytics choice", "purpose": "Remembers whether you accepted or declined analytics cookies." }
         ],
         "sections": [
             {
                 "label": "Privacy",
-                "heading": "No tracking cookies",
+                "heading": "Analytics only with consent",
                 "blocks": [
-                    { "type": "p", "text": "The Service does not use browser analytics, advertising networks, social-media trackers or profiling cookies. There are no optional cookie categories to accept or reject." }
+                    { "type": "p", "text": "Google Analytics is not loaded until you accept it. If you decline, no analytics cookies are set and no usage data is sent to Google." },
+                    { "type": "p", "text": "When analytics is enabled, Google receives the pages you open and key actions such as signing in, enrolling in a course or completing a lesson. We do not send your name, email or account identifier, and we remove sensitive details, such as payment parameters, from page addresses." },
+                    { "type": "p", "text": "The Service does not use advertising networks, social-media trackers or profiling cookies." }
                 ]
             },
             {
@@ -1033,14 +1096,14 @@
                 "heading": "External services",
                 "blocks": [
                     { "type": "p", "text": "PMI Club and Google process external sign-in on their own websites. Robokassa processes payments on its hosted checkout. These providers may use cookies on their domains under their own policies; High Managers School does not control them." },
-                    { "type": "p", "text": "Their pages, analytics scripts and social widgets are not embedded in this website." }
+                    { "type": "p", "text": "Google Analytics processes usage data under Google's own privacy policy, only if you accept analytics cookies. Other providers' pages, scripts and social widgets are not embedded in this website." }
                 ]
             },
             {
                 "label": "Browser controls",
                 "heading": "Your controls",
                 "blocks": [
-                    { "type": "p", "text": "Logging out removes your session cookie. You can also delete cookies and local storage through your browser's site-data settings." },
+                    { "type": "p", "text": "Logging out removes your session cookie. You can change your analytics choice at any time on this page. You can also delete cookies and local storage through your browser's site-data settings." },
                     { "type": "p", "text": "Blocking essential cookies prevents sign-in. Clearing local storage resets interface preferences but does not delete your account or course data." }
                 ]
             }
@@ -1048,5 +1111,12 @@
         "contact_label": "Questions",
         "contact_text": "If you have a question about cookies or browser storage used by the Service, contact us.",
         "contact_email": "support{'@'}pmi.moscow"
+    },
+    "consent": {
+        "label": "Analytics cookies",
+        "text": "We would like to use Google Analytics cookies to understand how the site is used. They are only set if you accept.",
+        "policy_link": "Cookie policy",
+        "accept": "Accept",
+        "decline": "Decline"
     }
 }

@@ -1,17 +1,21 @@
 import api from '@/services/api';
 
-export const fetchQuestions = ({ scope = 'student', courseId = null, status = null, page = 1, pageSize = 20 } = {}) =>
+export const fetchQuestions = ({ scope = 'student', courseId = null, status = null, search = null, page = 1, pageSize = 20 } = {}) =>
   api
     .get('/questions', {
       params: {
         scope,
         courseId: courseId || undefined,
         status: status || undefined,
+        search: search || undefined,
         page,
         pageSize,
       },
     })
     .then((r) => r.data);
+
+export const fetchQuestionOverview = (scope = 'student') =>
+  api.get('/questions/overview', { params: { scope } }).then((r) => r.data);
 
 export const fetchLessonQuestions = (lessonId, { page = 1, pageSize = 20 } = {}) =>
   api.get(`/lessons/${lessonId}/questions`, { params: { page, pageSize } }).then((r) => r.data);

@@ -17,7 +17,8 @@ It's a **solo-developer project** built on **.NET 10** and a **Vue 3** SPA. The 
 as four independently deployable processes — one public API/BFF plus three internal gRPC
 services (identity, courses, payments) — sharing one PostgreSQL database and one MinIO object
 store. Paid enrollment goes through **Robokassa** hosted checkout, and runtime feature flags
-come from **Unleash**. Local development is orchestrated with **.NET Aspire**; production is
+come from **Unleash**. Usage statistics go to **Google Analytics 4**, only with the visitor's
+consent. Local development is orchestrated with **.NET Aspire**; production is
 plain **Docker Compose**.
 
 ## Author & deployment
@@ -70,6 +71,26 @@ dotnet build LeanForgeLMS.slnx
 dotnet test
 cd lf.webapp && npm run lint && npm test
 ```
+
+## Usage analytics
+
+The SPA reports usage to Google Analytics 4 (`G-KZGF9HH7RL`) via `vue-gtag`, wrapped in
+[`lf.webapp/src/lib/analytics.js`](./lf.webapp/src/lib/analytics.js):
+
+- **Opt-in only.** Nothing loads until the visitor accepts the cookie banner; the choice can be
+  changed on `/cookies`. Declining never loads gtag.js.
+- **Production builds only.** `npm run dev` and tests never send hits.
+- **Privacy.** Page views keep only the path plus `utm_*`/`gclid` (payment and redirect query
+  params are stripped). No user id, email or name is sent — only a `role` user property.
+- **Tracked events.** `login_start` / `login`, `logout`, `enroll_course`, `begin_checkout`,
+  `purchase`, `payment_failed`, `lesson_complete`, `course_complete`, `quiz_submit`,
+  `question_ask`, plus a `page_view` per route change.
+- **CSP.** The production Content-Security-Policy in `LF.WebApi/Program.cs` allows
+  `www.googletagmanager.com` scripts and the Google Analytics collection hosts.
+
+In the GA4 property, turn off *Enhanced measurement → Page views → page changes based on
+browser history events* (the SPA already sends route page views), and mark `purchase`,
+`enroll_course` and `lesson_complete` as key events.
 
 ## Production deployment
 
