@@ -40,15 +40,27 @@ describe('CookiePolicyView', () => {
       .toHaveAttribute('href', '#preferences');
   });
 
-  it('states that tracking is absent and provides a contact address', () => {
+  it('documents Google Analytics as optional, consent-based cookies', () => {
     const { getByRole, getByText } = renderComponent(CookiePolicyView);
 
-    expect(getByRole('heading', {
-      name: /no tracking cookies/i,
-    })).toBeInTheDocument();
-    expect(getByText(/does not use browser analytics/i)).toBeInTheDocument();
+    expect(getByRole('heading', { name: 'Analytics cookies' })).toBeInTheDocument();
+    expect(getByText('_ga')).toBeInTheDocument();
+    expect(getByText('_ga_KZGF9HH7RL')).toBeInTheDocument();
+    expect(getByRole('heading', { name: /analytics only with consent/i })).toBeInTheDocument();
+    expect(getByText(/is not loaded until you accept it/i)).toBeInTheDocument();
+    expect(getByRole('link', { name: 'Analytics cookies' })).toHaveAttribute('href', '#analytics');
+  });
+
+  it('provides a contact address', () => {
+    const { getByRole } = renderComponent(CookiePolicyView);
 
     const email = getByRole('link', { name: 'support@pmi.moscow' });
     expect(email).toHaveAttribute('href', 'mailto:support@pmi.moscow');
+  });
+
+  it('hides the analytics choice control outside a production build', () => {
+    const { queryByRole } = renderComponent(CookiePolicyView);
+
+    expect(queryByRole('button', { name: 'Change my choice' })).not.toBeInTheDocument();
   });
 });

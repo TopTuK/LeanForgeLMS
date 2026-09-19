@@ -46,6 +46,7 @@ internal sealed class LessonQuestionService(
         LessonQuestionScope scope,
         int? courseId,
         LessonQuestionStatus? status,
+        string? search,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -53,9 +54,7 @@ internal sealed class LessonQuestionService(
         _logger.LogInformation("LessonQuestionService::ListAsync: called with ActingUserId={ActingUserId} Scope={Scope} CourseId={CourseId} Status={Status} Page={Page} PageSize={PageSize}",
             actingUserId, scope, courseId, status, page, pageSize);
 
-        var query = scope == LessonQuestionScope.AsStudent
-            ? _dbContext.LessonQuestions.AsNoTracking().Where(q => q.StudentUserId == actingUserId)
-            : StaffQuestions(actingUserId);
+        var query = ScopeQuery(actingUserId, scope);
 
         if (courseId is { } filterCourseId)
             query = query.Where(q => q.CourseId == filterCourseId);
@@ -63,7 +62,70 @@ internal sealed class LessonQuestionService(
         if (status is { } filterStatus)
             query = query.Where(q => q.Status == filterStatus);
 
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            // ToLower rather than EF.Functions.ILike: it translates to LOWER(...) LIKE on Postgres and
+            // still evaluates correctly in the in-memory LINQ the unit tests run against.
+            var term = search.Trim().ToLowerInvariant();
+            query = query.Where(q =>
+                q.Title.ToLower().Contains(term)
+                || _dbContext.Courses.Any(c => c.Id == q.CourseId && c.Title.ToLower().Contains(term))
+                || _dbContext.Courses
+                    .Where(c => c.Id == q.CourseId)
+                    .SelectMany(c => c.Chapters)
+                    .SelectMany(ch => ch.Lessons)
+                    .Any(l => l.Id == q.LessonId && l.Title.ToLower().Contains(term)));
+        }
+
         return await PageAsync(query, actingUserId, page, pageSize, cancellationToken);
+    }
+
+    public async Task<LessonQuestionOverviewDto> GetOverviewAsync(int actingUserId, LessonQuestionScope scope, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("LessonQuestionService::GetOverviewAsync: called with ActingUserId={ActingUserId} Scope={Scope}", actingUserId, scope);
+
+        var query = ScopeQuery(actingUserId, scope);
+
+        var byStatus = await query
+            .GroupBy(q => q.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var byCourse = await query
+            .GroupBy(q => q.CourseId)
+            .Select(g => new { CourseId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var courseIds = byCourse.Select(c => c.CourseId).ToList();
+        var courseTitles = await _dbContext.Courses
+            .AsNoTracking()
+            .Where(c => courseIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.Title })
+            .ToDictionaryAsync(c => c.Id, c => c.Title, cancellationToken);
+
+        var unread = await Unread(query, actingUserId).CountAsync(cancellationToken);
+
+        int CountOf(LessonQuestionStatus status) => byStatus.FirstOrDefault(s => s.Status == status)?.Count ?? 0;
+
+        return new LessonQuestionOverviewDto
+        {
+            Total = byStatus.Sum(s => s.Count),
+            Open = CountOf(LessonQuestionStatus.Open),
+            Answered = CountOf(LessonQuestionStatus.Answered),
+            Closed = CountOf(LessonQuestionStatus.Closed),
+            Unread = unread,
+            Courses =
+            [
+                .. byCourse
+                    .Select(c => new LessonQuestionCourseCountDto
+                    {
+                        CourseId = c.CourseId,
+                        CourseTitle = courseTitles.GetValueOrDefault(c.CourseId, string.Empty),
+                        Count = c.Count,
+                    })
+                    .OrderBy(c => c.CourseTitle, StringComparer.CurrentCultureIgnoreCase),
+            ],
+        };
     }
 
     public async Task<PagedLessonQuestionsDto> ListForLessonAsync(
@@ -154,14 +216,25 @@ internal sealed class LessonQuestionService(
     {
         var staffCourseIds = StaffCourseIds(actingUserId);
 
-        return await _dbContext.LessonQuestions
+        var visible = _dbContext.LessonQuestions
             .AsNoTracking()
-            .Where(q => q.StudentUserId == actingUserId || staffCourseIds.Contains(q.CourseId))
-            .Where(q => q.LastMessageAuthorUserId != actingUserId)
-            .Where(q => !_dbContext.LessonQuestionReadMarkers.Any(m =>
-                m.LessonQuestionId == q.Id && m.UserId == actingUserId && m.LastSeenAt >= q.LastMessageAt))
-            .CountAsync(cancellationToken);
+            .Where(q => q.StudentUserId == actingUserId || staffCourseIds.Contains(q.CourseId));
+
+        return await Unread(visible, actingUserId).CountAsync(cancellationToken);
     }
+
+    // Same rule the projection's HasUnread spells out: someone else wrote the newest message and the
+    // viewer hasn't opened the thread since.
+    private IQueryable<LessonQuestion> Unread(IQueryable<LessonQuestion> query, int viewerUserId) =>
+        query
+            .Where(q => q.LastMessageAuthorUserId != viewerUserId)
+            .Where(q => !_dbContext.LessonQuestionReadMarkers.Any(m =>
+                m.LessonQuestionId == q.Id && m.UserId == viewerUserId && m.LastSeenAt >= q.LastMessageAt));
+
+    private IQueryable<LessonQuestion> ScopeQuery(int actingUserId, LessonQuestionScope scope) =>
+        scope == LessonQuestionScope.AsStudent
+            ? _dbContext.LessonQuestions.AsNoTracking().Where(q => q.StudentUserId == actingUserId)
+            : StaffQuestions(actingUserId);
 
     // Lesson carries only ChapterId, so the owning course is two levels up. Returns null when the
     // lesson doesn't exist, which the caller turns into a 404.

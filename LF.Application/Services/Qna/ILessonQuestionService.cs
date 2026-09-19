@@ -18,9 +18,13 @@ public interface ILessonQuestionService
         LessonQuestionScope scope,
         int? courseId,
         LessonQuestionStatus? status,
+        string? search,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    // Status and per-course totals for one inbox, independent of any filter applied to the list.
+    Task<LessonQuestionOverviewDto> GetOverviewAsync(int actingUserId, LessonQuestionScope scope, CancellationToken cancellationToken = default);
 
     Task<PagedLessonQuestionsDto> ListForLessonAsync(
         int lessonId,

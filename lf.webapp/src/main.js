@@ -16,6 +16,7 @@ import { currentTheme, setTheme } from './theme/index.js';
 
 import router from '@/router/index.js';
 import { vSafeHtml } from '@/directives/vSafeHtml.js';
+import { installAnalytics } from '@/lib/analytics.js';
 
 import { createPinia } from 'pinia';
 
@@ -29,6 +30,7 @@ app.use(i18n);
 app.use(pinia);
 app.use(router);
 app.use(MotionPlugin);
+installAnalytics(router);
 
 app.directive('safe-html', vSafeHtml);
 

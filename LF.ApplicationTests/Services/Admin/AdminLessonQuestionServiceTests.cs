@@ -13,6 +13,7 @@ using MockQueryable.Moq;
 using Moq;
 
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
+using DomainEnrollment = LF.AppDomain.Entities.Course.Enrollment;
 
 namespace LF.ApplicationTests.Services.Admin;
 
@@ -55,6 +56,7 @@ public class AdminLessonQuestionServiceTests
         dbContextMock.SetupGet(c => c.LessonQuestionReadMarkers).Returns(new List<LessonQuestionReadMarker>().BuildMockDbSet().Object);
         dbContextMock.SetupGet(c => c.Courses).Returns(Courses().BuildMockDbSet().Object);
         dbContextMock.SetupGet(c => c.Users).Returns(Users().BuildMockDbSet().Object);
+        dbContextMock.SetupGet(c => c.Enrollments).Returns(new List<DomainEnrollment>().BuildMockDbSet().Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         return new Harness

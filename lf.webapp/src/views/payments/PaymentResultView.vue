@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { fetchPaymentOrder } from '@/services/paymentService';
+import { track } from '@/lib/analytics';
 
 const props = defineProps({
   outcome: { type: String, required: true },
@@ -31,6 +32,8 @@ async function poll() {
   try {
     const order = await fetchPaymentOrder(orderId);
     if (order.status === 'Paid') {
+      // GA4 de-duplicates purchases by transaction_id, so a revisit of this page is harmless.
+      track('purchase', { transaction_id: String(order.id), value: order.amount, currency: 'RUB' });
       state.value = 'done';
       router.replace({ name: 'CourseLearn', params: { enrollmentId: order.enrollmentId } });
       return;
@@ -59,7 +62,8 @@ function goToCatalog() {
 }
 
 onMounted(() => {
-  if (props.outcome !== 'fail') poll();
+  if (props.outcome === 'fail') track('payment_failed');
+  else poll();
 });
 
 onUnmounted(() => {

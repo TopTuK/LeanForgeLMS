@@ -416,7 +416,17 @@ src/
   relies on `withCredentials`; auth state comes from `authStore.ensureInitialized()` (a `/Profile`
   probe). A 401 response redirects to `/login` unless the caller passes `skipAuthRedirect`.
 - `index.html` must stay free of inline `<script>`/`<style>` — the prod CSP is `script-src 'self'`
-  (the theme bootstrap lives in `public/theme-init.js`).
+  plus `https://www.googletagmanager.com` (the theme bootstrap lives in `public/theme-init.js`).
+
+### Analytics (Google Analytics 4)
+
+- `vue-gtag` is imported **only** by `src/lib/analytics.js`; everything else calls `track(name, params)`.
+  It sends nothing unless it's a production build (`import.meta.env.PROD`) **and** the user accepted
+  `AnalyticsConsentBanner` (choice in localStorage `leanforge-analytics-consent`, resettable on `/cookies`).
+- Page views strip the query string except `utm_*`/`gclid` (Robokassa's signed return params must never
+  reach Google). Never send user id, email or name — only the `role` user property.
+- New GA hosts need matching `script-src`/`connect-src` entries in the prod CSP in `LF.WebApi/Program.cs`.
+  Any new cookie/tracking use must also be reflected in the `cookies.*` policy text (en + ru).
 
 ### Testing (actual setup)
 

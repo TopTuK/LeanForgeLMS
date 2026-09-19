@@ -3,8 +3,11 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ArrowLeft, CheckCircle2, ShieldCheck } from 'lucide-vue-next';
 import cookiePolicyImage from '@/assets/legal/cookie-policy.jpg';
+import { Button } from '@/components/ui/button';
+import { useAnalyticsConsent } from '@/lib/analytics';
 
 const { tm, rt } = useI18n();
+const { consent, isAvailable: isAnalyticsAvailable, resetConsent } = useAnalyticsConsent();
 
 const getList = (key) => computed(() => {
   const items = tm(key);
@@ -13,6 +16,7 @@ const getList = (key) => computed(() => {
 
 const highlights = getList('cookies.highlights');
 const cookieRecords = getList('cookies.cookie_records');
+const analyticsRecords = getList('cookies.analytics_records');
 const storageRecords = getList('cookies.storage_records');
 const sections = getList('cookies.sections');
 </script>
@@ -96,6 +100,7 @@ const sections = getList('cookies.sections');
           </p>
           <nav :aria-label="$t('cookies.contents_label')">
             <a href="#essential">{{ $t('cookies.cookies_heading') }}</a>
+            <a href="#analytics">{{ $t('cookies.analytics_heading') }}</a>
             <a href="#preferences">{{ $t('cookies.storage_heading') }}</a>
             <a
               v-for="(section, index) in sections"
@@ -134,6 +139,50 @@ const sections = getList('cookies.sections');
                 </div>
                 <p>{{ rt(record.purpose) }}</p>
               </article>
+            </div>
+          </section>
+
+          <section
+            id="analytics"
+            class="cookie-section"
+          >
+            <p class="mono-label cookie-section__kicker">
+              {{ $t('cookies.analytics_label') }}
+            </p>
+            <h2 class="cookie-section__heading font-display">
+              {{ $t('cookies.analytics_heading') }}
+            </h2>
+            <p class="cookie-section__lead">
+              {{ $t('cookies.analytics_intro') }}
+            </p>
+
+            <div class="record-list">
+              <article
+                v-for="record in analyticsRecords"
+                :key="record.name"
+                class="record-card"
+              >
+                <div class="record-card__title">
+                  <code>{{ rt(record.name) }}</code>
+                  <span>{{ rt(record.duration) }}</span>
+                </div>
+                <p>{{ rt(record.purpose) }}</p>
+              </article>
+            </div>
+
+            <div
+              v-if="isAnalyticsAvailable"
+              class="consent-choice"
+            >
+              <p>{{ $t(`cookies.analytics_status.${consent ?? 'unset'}`) }}</p>
+              <Button
+                v-if="consent !== null"
+                variant="outline"
+                size="sm"
+                @click="resetConsent"
+              >
+                {{ $t('cookies.analytics_change') }}
+              </Button>
             </div>
           </section>
 
@@ -490,6 +539,21 @@ const sections = getList('cookies.sections');
   color: var(--color-ink-muted);
   font-size: 0.9rem;
   line-height: 1.7;
+}
+
+.consent-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.consent-choice p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
 }
 
 .storage-list {

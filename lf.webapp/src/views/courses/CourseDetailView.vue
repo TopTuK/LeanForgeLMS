@@ -11,6 +11,7 @@ import {
   validatePromoCode,
 } from '@/services/enrollmentService';
 import { createCheckout } from '@/services/paymentService';
+import { track } from '@/lib/analytics';
 import { useCourseCoverImages } from '@/composables/useCourseCoverImages';
 import { usePlatformStore } from '@/stores/platformStore';
 import LessonImageRow from '@/components/courses/lesson/LessonImageRow.vue';
@@ -131,11 +132,14 @@ async function onCtaClick() {
   try {
     const appliedCode = promoResult.value?.isValid ? promoCode.value.trim() : null;
     const checkout = await createCheckout(course.value.id, appliedCode);
+    const eventParams = { course_id: course.value.id, promo_applied: Boolean(appliedCode) };
     if (checkout.paymentUrl) {
+      track('begin_checkout', eventParams);
       pendingPayment.value = true;
       window.location.assign(checkout.paymentUrl);
       return;
     }
+    track('enroll_course', eventParams);
     router.push({ name: 'CourseLearn', params: { enrollmentId: checkout.enrollmentId } });
   } catch (err) {
     errorMessage.value = err.response?.status === 403

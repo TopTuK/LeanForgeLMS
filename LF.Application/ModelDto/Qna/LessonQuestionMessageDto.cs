@@ -13,4 +13,7 @@ public sealed class LessonQuestionMessageDto
     public string? Body { get; init; }
     public DateTime CreatedAt { get; init; }
     public bool IsDeleted { get; init; }
+
+    // Relative to the viewer, so clients can lay out "my" messages without knowing their own user id.
+    public bool IsMine { get; init; }
 }

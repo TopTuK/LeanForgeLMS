@@ -1,6 +1,7 @@
 <script setup>
 import UnauthorizedLayout from '@/layout/UnauthorizedLayout.vue';
 import AuthorizedLayout from '@/layout/AuthorizedLayout.vue';
+import AnalyticsConsentBanner from '@/components/layout/AnalyticsConsentBanner.vue';
 import { useAuthStore } from '@/stores/authStore';
 
 const authStore = useAuthStore();
@@ -14,4 +15,5 @@ authStore.ensureInitialized();
     <UnauthorizedLayout v-if="!authStore.isAuthenticated" />
     <AuthorizedLayout v-else />
   </template>
+  <AnalyticsConsentBanner />
 </template>

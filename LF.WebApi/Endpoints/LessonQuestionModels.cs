@@ -27,6 +27,11 @@ public sealed class PostQuestionMessageRequestValidator : AbstractValidator<Post
     }
 }
 
+public static class LessonQuestionSearch
+{
+    public const int MaxLength = 200;
+}
+
 public sealed record LessonQuestionMessageResponse(
     int Id,
     int AuthorUserId,
@@ -34,7 +39,8 @@ public sealed record LessonQuestionMessageResponse(
     string AuthorRole,
     string? Body,
     DateTime CreatedAt,
-    bool IsDeleted);
+    bool IsDeleted,
+    bool IsMine);
 
 public sealed record LessonQuestionSummaryResponse(
     int Id,
@@ -49,7 +55,11 @@ public sealed record LessonQuestionSummaryResponse(
     DateTime CreatedAt,
     DateTime LastMessageAt,
     int MessageCount,
-    bool HasUnread);
+    bool HasUnread,
+    string? LastMessagePreview,
+    string LastMessageAuthorRole,
+    int? StudentEnrollmentId,
+    bool AskedByViewer);
 
 public sealed record LessonQuestionThreadResponse(
     int Id,
@@ -65,6 +75,10 @@ public sealed record LessonQuestionThreadResponse(
     DateTime LastMessageAt,
     int MessageCount,
     bool HasUnread,
+    string? LastMessagePreview,
+    string LastMessageAuthorRole,
+    int? StudentEnrollmentId,
+    bool AskedByViewer,
     IReadOnlyList<LessonQuestionMessageResponse> Messages);
 
 public sealed record PagedLessonQuestionsResponse(
@@ -75,6 +89,16 @@ public sealed record PagedLessonQuestionsResponse(
 
 public sealed record QuestionUnreadCountResponse(int Count);
 
+public sealed record LessonQuestionCourseCountResponse(int CourseId, string CourseTitle, int Count);
+
+public sealed record LessonQuestionOverviewResponse(
+    int Total,
+    int Open,
+    int Answered,
+    int Closed,
+    int Unread,
+    IReadOnlyList<LessonQuestionCourseCountResponse> Courses);
+
 // Shared by the student/staff group and the admin oversight group so both surfaces serialise a
 // thread identically.
 public static class LessonQuestionResponseMapper
@@ -82,15 +106,21 @@ public static class LessonQuestionResponseMapper
     public static LessonQuestionSummaryResponse ToResponse(LessonQuestionSummaryDto dto) =>
         new(dto.Id, dto.CourseId, dto.CourseTitle, dto.LessonId, dto.LessonTitle, dto.StudentUserId,
             dto.StudentName, dto.Title, dto.Status.ToString(), dto.CreatedAt, dto.LastMessageAt,
-            dto.MessageCount, dto.HasUnread);
+            dto.MessageCount, dto.HasUnread, dto.LastMessagePreview, dto.LastMessageAuthorRole.ToString(),
+            dto.StudentEnrollmentId, dto.AskedByViewer);
 
     public static LessonQuestionThreadResponse ToResponse(LessonQuestionThreadDto dto) =>
         new(dto.Id, dto.CourseId, dto.CourseTitle, dto.LessonId, dto.LessonTitle, dto.StudentUserId,
             dto.StudentName, dto.Title, dto.Status.ToString(), dto.CreatedAt, dto.LastMessageAt,
-            dto.MessageCount, dto.HasUnread, [.. dto.Messages.Select(ToResponse)]);
+            dto.MessageCount, dto.HasUnread, dto.LastMessagePreview, dto.LastMessageAuthorRole.ToString(),
+            dto.StudentEnrollmentId, dto.AskedByViewer, [.. dto.Messages.Select(ToResponse)]);
+
+    public static LessonQuestionOverviewResponse ToResponse(LessonQuestionOverviewDto dto) =>
+        new(dto.Total, dto.Open, dto.Answered, dto.Closed, dto.Unread,
+            [.. dto.Courses.Select(c => new LessonQuestionCourseCountResponse(c.CourseId, c.CourseTitle, c.Count))]);
 
     public static LessonQuestionMessageResponse ToResponse(LessonQuestionMessageDto dto) =>
-        new(dto.Id, dto.AuthorUserId, dto.AuthorName, dto.AuthorRole.ToString(), dto.Body, dto.CreatedAt, dto.IsDeleted);
+        new(dto.Id, dto.AuthorUserId, dto.AuthorName, dto.AuthorRole.ToString(), dto.Body, dto.CreatedAt, dto.IsDeleted, dto.IsMine);
 
     // Enum.TryParse also accepts arbitrary numbers ("7"), so the parsed value is checked too.
     public static bool TryParseStatus(string? status, out LessonQuestionStatus parsed)

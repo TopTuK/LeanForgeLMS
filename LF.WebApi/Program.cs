@@ -316,11 +316,14 @@ try
             .AddContentSecurityPolicy(csp =>
             {
                 csp.AddDefaultSrc().Self();
-                csp.AddScriptSrc().Self();
+                csp.AddScriptSrc().Self().From("https://www.googletagmanager.com"); // GA4 gtag.js, loaded only after consent
                 csp.AddStyleSrc().Self().UnsafeInline();          // Vue scoped styles + :style bindings + Vuestic
                 csp.AddImgSrc().Self().Data().From("blob:").From("https:");
                 csp.AddFontSrc().Self();
-                csp.AddConnectSrc().Self();
+                csp.AddConnectSrc().Self()
+                    .From("https://*.google-analytics.com")
+                    .From("https://*.analytics.google.com")
+                    .From("https://*.googletagmanager.com");
                 csp.AddBaseUri().Self();
                 csp.AddFormAction().Self();
                 csp.AddFrameAncestors().None();
