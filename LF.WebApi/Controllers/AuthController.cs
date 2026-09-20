@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Security.Claims;
 using LFAppAuth = LF.Application.Services.Authentication;
 
@@ -36,7 +37,12 @@ namespace LF.WebApi.Controllers
         [AllowAnonymous]
         public IActionResult SignInPmi()
         {
-            _logger.LogInformation("AuthController::SignInPmi: Start PMI Club authentication");
+            _logger.LogInformation(
+                "AuthController::SignInPmi: Start PMI Club authentication for {remoteIp}, user agent {userAgent}, referer {referer}, existing session cookie {hasSessionCookie}",
+                HttpContext.Connection.RemoteIpAddress,
+                Request.Headers.UserAgent.ToString(),
+                Request.Headers.Referer.ToString(),
+                Request.Cookies.ContainsKey(_authOptions.AuthCookieName));
 
             var schemeName = _pmiAuthOptions.SchemeName;
             var props = new AuthenticationProperties
@@ -48,7 +54,9 @@ namespace LF.WebApi.Controllers
                 }
             };
 
-            _logger.LogInformation("AuthController::SignInPmi: Start Oidc challenge with scheme name {schemeName}", schemeName);
+            _logger.LogInformation(
+                "AuthController::SignInPmi: Start Oidc challenge with scheme name {schemeName}, returning to {redirectUri}",
+                schemeName, _pmiAuthOptions.RedirectUri);
             return Challenge(props, schemeName);
         }
 
@@ -130,32 +138,66 @@ namespace LF.WebApi.Controllers
             string actionName,
             Func<UserAuthentificationDto, Task<UserDto>> authenticateAsync)
         {
-            _logger.LogInformation("AuthController::{actionName}: Start authentication callback", actionName);
+            var startedAt = Stopwatch.GetTimestamp();
+
+            _logger.LogInformation(
+                "AuthController::{actionName}: Start authentication callback from {remoteIp}, temp cookie {hasTempCookie}, user agent {userAgent}",
+                actionName,
+                HttpContext.Connection.RemoteIpAddress,
+                Request.Cookies.ContainsKey(_authOptions.TempAuthCookieName),
+                Request.Headers.UserAgent.ToString());
 
             // Read the outcome of external auth
             var authResult = await HttpContext.AuthenticateAsync(_authOptions.TempAuthCookieName);
 
             if (!authResult.Succeeded)
             {
-                _logger.LogError("AuthController::{actionName}: Can't read the outcome of external authentication", actionName);
+                // The temp cookie is written by the external handler and read back here: a miss means
+                // the external sign-in never completed, or the cookie didn't survive the round-trip.
+                _logger.LogError(authResult.Failure,
+                    "AuthController::{actionName}: Can't read the outcome of external authentication (temp scheme {tempScheme}, cookie present {hasTempCookie}, failure {failureMessage}). Redirecting to /",
+                    actionName, _authOptions.TempAuthCookieName,
+                    Request.Cookies.ContainsKey(_authOptions.TempAuthCookieName),
+                    authResult.Failure?.Message ?? "<none>");
                 return LocalRedirect(new PathString("/"));
             }
 
             try
             {
                 var userAuthDto = ParseUserAuthDto(authResult.Principal);
+
+                if (userAuthDto.Sub is null || userAuthDto.Email is null)
+                {
+                    // Downstream lookup keys: log which claims actually arrived so a provider that
+                    // changed its claim shape is obvious from the logs alone.
+                    _logger.LogWarning(
+                        "AuthController::{actionName}: External principal is missing claims (sub present {hasSub}, email present {hasEmail}, name present {hasName}); received claim types {claimTypes}",
+                        actionName, userAuthDto.Sub is not null, userAuthDto.Email is not null,
+                        userAuthDto.FirstName is not null,
+                        string.Join(',', authResult.Principal.Claims.Select(c => c.Type).Distinct()));
+                }
+
+                _logger.LogInformation(
+                    "AuthController::{actionName}: External sign-in resolved for subject {usrSub}, authentication scheme {authScheme}",
+                    actionName, userAuthDto.Sub, authResult.Ticket?.AuthenticationScheme);
+
                 var userDto = await authenticateAsync(userAuthDto);
                 _logger.LogInformation("AuthController::{actionName}: Authenticated user {usrEmail} {usrFirstName}",
                     actionName, userDto.Email, userDto.FirstName);
 
                 await IssueSessionCookieAsync(userDto);
 
-                _logger.LogInformation("AuthController::{actionName}: Success SignIn user", actionName);
+                _logger.LogInformation(
+                    "AuthController::{actionName}: Success SignIn user {usrId} with role {usrRole} in {elapsedMs} ms. Redirecting to /courses",
+                    actionName, userDto.Id, userDto.Role,
+                    Math.Round(Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds));
                 return LocalRedirect(new PathString("/courses"));
             }
             catch (Exception ex)
             {
-                _logger.LogCritical(ex, "AuthController::{actionName}: Can't authentificate user", actionName);
+                _logger.LogCritical(ex,
+                    "AuthController::{actionName}: Can't authentificate user after {elapsedMs} ms. Redirecting to /",
+                    actionName, Math.Round(Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds));
                 return LocalRedirect(new PathString("/"));
             }
         }
@@ -215,6 +257,11 @@ namespace LF.WebApi.Controllers
                         Path = "/",
                     }
                 );
+            _logger.LogInformation(
+                "AuthController::IssueSessionCookie: Issued session cookie {cookieName} for user {usrId} (secure {isSecure}, max age {maxAgeDays} days, JWT expires in {jwtExpiresDays} days)",
+                _authOptions.AuthCookieName, userDto.Id, !_environment.IsDevelopment(),
+                _authOptions.AuthMaxAgeDays, _authOptions.JwtExpiresDays);
+
             // SignOut from temp cookie
             await HttpContext.SignOutAsync(_authOptions.TempAuthCookieName);
         }
