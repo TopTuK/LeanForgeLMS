@@ -215,10 +215,12 @@ try
                 }
                 else
                 {
+                    // The handler decrypts the state into Properties and clears ProtocolMessage.State
+                    // before this event, so Properties — not State — tells us the state was valid.
                     logger.LogInformation(
-                        "PmiOidc::Callback: Received {Method} with code {CodeFingerprint} (length {CodeLength}), state present {HasState}, from {RemoteIp}, user agent {UserAgent} on {Instance}",
+                        "PmiOidc::Callback: Received {Method} with code {CodeFingerprint} (length {CodeLength}), state resolved {HasState}, from {RemoteIp}, user agent {UserAgent} on {Instance}",
                         request.Method, PmiOidcDiagnostics.Fingerprint(message.Code), message.Code?.Length ?? 0,
-                        !string.IsNullOrEmpty(message.State), context.HttpContext.Connection.RemoteIpAddress,
+                        context.Properties is not null, context.HttpContext.Connection.RemoteIpAddress,
                         request.Headers.UserAgent.ToString(), Environment.MachineName);
                 }
 
