@@ -180,8 +180,11 @@ try
             options.Scope.Clear();
             options.Scope.Add("openid");
 
-            // save tokens
-            options.SaveTokens = true;
+            // Nothing reads the PMI tokens back — AuthController only needs the id_token claims. Saving
+            // them roughly doubled the temp sign-in cookie, and the /auth/signin-oidc response headers
+            // then overflowed nginx-proxy's default proxy_buffer_size, so the browser got a 502 in place
+            // of the redirect to SingInPmiCallback (works locally, where there is no proxy).
+            options.SaveTokens = false;
 
             // The handlers below other than OnAuthorizationCodeReceived only log. {Instance} is the
             // container hostname, so callbacks served by a second lf-webapi instance stand out.

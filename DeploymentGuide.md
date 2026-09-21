@@ -42,6 +42,18 @@ Because TLS terminates at the proxy, `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` 
 ASP.NET Core trusts `X-Forwarded-Proto`. **Without it the OIDC handler builds an `http://`
 redirect URI that PMI rejects** — do not remove it.
 
+External sign-in callbacks (`/auth/signin-oidc` and friends) answer with several large
+`Set-Cookie` headers. nginx's default `proxy_buffer_size` (4k) can be too small for them — nginx
+then logs `upstream sent too big header` and returns 502, so the login silently stops after the
+provider (WebApi logs a successful `302` that never reaches the browser). Give the LMS vhost a
+bigger header buffer in the proxy's `vhost.d/lms.s-sidorov.ru` and reload nginx-proxy:
+
+```nginx
+proxy_buffer_size 32k;
+proxy_buffers 16 16k;
+proxy_busy_buffers_size 64k;
+```
+
 ---
 
 ## 2. Prerequisites
