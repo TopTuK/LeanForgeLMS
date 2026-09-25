@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using LF.AppDomain.Models.User;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.User;
 using LF.Application.Services.Profile;
@@ -24,7 +25,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             var profile = await profileService.GetProfileAsync(userId.Value);
             return profile is null
                 ? TypedResults.NotFound()
-                : TypedResults.Ok(new ProfileResponse(profile.FirstName, profile.LastName, profile.Email, AvatarUrl, profile.Role.ToString(), profile.Description));
+                : TypedResults.Ok(new ProfileResponse(profile.FirstName, profile.LastName, profile.Email, AvatarUrl, profile.Role.ToString(), profile.Description, profile.PreferredLanguage));
         });
 
         group.MapPut("/", async Task<Results<Ok<ProfileResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem>>
@@ -40,7 +41,22 @@ public sealed class ProfileEndpoints : IEndpointGroup
             var updated = await profileService.UpdateProfileAsync(userId.Value, dto);
             return updated is null
                 ? TypedResults.NotFound()
-                : TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
+                : TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description, updated.PreferredLanguage));
+        });
+
+        group.MapPut("/language", async Task<Results<Ok<ProfileResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem>>
+            (UpdateLanguageRequest request, ClaimsPrincipal user, IProfileService profileService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var validation = new UpdateLanguageRequestValidator().Validate(request);
+            if (!validation.IsValid) return TypedResults.ValidationProblem(validation.ToDictionary());
+
+            var updated = await profileService.UpdateLanguageAsync(userId.Value, UserLanguage.OrDefault(request.Language));
+            return updated is null
+                ? TypedResults.NotFound()
+                : TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description, updated.PreferredLanguage));
         });
 
         group.MapGet("/avatar", async Task<Results<FileStreamHttpResult, UnauthorizedHttpResult, NotFound>>
@@ -100,7 +116,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             if (profile.AvatarKey is not null)
                 await fileStorageService.DeleteAsync(profile.AvatarKey, ct);
 
-            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
+            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description, updated.PreferredLanguage));
         }).DisableAntiforgery();
 
         group.MapDelete("/avatar", async Task<Results<Ok<ProfileResponse>, UnauthorizedHttpResult, NotFound>>
@@ -118,7 +134,7 @@ public sealed class ProfileEndpoints : IEndpointGroup
             if (profile.AvatarKey is not null)
                 await fileStorageService.DeleteAsync(profile.AvatarKey, ct);
 
-            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description));
+            return TypedResults.Ok(new ProfileResponse(updated.FirstName, updated.LastName, updated.Email, AvatarUrl, updated.Role.ToString(), updated.Description, updated.PreferredLanguage));
         });
     }
 }

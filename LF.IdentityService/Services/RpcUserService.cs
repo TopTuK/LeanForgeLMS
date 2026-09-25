@@ -59,6 +59,26 @@ public class RpcUserService(ILogger<RpcUserService> logger, IUserService userSer
         return userDto.Adapt<GetUserReply>();
     }
 
+    public override async Task<GetUserReply> UpdateUserLanguage(UpdateUserLanguageRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcUserService::UpdateUserLanguage: called with Id={usrId} Language={Language}", request.Id, request.Language);
+
+        UserDto? userDto;
+        try
+        {
+            userDto = await _userService.UpdateUserLanguageAsync(request.Id, request.Language);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new RpcException(new Status(StatusCode.InvalidArgument, ex.Message));
+        }
+
+        if (userDto is null)
+            throw new RpcException(new Status(StatusCode.NotFound, $"User {request.Id} not found"));
+
+        return userDto.Adapt<GetUserReply>();
+    }
+
     public override async Task<GetUserReply> EnsureUserWithRole(EnsureUserWithRoleRequest request, ServerCallContext context)
     {
         _logger.LogInformation(

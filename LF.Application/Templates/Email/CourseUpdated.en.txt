@@ -1,0 +1,11 @@
+Hi {{Name}},
+
+The author has updated “{{CourseTitle}}”, a course you're enrolled in:
+
+{{ChangesText}}
+
+Open the course: {{CourseUrl}}
+
+--
+LeanForge
+This is an automated message — please don't reply.

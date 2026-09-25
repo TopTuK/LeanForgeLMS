@@ -1,3 +1,4 @@
+using LF.AppDomain.Models.User;
 using LF.AppDomain.Models.User.Enums;
 
 namespace LF.AppDomain.Entities.User;
@@ -12,6 +13,9 @@ public sealed class DbUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? AvatarKey { get; set; }
     public string? Description { get; set; }
+
+    // Null until the user picks a language in the SPA. Emails then fall back to UserLanguage.Default.
+    public string? PreferredLanguage { get; private set; }
 
     /// <returns>true if the name actually changed; false if the given values already match.</returns>
     public bool UpdateName(string firstName, string? lastName)
@@ -58,4 +62,17 @@ public sealed class DbUser
     }
 
     public void ClearAvatar() => AvatarKey = null;
+
+    /// <returns>true if the language actually changed; false if it already matched.</returns>
+    public bool SetPreferredLanguage(string language)
+    {
+        var normalized = UserLanguage.Normalize(language)
+            ?? throw new ArgumentException($"Unsupported language '{language}'.", nameof(language));
+
+        if (PreferredLanguage == normalized)
+            return false;
+
+        PreferredLanguage = normalized;
+        return true;
+    }
 }

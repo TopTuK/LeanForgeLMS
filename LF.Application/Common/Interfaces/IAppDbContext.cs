@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Course;
+using LF.AppDomain.Entities.Email;
 using LF.AppDomain.Entities.News;
 using LF.AppDomain.Entities.Payment;
 using LF.AppDomain.Entities.Qna;
@@ -24,6 +25,8 @@ public interface IAppDbContext
     DbSet<CourseInstructor> CourseInstructors { get; }
     DbSet<LessonQuestion> LessonQuestions { get; }
     DbSet<LessonQuestionReadMarker> LessonQuestionReadMarkers { get; }
+    DbSet<EmailMessage> EmailMessages { get; }
+    DbSet<CourseContentChange> CourseContentChanges { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -14,6 +14,7 @@ describe.each([
 ])('%s cookie policy link', (_, component) => {
   it('points to the Cookies route', () => {
     const { getByRole } = renderComponent(component, {
+      pinia: true,
       global: {
         stubs: { RouterLink: RouterLinkStub },
       },

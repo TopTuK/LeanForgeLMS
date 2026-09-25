@@ -15,5 +15,6 @@ namespace LF.Application.ModelDto.User
         public DateTime CreatedAt { get; init; }
         public string? AvatarKey { get; init; }
         public string? Description { get; init; }
+        public string? PreferredLanguage { get; init; }
     }
 }

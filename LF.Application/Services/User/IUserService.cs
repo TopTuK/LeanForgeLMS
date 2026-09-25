@@ -11,6 +11,7 @@ namespace LF.Application.Services.User
         Task<UserDto?> GetUserByIdAsync(int id);
         Task<UserDto?> UpdateUserNameAsync(int id, UpdateUserProfileDto dto);
         Task<UserDto?> UpdateUserAvatarAsync(int id, UpdateUserAvatarDto dto);
+        Task<UserDto?> UpdateUserLanguageAsync(int id, string language);
         Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto);
         Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search);
         Task<IReadOnlyList<UserDto>> ListUsersByIdsAsync(IReadOnlyList<int> ids);

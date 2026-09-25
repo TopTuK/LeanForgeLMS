@@ -57,4 +57,38 @@ public class DbUserTests
         // Assert
         Assert.Equal("Backend engineer.", user.Description);
     }
+
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData(" RU ", "ru")]
+    public void SetPreferredLanguage_Supported_NormalizesAndReturnsTrue(string input, string expected)
+    {
+        var user = new DbUser();
+
+        var changed = user.SetPreferredLanguage(input);
+
+        Assert.True(changed);
+        Assert.Equal(expected, user.PreferredLanguage);
+    }
+
+    [Fact]
+    public void SetPreferredLanguage_SameValue_ReturnsFalse()
+    {
+        var user = new DbUser();
+        user.SetPreferredLanguage("en");
+
+        Assert.False(user.SetPreferredLanguage("EN"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("de")]
+    [InlineData("english")]
+    public void SetPreferredLanguage_Unsupported_Throws(string input)
+    {
+        var user = new DbUser();
+
+        Assert.Throws<ArgumentException>(() => user.SetPreferredLanguage(input));
+        Assert.Null(user.PreferredLanguage);
+    }
 }

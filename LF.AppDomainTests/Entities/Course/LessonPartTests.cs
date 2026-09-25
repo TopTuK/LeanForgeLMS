@@ -242,4 +242,68 @@ public class LessonPartTests
         Assert.Equal(2, quiz.QuizQuestions[0].Options.Count);
         Assert.Equal(3, quiz.QuizQuestions[1].Options.Count);
     }
+
+    [Fact]
+    public void ReplaceParts_IdenticalContent_ReportsNoChange()
+    {
+        var lesson = CreateLesson();
+        var storageObject = CreateStorageObject();
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Intro</p>", null), new LessonPartInput(LessonPartType.Image, null, storageObject)]);
+
+        var changed = lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Intro</p>", null), new LessonPartInput(LessonPartType.Image, null, storageObject)]);
+
+        Assert.False(changed);
+    }
+
+    [Fact]
+    public void ReplaceParts_FirstParts_ReportsChange()
+    {
+        var lesson = CreateLesson();
+
+        Assert.True(lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Intro</p>", null)]));
+    }
+
+    [Fact]
+    public void ReplaceParts_EditedHtml_ReportsChange()
+    {
+        var lesson = CreateLesson();
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Intro</p>", null)]);
+
+        Assert.True(lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>Intro, revised</p>", null)]));
+    }
+
+    [Fact]
+    public void ReplaceParts_ReorderedParts_ReportsChange()
+    {
+        var lesson = CreateLesson();
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>A</p>", null), new LessonPartInput(LessonPartType.Text, "<p>B</p>", null)]);
+
+        Assert.True(lesson.ReplaceParts([new LessonPartInput(LessonPartType.Text, "<p>B</p>", null), new LessonPartInput(LessonPartType.Text, "<p>A</p>", null)]));
+    }
+
+    [Fact]
+    public void ReplaceParts_ChangedQuizAnswer_ReportsChange()
+    {
+        var lesson = CreateLesson();
+        lesson.ReplaceParts([new LessonPartInput(LessonPartType.Quiz, null, null, [SingleChoiceQuestion()], 60)]);
+
+        // Same question and option texts as SingleChoiceQuestion(); only the correct answer moves.
+        var flipped = new QuizQuestionInput("Q1", QuestionType.SingleChoice, 1,
+            [new QuizOptionInput("A", false, 1), new QuizOptionInput("B", true, 2)]);
+
+        Assert.True(lesson.ReplaceParts([new LessonPartInput(LessonPartType.Quiz, null, null, [flipped], 60)]));
+    }
+
+    [Fact]
+    public void RenameAndUpdateContent_ReportWhetherAnythingChanged()
+    {
+        var lesson = CreateLesson();
+
+        Assert.False(lesson.Rename("  Lesson 1  "));
+        Assert.True(lesson.Rename("Lesson One"));
+        Assert.False(lesson.UpdateContent("Initial content"));
+        Assert.True(lesson.UpdateContent("New content"));
+        Assert.True(lesson.UpdateContent(null));
+        Assert.False(lesson.UpdateContent(""));
+    }
 }

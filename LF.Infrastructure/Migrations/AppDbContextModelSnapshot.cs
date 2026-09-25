@@ -132,6 +132,41 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFCourses", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseContentChange", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("FirstChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("LastChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LessonId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("NotifiedAt", "CourseId");
+
+                    b.ToTable("LFCourseContentChanges", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseInstructor", b =>
                 {
                     b.Property<int>("Id")
@@ -463,6 +498,61 @@ namespace LF.Infrastructure.Migrations
                     b.HasIndex("LessonPartId");
 
                     b.ToTable("LFQuizQuestions", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Email.EmailMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HtmlBody")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("TextBody")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToAddress")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("ToName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("LFEmailMessages", (string)null);
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.News.NewsImage", b =>
@@ -847,6 +937,10 @@ namespace LF.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
                     b.Property<byte>("Role")
                         .HasColumnType("smallint");
 
@@ -880,6 +974,17 @@ namespace LF.Infrastructure.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("CoverImageStorageObject");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseContentChange", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lesson");
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.Course.CourseInstructor", b =>

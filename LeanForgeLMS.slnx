@@ -11,6 +11,7 @@
   <Project Path="LF.CourseService/LF.CourseService.csproj" />
   <Project Path="LF.IdentityService/Lf.IdentityService.csproj" />
   <Project Path="LF.Infrastructure/LF.Infrastructure.csproj" Id="2e852d76-779e-47e9-96ee-ea266b5a4737" />
+  <Project Path="LF.NotificationService/LF.NotificationService.csproj" />
   <Project Path="LF.PaymentService/LF.PaymentService.csproj" />
   <Project Path="LF.PaymentServiceTests/LF.PaymentServiceTests.csproj" />
   <Project Path="LF.WebApi/LF.WebApi.csproj" />

@@ -430,4 +430,38 @@ public class UserServiceTests
         Assert.False(result);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task UpdateUserLanguageAsync_ExistingUser_PersistsLanguage()
+    {
+        var existing = new DbUser { Id = 5, Email = "a@example.com", FirstName = "A" };
+        var service = CreateService([existing], out var dbContextMock, out _);
+
+        var result = await service.UpdateUserLanguageAsync(5, "en");
+
+        Assert.NotNull(result);
+        Assert.Equal("en", result.PreferredLanguage);
+        Assert.Equal("en", existing.PreferredLanguage);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateUserLanguageAsync_Unchanged_DoesNotSave()
+    {
+        var existing = new DbUser { Id = 5, Email = "a@example.com", FirstName = "A" };
+        existing.SetPreferredLanguage("ru");
+        var service = CreateService([existing], out var dbContextMock, out _);
+
+        await service.UpdateUserLanguageAsync(5, "ru");
+
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UpdateUserLanguageAsync_MissingUser_ReturnsNull()
+    {
+        var service = CreateService([], out _, out _);
+
+        Assert.Null(await service.UpdateUserLanguageAsync(5, "en"));
+    }
 }

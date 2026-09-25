@@ -4,7 +4,7 @@ import { renderComponent } from '@/test/renderComponent';
 
 describe('UnauthorizedHeader', () => {
   it('renders the section anchor navigation', () => {
-    const { getAllByRole } = renderComponent(UnauthorizedHeader);
+    const { getAllByRole } = renderComponent(UnauthorizedHeader, { pinia: true });
 
     const hrefs = getAllByRole('link')
       .map((a) => a.getAttribute('href'))
@@ -14,7 +14,7 @@ describe('UnauthorizedHeader', () => {
   });
 
   it('renders the mobile menu toggle', () => {
-    const { getByRole } = renderComponent(UnauthorizedHeader);
+    const { getByRole } = renderComponent(UnauthorizedHeader, { pinia: true });
 
     expect(getByRole('button', { name: /toggle menu/i })).toBeInTheDocument();
   });

@@ -59,6 +59,11 @@ jobs:
           # --- optional secrets (blank allowed) ---
           Unleash__ApiKey: ${{ secrets.Unleash__ApiKey }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          # Blank Smtp__Host/Smtp__FromAddress leaves email delivery disabled (queued mail stays Pending).
+          Smtp__Host: ${{ secrets.Smtp__Host }}
+          Smtp__UserName: ${{ secrets.Smtp__UserName }}
+          Smtp__Password: ${{ secrets.Smtp__Password }}
+          Smtp__FromAddress: ${{ secrets.Smtp__FromAddress }}
           # --- non-secret config: repository Variables, each with a fallback default ---
           POSTGRES_USER: ${{ vars.POSTGRES_USER || 'leanforge' }}
           POSTGRES_DB: ${{ vars.POSTGRES_DB || 'leanforge' }}
@@ -69,6 +74,9 @@ jobs:
           Robokassa__IsTest: ${{ vars.Robokassa__IsTest || 'false' }}
           Robokassa__SuccessUrl: ${{ vars.Robokassa__SuccessUrl || 'https://lms.s-sidorov.ru/payments/success' }}
           Robokassa__FailUrl: ${{ vars.Robokassa__FailUrl || 'https://lms.s-sidorov.ru/payments/fail' }}
+          Smtp__Port: ${{ vars.Smtp__Port || '587' }}
+          Smtp__Security: ${{ vars.Smtp__Security || 'StartTls' }}
+          Smtp__FromName: ${{ vars.Smtp__FromName || 'LeanForge' }}
         run: |
           set -euo pipefail
           umask 077
@@ -122,6 +130,14 @@ jobs:
             req WEBAPI_VIRTUAL_HOST
             req UNLEASH_API_URL
             opt Unleash__ApiKey
+            echo ""
+            opt Smtp__Host
+            req Smtp__Port
+            req Smtp__Security
+            opt Smtp__UserName
+            opt Smtp__Password
+            opt Smtp__FromAddress
+            req Smtp__FromName
           } > .env.rendered.tmp
 
           # Strip any stray CR so `docker compose` sees clean values, then finalize.

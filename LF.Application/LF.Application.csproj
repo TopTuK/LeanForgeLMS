@@ -11,6 +11,7 @@
     <PackageReference Include="Mapster" Version="7.4.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.8" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.22.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
@@ -21,6 +22,11 @@
 
   <ItemGroup>
     <Folder Include="Services\Course\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WithCulture=false: otherwise MSBuild reads "X.ru.html" as a culture-specific resource and moves it to a satellite assembly. -->
+    <EmbeddedResource Include="Templates\Email\*.html;Templates\Email\*.txt" LogicalName="LF.EmailTemplates.%(Filename)%(Extension)" WithCulture="false" />
   </ItemGroup>
 
 </Project>

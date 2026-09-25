@@ -34,6 +34,18 @@ var unleashApiKey = builder.AddParameter(
     () => builder.Configuration["UNLEASH_API_KEY"] ?? string.Empty,
     secret: true);
 
+// SMTP settings for lf-notificationservice. Empty when unset, which leaves email dispatch
+// disabled (queued emails stay Pending) rather than failing every delivery attempt.
+var smtpHost = builder.AddParameter("smtp-host", () => builder.Configuration["SMTP_HOST"] ?? string.Empty);
+var smtpUserName = builder.AddParameter("smtp-username", () => builder.Configuration["SMTP_USERNAME"] ?? string.Empty);
+var smtpPassword = builder.AddParameter(
+    "smtp-password",
+    () => builder.Configuration["SMTP_PASSWORD"] ?? string.Empty,
+    secret: true);
+var smtpFromAddress = builder.AddParameter(
+    "smtp-from-address",
+    () => builder.Configuration["SMTP_FROM_ADDRESS"] ?? builder.Configuration["SMTP_USERNAME"] ?? string.Empty);
+
 // The toolkit defaults to docker.io/minio/minio, which MinIO withdrew from Docker Hub
 // (2026-09-11). Same image and tag, served from quay.io — MinIO's official registry.
 var minio = builder
@@ -58,6 +70,20 @@ var paymentService = builder
     .WithEnvironment("SENTRY_DSN", sentryDsn)
     .WithReference(postgres)
     .WaitFor(postgres);
+
+// Delivers the LFEmailMessages outbox. Plain HTTP/1.1 (no gRPC), so its /health works with
+// Aspire's probe. WaitForStart on identityService: that host applies migrations but its
+// Http2-only /health endpoint would make WaitFor hang.
+builder
+    .AddProject<Projects.LF_NotificationService>("lf-notificationservice")
+    .WithEnvironment("SENTRY_DSN", sentryDsn)
+    .WithEnvironment("Smtp__Host", smtpHost)
+    .WithEnvironment("Smtp__UserName", smtpUserName)
+    .WithEnvironment("Smtp__Password", smtpPassword)
+    .WithEnvironment("Smtp__FromAddress", smtpFromAddress)
+    .WithReference(postgres)
+    .WaitFor(postgres)
+    .WaitForStart(identityService);
 
 var webApp = builder
     .AddViteApp("lf-webapp", "../lf.webapp")

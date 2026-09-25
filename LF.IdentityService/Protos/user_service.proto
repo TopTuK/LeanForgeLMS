@@ -17,6 +17,8 @@ service UserServiceRpc {
   rpc UpdateUserProfile (UpdateUserProfileRequest) returns (GetUserReply);
   // Update (or clear) a user's avatar object key
   rpc UpdateUserAvatar (UpdateUserAvatarRequest) returns (GetUserReply);
+  // Set a user's preferred UI/email language ("ru" | "en")
+  rpc UpdateUserLanguage (UpdateUserLanguageRequest) returns (GetUserReply);
   // Get or create user and force-set the given role (development/testing use only)
   rpc EnsureUserWithRole (EnsureUserWithRoleRequest) returns (GetUserReply);
   // List users, paged, with an optional search filter (admin use)
@@ -46,6 +48,8 @@ message GetUserReply {
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.StringValue avatar_key = 7;
   google.protobuf.StringValue description = 8;
+  // Unset until the user picks a language.
+  google.protobuf.StringValue preferred_language = 9;
 }
 
 message GetUserProfileRequest {
@@ -63,6 +67,11 @@ message UpdateUserAvatarRequest {
   int32 id = 1;
   // Unset (null) clears the avatar, reverting the user to the default image.
   google.protobuf.StringValue avatar_key = 2;
+}
+
+message UpdateUserLanguageRequest {
+  int32 id = 1;
+  string language = 2;
 }
 
 message EnsureUserWithRoleRequest {

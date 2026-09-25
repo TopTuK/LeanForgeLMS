@@ -5,6 +5,7 @@ using LF.Application.Services.Payment;
 using LF.Application.Services.Promo;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
+using LF.Infrastructure.Services.Email;
 using LF.Infrastructure.Services.FeatureFlags;
 using LF.Infrastructure.Services.Payment;
 using LF.IdentityService;
@@ -112,6 +113,19 @@ public static class DependencyInjection
 
         services.AddSingleton<IFeatureFlagService, UnleashFeatureFlagService>();
         services.AddHostedService<UnleashInitializer>();
+
+        return services;
+    }
+
+    // MailKit-backed IEmailSender for LF.NotificationService. isConfigured is false when the Smtp section
+    // is missing or still holds CHANGE_ME, so the host can skip scheduling delivery instead of burning retries.
+    public static IServiceCollection AddInfrastructureEmail(this IServiceCollection services, IConfiguration configuration, out bool isConfigured)
+    {
+        var section = configuration.GetSection(SmtpOptions.SectionName);
+        services.Configure<SmtpOptions>(section);
+        services.AddScoped<IEmailSender, MailKitEmailSender>();
+
+        isConfigured = section.Get<SmtpOptions>()?.IsConfigured == true;
 
         return services;
     }

@@ -1,0 +1,9 @@
+Hi {{Name}},
+
+You're now enrolled in “{{CourseTitle}}”. The course is waiting for you under “My courses” — start learning whenever you're ready.
+
+Start learning: {{MyCoursesUrl}}
+
+--
+LeanForge
+This is an automated message — please don't reply.
