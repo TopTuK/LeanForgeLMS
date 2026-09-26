@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
 import authPmi from '@/assets/login/auth-pmi.png';
 import authGoogle from '@/assets/login/auth-google.png';
 import authYandex from '@/assets/login/auth-yandex.png';
@@ -16,11 +16,65 @@ const route = useRoute();
 
 const isEmailRequiredError = computed(() => route.query.error === 'email_required');
 
+const primaryProviders = [
+  {
+    id: 'pmi',
+    analytics: 'pmi',
+    icon: authPmi,
+    mark: 'pmi',
+    titleKey: 'login.pmi.title',
+    descriptionKey: 'login.pmi.description',
+    href: '/api/Auth/SignInPmi',
+  },
+  {
+    id: 'google',
+    analytics: 'google',
+    icon: authGoogle,
+    mark: 'google',
+    titleKey: 'login.google.title',
+    descriptionKey: 'login.google.description',
+    href: '/api/Auth/SignInGoogle',
+  },
+  {
+    id: 'yandex',
+    analytics: 'yandex',
+    icon: authYandex,
+    mark: 'yandex',
+    titleKey: 'login.yandex.title',
+    descriptionKey: 'login.yandex.description',
+    href: '/api/Auth/SignInYandex',
+  },
+];
+
 // One VK ID app signs in with VK, Mail.ru or OK; "provider" picks which login VK ID opens.
-const vkIdOptions = [
-  { provider: 'vkid', key: 'vk', analytics: 'vk', icon: authVk, no: '04' },
-  { provider: 'mail_ru', key: 'mailru', analytics: 'mail_ru', icon: authMailRu, no: '05' },
-  { provider: 'ok_ru', key: 'ok', analytics: 'ok', icon: authOk, no: '06' },
+const vkProviders = [
+  {
+    id: 'vk',
+    analytics: 'vk',
+    icon: authVk,
+    mark: 'plain',
+    titleKey: 'login.vk.title',
+    descriptionKey: 'login.vk.description',
+    href: '/api/Auth/SignInVk?provider=vkid',
+  },
+  {
+    id: 'mailru',
+    analytics: 'mail_ru',
+    icon: authMailRu,
+    mark: 'plain',
+    titleKey: 'login.mailru.title',
+    descriptionKey: 'login.mailru.description',
+    href: '/api/Auth/SignInVk?provider=mail_ru',
+  },
+  {
+    id: 'ok',
+    analytics: 'ok',
+    icon: authOk,
+    mark: 'plain',
+    titleKey: 'login.ok.title',
+    descriptionKey: 'login.ok.description',
+    href: '/api/Auth/SignInVk?provider=ok_ru',
+  },
 ];
 
 const benefits = computed(() => {
@@ -28,273 +82,224 @@ const benefits = computed(() => {
   return Array.isArray(items) ? items : [];
 });
 
-function signInWithPmi() {
-  trackLoginStarted('pmi');
-  window.location.href = '/api/Auth/SignInPmi';
+function indexLabel(index) {
+  return String(index + 1).padStart(2, '0');
 }
 
-function signInWithGoogle() {
-  trackLoginStarted('google');
-  window.location.href = '/api/Auth/SignInGoogle';
-}
-
-function signInWithYandex() {
-  trackLoginStarted('yandex');
-  window.location.href = '/api/Auth/SignInYandex';
-}
-
-function signInWithVkId(option) {
-  trackLoginStarted(option.analytics);
-  window.location.href = `/api/Auth/SignInVk?provider=${option.provider}`;
+function signIn(provider) {
+  trackLoginStarted(provider.analytics);
+  window.location.href = provider.href;
 }
 </script>
 
 <template>
-  <section class="login-page">
+  <section class="login">
     <span
-      class="blueprint-grid blueprint-grid--band blueprint-grid--fade"
-      aria-hidden="true"
-    />
-    <span
-      class="login-page__ring"
-      aria-hidden="true"
-    />
-    <span
-      class="login-page__square"
+      class="login__grid"
       aria-hidden="true"
     />
 
-    <router-link
-      :to="{ name: 'Home' }"
-      class="login-page__back"
-    >
-      <ArrowLeft
-        class="size-4"
-        aria-hidden="true"
-      />
-      {{ $t('login.back') }}
-    </router-link>
-
-    <div class="login-page__inner">
-      <p class="mono-label login-page__eyebrow">
-        {{ $t('login.eyebrow') }}
-      </p>
-      <h1 class="login-page__title font-display">
-        {{ $t('login.title') }}
-      </h1>
-      <p class="login-page__subtitle">
-        {{ $t('login.subtitle') }}
-      </p>
-
-      <div class="login-console">
-        <span
-          class="mono-label login-console__tag"
-          aria-hidden="true"
-        >// auth</span>
-
-        <p
-          v-if="isEmailRequiredError"
-          role="alert"
-          class="login-console__error"
+    <div class="login__shell">
+      <div class="login__mast">
+        <router-link
+          :to="{ name: 'Home' }"
+          class="login__back"
         >
-          {{ $t('login.errors.emailRequired') }}
-        </p>
-
-        <div class="login-console__options">
-          <button
-            type="button"
-            class="login-card"
-            @click="signInWithPmi"
-          >
-            <span
-              class="login-card__no mono-label"
-              aria-hidden="true"
-            >01</span>
-            <span
-              class="login-card__mark login-card__mark--pmi"
-              aria-hidden="true"
-            >
-              <img
-                :src="authPmi"
-                alt=""
-                width="44"
-                height="44"
-              >
-            </span>
-            <span class="login-card__copy">
-              <strong>{{ $t('login.pmi.title') }}</strong>
-              <span>{{ $t('login.pmi.description') }}</span>
-            </span>
-            <span
-              class="login-card__arrow"
-              aria-hidden="true"
-            >→</span>
-          </button>
-
-          <button
-            type="button"
-            class="login-card"
-            @click="signInWithGoogle"
-          >
-            <span
-              class="login-card__no mono-label"
-              aria-hidden="true"
-            >02</span>
-            <span
-              class="login-card__mark login-card__mark--google"
-              aria-hidden="true"
-            >
-              <img
-                :src="authGoogle"
-                alt=""
-                width="44"
-                height="44"
-              >
-            </span>
-            <span class="login-card__copy">
-              <strong>{{ $t('login.google.title') }}</strong>
-              <span>{{ $t('login.google.description') }}</span>
-            </span>
-            <span
-              class="login-card__arrow"
-              aria-hidden="true"
-            >→</span>
-          </button>
-
-          <button
-            type="button"
-            class="login-card"
-            @click="signInWithYandex"
-          >
-            <span
-              class="login-card__no mono-label"
-              aria-hidden="true"
-            >03</span>
-            <span
-              class="login-card__mark login-card__mark--yandex"
-              aria-hidden="true"
-            >
-              <img
-                :src="authYandex"
-                alt=""
-                width="44"
-                height="44"
-              >
-            </span>
-            <span class="login-card__copy">
-              <strong>{{ $t('login.yandex.title') }}</strong>
-              <span>{{ $t('login.yandex.description') }}</span>
-            </span>
-            <span
-              class="login-card__arrow"
-              aria-hidden="true"
-            >→</span>
-          </button>
-
-          <button
-            v-for="option in vkIdOptions"
-            :key="option.provider"
-            type="button"
-            class="login-card"
-            @click="signInWithVkId(option)"
-          >
-            <span
-              class="login-card__no mono-label"
-              aria-hidden="true"
-            >{{ option.no }}</span>
-            <span
-              class="login-card__mark"
-              aria-hidden="true"
-            >
-              <img
-                :src="option.icon"
-                alt=""
-                width="44"
-                height="44"
-              >
-            </span>
-            <span class="login-card__copy">
-              <strong>{{ $t(`login.${option.key}.title`) }}</strong>
-              <span>{{ $t(`login.${option.key}.description`) }}</span>
-            </span>
-            <span
-              class="login-card__arrow"
-              aria-hidden="true"
-            >→</span>
-          </button>
-        </div>
-
-        <p class="login-console__note">
-          {{ $t('login.note') }}
-        </p>
-      </div>
-
-      <ul
-        v-if="benefits.length"
-        class="login-page__benefits"
-      >
-        <li
-          v-for="(benefit, i) in benefits"
-          :key="i"
-        >
-          <span
-            class="login-page__benefit-tick"
+          <ArrowLeft
+            class="size-4"
             aria-hidden="true"
           />
-          {{ benefit }}
-        </li>
-      </ul>
+          {{ $t('login.back') }}
+        </router-link>
+        <span class="mono-label login__mast-id">LF-AUTH</span>
+      </div>
+
+      <div class="login__layout">
+        <header class="login__intro">
+          <p class="mono-label login__eyebrow">
+            {{ $t('login.eyebrow') }}
+          </p>
+          <h1 class="login__title font-display">
+            {{ $t('login.title') }}
+          </h1>
+          <p class="login__subtitle">
+            {{ $t('login.subtitle') }}
+          </p>
+
+          <ol
+            v-if="benefits.length"
+            class="login__spec"
+          >
+            <li
+              v-for="(benefit, i) in benefits"
+              :key="i"
+            >
+              <span class="login__spec-no">{{ indexLabel(i) }}</span>
+              <span>{{ benefit }}</span>
+            </li>
+          </ol>
+        </header>
+
+        <div class="login__plate">
+          <span
+            class="login__tick login__tick--tl"
+            aria-hidden="true"
+          />
+          <span
+            class="login__tick login__tick--tr"
+            aria-hidden="true"
+          />
+          <span
+            class="login__tick login__tick--bl"
+            aria-hidden="true"
+          />
+          <span
+            class="login__tick login__tick--br"
+            aria-hidden="true"
+          />
+
+          <div class="login__plate-bar">
+            <span class="mono-label">Auth</span>
+            <span class="mono-label login__plate-count">01-06</span>
+          </div>
+
+          <p
+            v-if="isEmailRequiredError"
+            role="alert"
+            class="login__error"
+          >
+            {{ $t('login.errors.emailRequired') }}
+          </p>
+
+          <div class="login__options">
+            <button
+              v-for="(provider, index) in primaryProviders"
+              :key="provider.id"
+              type="button"
+              class="login-row"
+              @click="signIn(provider)"
+            >
+              <span
+                class="login-row__no"
+                aria-hidden="true"
+              >{{ indexLabel(index) }}</span>
+              <span
+                class="login-row__mark"
+                :class="`login-row__mark--${provider.mark}`"
+                aria-hidden="true"
+              >
+                <img
+                  :src="provider.icon"
+                  alt=""
+                  width="36"
+                  height="36"
+                >
+              </span>
+              <span class="login-row__copy">
+                <strong>{{ $t(provider.titleKey) }}</strong>
+                <span>{{ $t(provider.descriptionKey) }}</span>
+              </span>
+              <ArrowRight
+                class="login-row__arrow size-4"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <p class="mono-label login__family">
+            VK ID
+          </p>
+
+          <div class="login__options">
+            <button
+              v-for="(provider, index) in vkProviders"
+              :key="provider.id"
+              type="button"
+              class="login-row"
+              @click="signIn(provider)"
+            >
+              <span
+                class="login-row__no"
+                aria-hidden="true"
+              >{{ indexLabel(index + primaryProviders.length) }}</span>
+              <span
+                class="login-row__mark"
+                :class="`login-row__mark--${provider.mark}`"
+                aria-hidden="true"
+              >
+                <img
+                  :src="provider.icon"
+                  alt=""
+                  width="36"
+                  height="36"
+                >
+              </span>
+              <span class="login-row__copy">
+                <strong>{{ $t(provider.titleKey) }}</strong>
+                <span>{{ $t(provider.descriptionKey) }}</span>
+              </span>
+              <ArrowRight
+                class="login-row__arrow size-4"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <p class="login__note">
+            {{ $t('login.note') }}
+          </p>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.login-page {
+.login {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - var(--header-height));
+  flex: 1 0 auto;
   isolation: isolate;
   overflow: hidden;
-  padding: clamp(3.5rem, 9vw, 6rem) 1.5rem;
-  background:
-    radial-gradient(ellipse 60% 55% at 82% -10%, var(--industrial-accent-wash), transparent 70%),
-    var(--band-bg);
+  min-height: calc(100vh - var(--header-height));
+  background: var(--band-bg);
   color: var(--band-ink);
 }
 
-.login-page__ring,
-.login-page__square {
+.login__grid {
   position: absolute;
-  border: 1px solid var(--band-line);
+  inset: 0;
   pointer-events: none;
+  background-image:
+    linear-gradient(var(--band-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--band-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, #000 10%, transparent 74%);
 }
 
-.login-page__ring {
-  width: 26rem;
-  height: 26rem;
-  right: -9rem;
-  top: -9rem;
-  border-radius: 50%;
-  border-top-color: color-mix(in srgb, var(--band-accent) 45%, transparent);
+.login__shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.25rem) clamp(1.25rem, 4vw, 3rem) clamp(2.5rem, 6vw, 4.5rem);
 }
 
-.login-page__square {
-  width: 12rem;
-  height: 12rem;
-  left: -4rem;
-  bottom: -4rem;
-  transform: rotate(18deg);
-  background: var(--band-panel);
+.login__mast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--band-line);
 }
 
-.login-page__back {
-  position: absolute;
-  top: clamp(1.25rem, 4vw, 2rem);
-  left: clamp(1.25rem, 4vw, 2rem);
-  z-index: 2;
+.login__back {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -304,232 +309,320 @@ function signInWithVkId(option) {
   transition: color 0.15s ease;
 }
 
-.login-page__back:hover {
+.login__back:hover {
   color: var(--band-accent);
 }
 
-.login-page__inner {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 34rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.login-page__eyebrow {
-  color: var(--band-accent);
-  margin: 0 0 1rem;
-}
-
-.login-page__title {
-  margin: 0;
-  font-size: clamp(2.1rem, 5vw, 3.2rem);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1.08;
-}
-
-.login-page__subtitle {
-  margin: 1rem 0 0;
-  max-width: 30rem;
+.login__mast-id {
   color: var(--band-ink-muted);
-  font-size: 1rem;
-  line-height: 1.6;
 }
 
-.login-console {
-  position: relative;
-  width: 100%;
-  margin-top: 2.5rem;
-  padding: clamp(1.5rem, 4vw, 2.25rem);
-  background: var(--band-panel);
-  border: 1px solid var(--band-line);
-  border-top: 1px solid color-mix(in srgb, var(--band-accent) 55%, transparent);
-  border-radius: var(--radius-card);
-  backdrop-filter: blur(6px);
+.login__layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.9fr) minmax(22rem, 1.1fr);
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+  margin-top: clamp(1.75rem, 4vw, 3rem);
 }
 
-.login-console::before,
-.login-console::after {
+.login__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.15rem;
+  color: var(--band-accent);
+}
+
+.login__eyebrow::before {
   content: "";
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border: 1px solid var(--band-accent);
+  width: 1.6rem;
+  height: 1px;
+  background: var(--band-accent);
 }
 
-.login-console::before {
+.login__title {
+  margin: 0;
+  font-size: clamp(2.75rem, 6vw, 4.25rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.96;
+}
+
+.login__subtitle {
+  margin: 1.15rem 0 0;
+  max-width: 26rem;
+  color: var(--band-ink-muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.login__spec {
+  margin: 2.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: 26rem;
+  border-top: 1px solid var(--band-line);
+}
+
+.login__spec li {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--band-line);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.login__spec-no {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--band-accent);
+}
+
+.login__plate {
+  position: relative;
+  background: var(--color-surface-950);
+  border: 1px solid var(--band-line);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--band-ink) 6%, transparent);
+}
+
+.login__tick {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+}
+
+.login__tick--tl,
+.login__tick--tr,
+.login__tick--bl,
+.login__tick--br {
+  border-color: var(--band-accent);
+  border-style: solid;
+}
+
+.login__tick--tl {
   top: -1px;
   left: -1px;
   border-width: 1px 0 0 1px;
 }
 
-.login-console::after {
-  bottom: -1px;
+.login__tick--tr {
+  top: -1px;
   right: -1px;
+  border-width: 1px 1px 0 0;
+}
+
+.login__tick--bl {
+  bottom: -1px;
+  left: -1px;
+  border-width: 0 0 1px 1px;
+}
+
+.login__tick--br {
+  right: -1px;
+  bottom: -1px;
   border-width: 0 1px 1px 0;
 }
 
-.login-console__tag {
-  display: block;
-  margin-bottom: 1.25rem;
-  color: var(--band-ink-muted);
-  text-align: left;
+.login__plate-bar,
+.login__family,
+.login__note,
+.login__error {
+  padding-inline: 1.15rem;
 }
 
-.login-console__error {
-  margin: 0 0 1rem;
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--band-ink);
-  background: color-mix(in srgb, var(--color-accent-coral) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent-coral) 55%, transparent);
-  border-radius: var(--radius-md);
-}
-
-.login-console__options {
+.login__plate-bar {
   display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.7rem;
+  color: var(--band-ink-muted);
+  background: color-mix(in srgb, var(--band-ink) 3.5%, transparent);
+  border-bottom: 1px solid var(--band-line);
 }
 
-.login-card {
+.login__plate-count {
+  letter-spacing: 0.18em;
+}
+
+.login__error {
+  margin: 0;
+  padding-block: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent-coral) 40%, var(--band-line));
+  border-left: 2px solid var(--color-accent-coral);
+  background: color-mix(in srgb, var(--color-accent-coral) 10%, transparent);
+  color: var(--band-ink);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.login__family {
+  margin: 0;
+  padding-block: 0.55rem;
+  color: var(--band-ink-muted);
+  font-size: 0.62rem;
+  background: color-mix(in srgb, var(--band-ink) 3.5%, transparent);
+  border-top: 1px solid var(--band-line);
+  border-bottom: 1px solid var(--band-line);
+}
+
+.login-row {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  gap: 0.9rem;
+  grid-template-columns: 2rem 2.25rem minmax(0, 1fr) auto;
+  gap: 0.85rem;
   align-items: center;
-  padding: 1.15rem 1.25rem;
+  width: 100%;
+  padding: 0.9rem 1.15rem;
   text-align: left;
   color: var(--band-ink);
-  background: color-mix(in srgb, var(--band-ink) 4%, transparent);
-  border: 1px solid var(--band-line);
-  border-radius: var(--radius-md);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--band-line);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.login-card:hover {
-  border-color: var(--band-accent);
-  background: color-mix(in srgb, var(--band-accent) 8%, transparent);
-  transform: translateY(-2px);
+.login__options .login-row:last-child {
+  border-bottom: 0;
 }
 
-.login-card:focus-visible {
+.login-row:hover {
+  background: color-mix(in srgb, var(--band-accent) 7%, transparent);
+}
+
+.login-row:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: 2px solid var(--band-accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.login-card__no {
+.login-row__no {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
   color: var(--band-ink-muted);
 }
 
-.login-card__mark {
+.login-row:hover .login-row__no {
+  color: var(--band-accent);
+}
+
+.login-row__mark {
   display: grid;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   place-items: center;
   overflow: hidden;
-  border-radius: 0.55rem;
+  border-radius: 2px;
 }
 
-.login-card__mark img {
+.login-row__mark img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.login-card__mark--pmi {
+.login-row__mark--pmi {
   background: var(--color-accent-coral);
 }
 
-.login-card__mark--google {
+.login-row__mark--google {
   background: #fff;
   border: 1px solid var(--band-line);
 }
 
-.login-card__mark--google img {
+.login-row__mark--google img {
   object-fit: contain;
   padding: 0.28rem;
 }
 
-.login-card__mark--yandex {
+.login-row__mark--yandex {
   background: #fc3f1d;
 }
 
-.login-card__copy {
+.login-row__copy {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
-.login-card__copy strong {
-  font-size: 0.95rem;
+.login-row__copy strong {
+  font-size: 0.92rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.login-card__copy span {
+.login-row__copy span {
   color: var(--band-ink-muted);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-wrap: pretty;
 }
 
-.login-card__arrow {
+.login-row__arrow {
   color: var(--band-ink-muted);
   transition: color 0.15s ease, transform 0.15s ease;
 }
 
-.login-card:hover .login-card__arrow {
+.login-row:hover .login-row__arrow {
   color: var(--band-accent);
   transform: translateX(3px);
 }
 
-.login-console__note {
-  margin: 1.5rem 0 0;
+.login__note {
+  margin: 0;
+  padding-block: 0.8rem 0.95rem;
   color: var(--band-ink-muted);
   font-size: 0.72rem;
-  letter-spacing: 0.02em;
-  text-align: left;
+  letter-spacing: 0.01em;
+  border-top: 1px solid var(--band-line);
 }
 
-.login-page__benefits {
-  margin: 2rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem 1.5rem;
-}
+@media (max-width: 860px) {
+  .login__layout {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
 
-.login-page__benefits li {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  color: var(--band-ink-muted);
-  font-size: 0.82rem;
-}
-
-.login-page__benefit-tick {
-  flex-shrink: 0;
-  width: 0.7rem;
-  height: 1px;
-  background: var(--band-accent);
+  .login__subtitle,
+  .login__spec {
+    max-width: none;
+  }
 }
 
 @media (max-width: 480px) {
-  .login-card {
-    grid-template-columns: auto 1fr auto;
+  .login-row {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+    gap: 0.7rem;
   }
 
-  .login-card__no {
+  .login-row__no {
     display: none;
+  }
+
+  .login__mast-id {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-row,
+  .login-row__arrow,
+  .login__back {
+    transition: none;
+  }
+
+  .login-row:hover .login-row__arrow {
+    transform: none;
   }
 }
 </style>
