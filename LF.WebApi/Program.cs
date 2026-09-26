@@ -1,3 +1,4 @@
+using AspNet.Security.OAuth.VkId;
 using AspNet.Security.OAuth.Yandex;
 using Duende.IdentityModel.Client;
 using LF.AppDomain.Models.User.Enums;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using NetEscapades.AspNetCore.SecurityHeaders;
@@ -74,6 +76,11 @@ static void ConfigureOptions(IServiceCollection services)
         .ValidateDataAnnotations()
         .ValidateOnStart();
 
+    services.AddOptions<VkIdAuthOptions>()
+        .BindConfiguration(VkIdAuthOptions.SectionName)
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
     services.AddOptions<DevAuthOptions>()
         .BindConfiguration(DevAuthOptions.SectionName);
 }
@@ -98,6 +105,8 @@ try
         ?? throw new InvalidOperationException("GoogleAuth configuration is missing.");
     var yandexAuth = configuration.GetSection(YandexAuthOptions.SectionName).Get<YandexAuthOptions>()
         ?? throw new InvalidOperationException("YandexAuth configuration is missing.");
+    var vkIdAuth = configuration.GetSection(VkIdAuthOptions.SectionName).Get<VkIdAuthOptions>()
+        ?? throw new InvalidOperationException("VkIdAuth configuration is missing.");
 
     /* ADD AUTHENTICATION */
     builder.Services
@@ -393,6 +402,44 @@ try
             options.ClaimActions.MapJsonKey("email", "default_email");
             options.ClaimActions.MapJsonKey("name", "real_name");
             options.ClaimActions.MapJsonKey("name", "display_name");
+
+            options.SignInScheme = defaultAuth.TempAuthCookieName;
+        })
+        .AddVkId(vkIdAuth.SchemeName, options =>
+        {
+            options.ClientId = vkIdAuth.ClientId;
+            options.ClientSecret = vkIdAuth.ClientSecret;
+
+            options.CallbackPath = new PathString(vkIdAuth.CallbackPath);
+
+            // Nothing reads the VK tokens back, and they would only inflate the temp sign-in cookie.
+            options.SaveTokens = false;
+
+            // Accounts are matched by email, so it must be requested explicitly (personal_info is a default).
+            options.Scope.Add(VkIdAuthenticationScopes.Email);
+
+            // Remap to the short claim types the other providers produce. VK returns the first and last
+            // name separately, so they go to given_name/family_name rather than a combined "name".
+            options.ClaimActions.Clear();
+            options.ClaimActions.MapJsonKey("sub", "user_id");
+            options.ClaimActions.MapJsonKey("email", "email");
+            options.ClaimActions.MapJsonKey("given_name", "first_name");
+            options.ClaimActions.MapJsonKey("family_name", "last_name");
+
+            // One VK ID app serves VK, Mail.ru and OK; the authorize page's "provider" parameter picks
+            // which login it opens. The handler is sealed, so the parameter is appended here.
+            options.Events.OnRedirectToAuthorizationEndpoint = context =>
+            {
+                var redirectUri = context.RedirectUri;
+                if (context.Properties.Items.TryGetValue(VkIdProviders.PropertiesKey, out var provider)
+                    && !string.IsNullOrEmpty(provider))
+                {
+                    redirectUri = QueryHelpers.AddQueryString(redirectUri, "provider", provider);
+                }
+
+                context.Response.Redirect(redirectUri);
+                return Task.CompletedTask;
+            };
 
             options.SignInScheme = defaultAuth.TempAuthCookieName;
         });

@@ -17,10 +17,12 @@ vi.mock('@/services/api', () => ({
 vi.mock('@/services/profileService', () => ({
   fetchProfile: vi.fn(),
   fetchAvatarObjectUrl: vi.fn(),
+  updatePreferredLanguage: vi.fn(),
 }));
 
 import api from '@/services/api';
-import { fetchProfile } from '@/services/profileService';
+import { fetchProfile, updatePreferredLanguage } from '@/services/profileService';
+import { i18n, setLocale } from '@/i18n/index.js';
 import { useAuthStore } from '@/stores/authStore';
 
 describe('useAuthStore', () => {
@@ -80,6 +82,64 @@ describe('useAuthStore', () => {
       await store.ensureInitialized();
 
       expect(fetchProfile).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('preferred language', () => {
+    beforeEach(() => setLocale('ru'));
+
+    it('applies the language stored on the profile', async () => {
+      fetchProfile.mockResolvedValueOnce({ role: 'Student', preferredLanguage: 'en' });
+      const store = useAuthStore();
+
+      await store.ensureInitialized();
+
+      expect(i18n.global.locale.value).toBe('en');
+      expect(updatePreferredLanguage).not.toHaveBeenCalled();
+    });
+
+    it('saves the current UI language when the profile has none yet', async () => {
+      fetchProfile.mockResolvedValueOnce({ role: 'Student', preferredLanguage: null });
+      updatePreferredLanguage.mockResolvedValueOnce({ preferredLanguage: 'ru' });
+      const store = useAuthStore();
+
+      await store.ensureInitialized();
+      await vi.waitFor(() => expect(store.user.preferredLanguage).toBe('ru'));
+
+      expect(updatePreferredLanguage).toHaveBeenCalledWith('ru');
+    });
+
+    it('changeLocale switches the UI and persists it for a signed-in user', async () => {
+      updatePreferredLanguage.mockResolvedValueOnce({ preferredLanguage: 'en' });
+      const store = useAuthStore();
+      store.user = { role: 'Student', preferredLanguage: 'ru' };
+
+      store.changeLocale('en');
+
+      expect(i18n.global.locale.value).toBe('en');
+      expect(updatePreferredLanguage).toHaveBeenCalledWith('en');
+      await vi.waitFor(() => expect(store.user.preferredLanguage).toBe('en'));
+    });
+
+    it('changeLocale only switches the UI for an anonymous visitor', () => {
+      const store = useAuthStore();
+
+      store.changeLocale('en');
+
+      expect(i18n.global.locale.value).toBe('en');
+      expect(updatePreferredLanguage).not.toHaveBeenCalled();
+    });
+
+    it('keeps the UI switch when saving the language fails', async () => {
+      updatePreferredLanguage.mockRejectedValueOnce(new Error('offline'));
+      const store = useAuthStore();
+      store.user = { role: 'Student', preferredLanguage: 'ru' };
+
+      store.changeLocale('en');
+      await Promise.resolve();
+
+      expect(i18n.global.locale.value).toBe('en');
+      expect(store.user.preferredLanguage).toBe('ru');
     });
   });
 

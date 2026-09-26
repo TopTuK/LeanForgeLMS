@@ -5,6 +5,7 @@ using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.ModelDto.Promo;
+using LF.Application.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using DomainCourse = LF.AppDomain.Entities.Course.Course;
@@ -15,11 +16,13 @@ namespace LF.Application.Services.Enrollment;
 internal sealed class EnrollmentService(
     ILogger<EnrollmentService> logger,
     IAppDbContext dbContext,
-    TimeProvider timeProvider) : IEnrollmentService
+    TimeProvider timeProvider,
+    IEnrollmentNotifier enrollmentNotifier) : IEnrollmentService
 {
     private readonly ILogger<EnrollmentService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly IEnrollmentNotifier _enrollmentNotifier = enrollmentNotifier;
 
     public async Task<PagedCourseCatalogDto> BrowseCatalogAsync(int page, int pageSize, int actingUserId)
     {
@@ -118,6 +121,11 @@ internal sealed class EnrollmentService(
         }
 
         _dbContext.Enrollments.Add(enrollment);
+
+        // A paid enrollment is only confirmed once payment activates it (ActivatePaidEnrollmentAsync).
+        if (enrollment.Status == EnrollmentStatus.Active)
+            await _enrollmentNotifier.StageEnrollmentConfirmationAsync(actingUserId, course.Title);
+
         await _dbContext.SaveChangesAsync();
 
         return ToDetailDto(enrollment, course);
@@ -148,6 +156,13 @@ internal sealed class EnrollmentService(
                 _logger.LogWarning("EnrollmentService::ActivatePaidEnrollmentAsync: promo {PromoCodeId} no longer redeemable for enrollment {EnrollmentId}",
                     promoCodeId, enrollmentId);
         }
+
+        var courseTitle = await _dbContext.Courses.AsNoTracking()
+            .Where(c => c.Id == enrollment.CourseId)
+            .Select(c => c.Title)
+            .FirstOrDefaultAsync();
+        if (courseTitle is not null)
+            await _enrollmentNotifier.StageEnrollmentConfirmationAsync(enrollment.UserId, courseTitle);
 
         await _dbContext.SaveChangesAsync();
         return ToActivationDto(enrollment);

@@ -9,6 +9,7 @@ using LF.Application.ModelDto.Course;
 using LF.Application.Services.Course;
 using LF.ApplicationTests.TestSupport;
 using Microsoft.EntityFrameworkCore;
+using LF.Application.Services.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.Moq;
 using Moq;
@@ -49,7 +50,7 @@ public class CourseServiceTests
         dbContextMock.SetupGet(c => c.StorageObjects).Returns(storageObjectsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object, Mock.Of<IEnrollmentNotifier>(), Mock.Of<ICourseChangeTracker>());
     }
 
     [Fact]
@@ -114,7 +115,8 @@ public class CourseServiceTests
     private static CourseService CreateServiceWithEnrollments(
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<DomainEnrollment> enrollments,
-        out Mock<IAppDbContext> dbContextMock)
+        out Mock<IAppDbContext> dbContextMock,
+        Mock<IEnrollmentNotifier>? notifierMock = null)
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
@@ -124,7 +126,8 @@ public class CourseServiceTests
         dbContextMock.SetupGet(c => c.Enrollments).Returns(enrollmentsMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object,
+            (notifierMock ?? new Mock<IEnrollmentNotifier>()).Object, Mock.Of<ICourseChangeTracker>());
     }
 
     private static DomainCourse CreatePublishedManagedCourse(int id = 1, int ownerId = 1)
@@ -142,7 +145,8 @@ public class CourseServiceTests
     public async Task EnrollUserAsync_ByAdmin_CreatesActiveEnrollment()
     {
         var course = CreatePublishedManagedCourse(id: 1, ownerId: 1);
-        var service = CreateServiceWithEnrollments([course], [], out var dbContextMock);
+        var notifierMock = new Mock<IEnrollmentNotifier>();
+        var service = CreateServiceWithEnrollments([course], [], out var dbContextMock, notifierMock);
 
         var result = await service.EnrollUserAsync(course.Id, targetUserId: 7, actingUserId: 42, isAdmin: true);
 
@@ -150,6 +154,7 @@ public class CourseServiceTests
         Assert.Equal(EnrollmentStatus.Active, result!.Status);
         Assert.Equal(0m, result.PricePaid);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        notifierMock.Verify(n => n.StageEnrollmentConfirmationAsync(7, "Managed", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // Manual enrollment is admin-only, so even the course's own owner is refused — it is the
@@ -773,7 +778,7 @@ public class CourseServiceTests
         var sanitizer = new Mock<IHtmlSanitizer>();
         sanitizer.Setup(s => s.Sanitize(It.IsAny<string?>())).Returns((string? html) => html ?? string.Empty);
 
-        var service = new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, sanitizer.Object);
+        var service = new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, sanitizer.Object, Mock.Of<IEnrollmentNotifier>(), Mock.Of<ICourseChangeTracker>());
         return (service, sanitizer);
     }
 
@@ -792,7 +797,7 @@ public class CourseServiceTests
         dbContextMock.SetupGet(c => c.StorageObjects).Returns(new List<StorageObject>().BuildMockDbSet().Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object);
+        return new CourseService(NullLogger<CourseService>.Instance, dbContextMock.Object, TimeProvider.System, CreateSanitizerMock().Object, Mock.Of<IEnrollmentNotifier>(), Mock.Of<ICourseChangeTracker>());
     }
 
     private static DomainEnrollment CreateEnrollment(int id, int courseId, int userId, EnrollmentStatus status, decimal pricePaid)

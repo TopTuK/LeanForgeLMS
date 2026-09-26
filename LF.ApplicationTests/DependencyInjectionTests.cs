@@ -1,12 +1,15 @@
 using LF.Application;
 using LF.Application.Common.Interfaces;
+using LF.Application.Common.Options;
 using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Email;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.News;
+using LF.Application.Services.Notifications;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
 using LF.Application.Services.Profile;
@@ -57,6 +60,7 @@ public class DependencyInjectionTests
         Assert.IsType<PaymentReportService>(scope.ServiceProvider.GetRequiredService<IPaymentReportService>());
         Assert.IsType<NewsService>(scope.ServiceProvider.GetRequiredService<INewsService>());
         Assert.IsType<AdminNewsService>(scope.ServiceProvider.GetRequiredService<IAdminNewsService>());
+        Assert.IsType<EmailQueue>(scope.ServiceProvider.GetRequiredService<IEmailQueue>());
     }
 
     [Fact]
@@ -83,6 +87,7 @@ public class DependencyInjectionTests
         var services = new ServiceCollection();
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(Mock.Of<IAppDbContext>());
+        services.Configure<AppUrlOptions>(o => o.PublicBaseUrl = "https://lms.example.com");
         services.AddCourseApplication();
 
         // Act
@@ -93,6 +98,8 @@ public class DependencyInjectionTests
         Assert.IsType<CourseServiceImpl>(scope.ServiceProvider.GetRequiredService<ICourseService>());
         Assert.IsType<EnrollmentService>(scope.ServiceProvider.GetRequiredService<IEnrollmentService>());
         Assert.IsType<PromoCodeService>(scope.ServiceProvider.GetRequiredService<IPromoCodeService>());
+        Assert.IsType<EnrollmentNotifier>(scope.ServiceProvider.GetRequiredService<IEnrollmentNotifier>());
+        Assert.IsType<CourseChangeTracker>(scope.ServiceProvider.GetRequiredService<ICourseChangeTracker>());
     }
 
     [Fact]
@@ -111,5 +118,25 @@ public class DependencyInjectionTests
 
         // Assert
         Assert.IsType<PaymentOrderService>(scope.ServiceProvider.GetRequiredService<IPaymentOrderService>());
+    }
+
+    [Fact]
+    public void AddNotificationApplication_RegistersEmailDispatchService()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddScoped(_ => Mock.Of<IAppDbContext>());
+        services.AddScoped(_ => Mock.Of<IEmailSender>());
+        services.Configure<AppUrlOptions>(o => o.PublicBaseUrl = "https://lms.example.com");
+        services.AddNotificationApplication();
+
+        // Act
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        using var scope = provider.CreateScope();
+
+        // Assert
+        Assert.IsType<EmailDispatchService>(scope.ServiceProvider.GetRequiredService<IEmailDispatchService>());
+        Assert.IsType<CourseUpdateDigestService>(scope.ServiceProvider.GetRequiredService<ICourseUpdateDigestService>());
     }
 }

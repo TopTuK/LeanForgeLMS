@@ -117,7 +117,7 @@ First-time server setup or manual fallback (builds images on the server):
 
 ```bash
 cp .env.example .env   # fill in POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
-                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, Robokassa__*, Unleash__ApiKey
+                       # PmiAuth__*, GoogleAuth__*, YandexAuth__*, VkIdAuth__*, Robokassa__*, Unleash__ApiKey
                        # — SENTRY_DSN is optional
 docker compose up --build
 ```

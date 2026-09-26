@@ -30,4 +30,11 @@ internal sealed class ProfileService(ILogger<ProfileService> logger, IGrpcIdenti
 
         return await _identityService.UpdateUserAvatarAsync(userId, avatarKey);
     }
+
+    public async Task<UserDto?> UpdateLanguageAsync(int userId, string language)
+    {
+        _logger.LogInformation("ProfileService::UpdateLanguageAsync: called with UserId={usrId} Language={Language}", userId, language);
+
+        return await _identityService.UpdateUserLanguageAsync(userId, language);
+    }
 }

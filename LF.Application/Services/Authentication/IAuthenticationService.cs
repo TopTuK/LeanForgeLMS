@@ -11,6 +11,7 @@ namespace LF.Application.Services.Authentication
         Task<UserDto> AuthenticatePmiUserAsync(UserAuthentificationDto userAuthentification);
         Task<UserDto> AuthenticateGoogleUserAsync(UserAuthentificationDto userAuthentification);
         Task<UserDto> AuthenticateYandexUserAsync(UserAuthentificationDto userAuthentification);
+        Task<UserDto> AuthenticateVkUserAsync(UserAuthentificationDto userAuthentification);
         Task<UserDto> AuthenticateDevUserAsync(EnsureUserWithRoleDto userRequestDto);
     }
 }

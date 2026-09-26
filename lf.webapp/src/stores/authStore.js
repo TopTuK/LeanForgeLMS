@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
-import { fetchProfile, fetchAvatarObjectUrl } from '@/services/profileService';
+import { fetchProfile, fetchAvatarObjectUrl, updatePreferredLanguage } from '@/services/profileService';
+import { currentLocale, isSupportedLocale, setLocale } from '@/i18n/index.js';
 import { setUserRole, track, trackLoginCompleted } from '@/lib/analytics';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -36,6 +37,31 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
 
+    const saveLanguage = async (language) => {
+        try {
+            const updated = await updatePreferredLanguage(language);
+            if (user.value) user.value = { ...user.value, preferredLanguage: updated.preferredLanguage };
+        } catch {
+            // Best effort: the UI already switched; emails just keep the previous language.
+        }
+    };
+
+    // The server copy follows the user across devices; a user who never chose one gets whatever
+    // they are currently looking at, so emails match the UI from their first enrollment on.
+    const syncLocaleWithProfile = () => {
+        const preferred = user.value?.preferredLanguage;
+        if (isSupportedLocale(preferred)) {
+            setLocale(preferred);
+        } else if (user.value) {
+            saveLanguage(currentLocale());
+        }
+    };
+
+    const changeLocale = (language) => {
+        setLocale(language);
+        if (isAuthenticated.value && user.value.preferredLanguage !== language) saveLanguage(language);
+    };
+
     // Resolves auth state from the HttpOnly session cookie exactly once per app load:
     // the SPA can't read the cookie, so it asks the API who it is.
     const ensureInitialized = () => {
@@ -46,6 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
             try {
                 user.value = await fetchProfile({ skipAuthRedirect: true });
                 trackLoginCompleted();
+                syncLocaleWithProfile();
             } catch {
                 user.value = null;
             } finally {
@@ -103,6 +130,6 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated, isAdmin, isStudent, isInstructor, isCourseCreator,
         canViewTeachingCourses, canCreateCourses,
         user, avatarUrl, initialized,
-        ensureInitialized, fetchUser, refreshAvatar, updateUser, clear, logout,
+        ensureInitialized, fetchUser, refreshAvatar, updateUser, clear, logout, changeLocale,
     };
 });

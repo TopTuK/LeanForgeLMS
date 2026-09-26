@@ -7,4 +7,5 @@ public interface IProfileService
     Task<UserDto?> GetProfileAsync(int userId);
     Task<UserDto?> UpdateProfileAsync(int userId, UpdateUserProfileDto dto);
     Task<UserDto?> UpdateAvatarAsync(int userId, string? avatarKey);
+    Task<UserDto?> UpdateLanguageAsync(int userId, string language);
 }

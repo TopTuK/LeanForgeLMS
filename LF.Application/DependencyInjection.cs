@@ -1,13 +1,16 @@
 using LF.Application.Common.Content;
+using LF.Application.Common.Email;
 using LF.Application.Common.Interfaces;
 using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
+using LF.Application.Services.Email;
 using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.CourseTeaching;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
 using LF.Application.Services.News;
+using LF.Application.Services.Notifications;
 using LF.Application.Services.Payment;
 using LF.Application.Services.PaymentReporting;
 using LF.Application.Services.Profile;
@@ -56,6 +59,9 @@ public static class DependencyInjection
         services.AddScoped<IAdminLessonQuestionService, AdminLessonQuestionService>();
         services.AddScoped<ICourseTeachingTeamService, CourseTeachingTeamService>();
 
+        // Outbox producer only — delivery happens in LF.NotificationService.
+        services.AddScoped<IEmailQueue, EmailQueue>();
+
         return services;
     }
 
@@ -78,6 +84,14 @@ public static class DependencyInjection
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IPromoCodeService, PromoCodeService>();
 
+        // Enrollment confirmations are staged into the email outbox in the same SaveChanges as the
+        // enrollment. The host must bind AppUrlOptions (links in the email).
+        services.TryAddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+        services.AddScoped<IEnrollmentNotifier, EnrollmentNotifier>();
+
+        // Lesson edits on published courses are recorded here; LF.NotificationService turns them into digests.
+        services.AddScoped<ICourseChangeTracker, CourseChangeTracker>();
+
         return services;
     }
 
@@ -88,6 +102,18 @@ public static class DependencyInjection
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IPaymentOrderService, PaymentOrderService>();
+
+        return services;
+    }
+
+    // Used by LF.NotificationService. IEmailSender is supplied by AddInfrastructureEmail(); the host
+    // must bind AppUrlOptions (links in digest emails).
+    public static IServiceCollection AddNotificationApplication(this IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IEmailTemplateRenderer, EmailTemplateRenderer>();
+        services.AddScoped<IEmailDispatchService, EmailDispatchService>();
+        services.AddScoped<ICourseUpdateDigestService, CourseUpdateDigestService>();
 
         return services;
     }

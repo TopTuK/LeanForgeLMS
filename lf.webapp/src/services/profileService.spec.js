@@ -8,6 +8,7 @@ import api from '@/services/api';
 import {
   fetchProfile,
   updateProfile,
+  updatePreferredLanguage,
   fetchAvatarObjectUrl,
   uploadAvatar,
   deleteAvatar,
@@ -35,6 +36,12 @@ describe('profileService', () => {
     api.put.mockResolvedValue({ data: { ok: true } });
     await expect(updateProfile({ description: 'hi' })).resolves.toEqual({ ok: true });
     expect(api.put).toHaveBeenCalledWith('/Profile', { description: 'hi' });
+  });
+
+  it('updatePreferredLanguage PUTs the language to /profile/language', async () => {
+    api.put.mockResolvedValue({ data: { preferredLanguage: 'en' } });
+    await expect(updatePreferredLanguage('en')).resolves.toEqual({ preferredLanguage: 'en' });
+    expect(api.put).toHaveBeenCalledWith('/profile/language', { language: 'en' });
   });
 
   it('fetchAvatarObjectUrl blob-fetches the avatar and returns an object URL', async () => {

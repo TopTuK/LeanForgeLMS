@@ -11,6 +11,10 @@ const getInitialLocale = () => {
     return 'ru';
 }
 
+export const isSupportedLocale = (locale) => SUPPORTED_LOCALES.includes(locale);
+
+export const currentLocale = () => i18n.global.locale.value;
+
 export function setLocale(locale) {
     if (!SUPPORTED_LOCALES.includes(locale)) return;
     i18n.global.locale.value = locale;

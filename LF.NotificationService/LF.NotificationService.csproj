@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>5c0e7a3d-2f4b-4c8e-9a61-8d3f1b2e7c45</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LeanForgeLMS.ServiceDefaults\LeanForgeLMS.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\LF.Application\LF.Application.csproj" />
+    <ProjectReference Include="..\LF.Infrastructure\LF.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Quartz.Extensions.Hosting" Version="4.2.0" />
+  </ItemGroup>
+
+</Project>

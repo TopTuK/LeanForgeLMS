@@ -86,6 +86,8 @@ services:
       DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT: "1"
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+      # Public SPA URL for links in enrollment confirmation emails (staged here, sent by lf-notificationservice).
+      App__PublicBaseUrl: "http://localhost:${WEBAPI_HOST_PORT:-8081}"
     # No ports: — not reachable from the host.
 
   lf-paymentservice:
@@ -112,13 +114,39 @@ services:
       - .env   # Robokassa__MerchantLogin/Password1/Password2/HashAlgorithm/IsTest/SuccessUrl/FailUrl
     # No ports: — not reachable from the host.
 
+  lf-notificationservice:
+    build:
+      context: .
+      dockerfile: LF.NotificationService/Dockerfile
+    restart: unless-stopped
+    networks:
+      - leanforge-public     # SMTP egress
+      - leanforge-internal   # reach postgres (LFEmailMessages outbox)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # LF.IdentityService is the sole schema owner/migrator for the shared AppDbContext
+      # (including LFEmailMessages) — it must have applied migrations before this starts.
+      lf-identityservice:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
+      # Public SPA URL for links in course-update digest emails.
+      App__PublicBaseUrl: "http://localhost:${WEBAPI_HOST_PORT:-8081}"
+    env_file:
+      - .env   # Smtp__Host/Port/Security/UserName/Password/FromAddress/FromName — blank Host disables delivery
+    # No ports: — no public API, not reachable from the host.
+
   lf-webapi:
     build:
       context: .
       dockerfile: LF.WebApi/Dockerfile
     restart: unless-stopped
     networks:
-      - leanforge-public     # internet access for PmiAuth/GoogleAuth/YandexAuth OIDC
+      - leanforge-public     # internet access for PmiAuth/GoogleAuth/YandexAuth/VkIdAuth OIDC
       - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
     depends_on:
       postgres:
@@ -152,4 +180,4 @@ services:
       # Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
       Unleash__ApiUrl: ${UNLEASH_API_URL:-https://features.s-sidorov.ru/api/}
     env_file:
-      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret, VkIdAuth__ClientId/ClientSecret

@@ -139,6 +139,18 @@ jobs:
           cache-from: type=gha,scope=paymentservice
           cache-to: type=gha,mode=max,scope=paymentservice
 
+      - name: Build and push lf-notificationservice
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./LF.NotificationService/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/notificationservice:latest
+            ${{ env.IMAGE_PREFIX }}/notificationservice:${{ github.sha }}
+          cache-from: type=gha,scope=notificationservice
+          cache-to: type=gha,mode=max,scope=notificationservice
+
   deploy:
     name: Deploy to PROD
     runs-on: ubuntu-latest

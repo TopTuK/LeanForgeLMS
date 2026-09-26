@@ -4,6 +4,10 @@ export const fetchProfile = (config) => api.get('/Profile', config).then((r) => 
 
 export const updateProfile = (payload) => api.put('/Profile', payload).then((r) => r.data);
 
+// Stored server-side so emails (e.g. enrollment confirmations) go out in the user's UI language.
+export const updatePreferredLanguage = (language) =>
+  api.put('/profile/language', { language }).then((r) => r.data);
+
 // The avatar route requires the same JWT bearer auth as every other API call, so it can't be
 // used directly as an <img src>; fetch it as a blob and hand the caller an object URL instead.
 export const fetchAvatarObjectUrl = () =>

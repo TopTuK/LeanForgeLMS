@@ -7,6 +7,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Enrollment;
 using LF.Application.Services.Enrollment;
+using LF.Application.Services.Notifications;
 using Microsoft.Extensions.Logging.Abstractions;
 using MockQueryable.Moq;
 using Moq;
@@ -21,7 +22,8 @@ public class EnrollmentServiceTests
         IReadOnlyCollection<DomainCourse> courses,
         IReadOnlyCollection<DomainEnrollment> enrollments,
         out Mock<IAppDbContext> dbContextMock,
-        IReadOnlyCollection<PromoCode>? promoCodes = null)
+        IReadOnlyCollection<PromoCode>? promoCodes = null,
+        Mock<IEnrollmentNotifier>? notifierMock = null)
     {
         var coursesMock = courses.ToList().BuildMockDbSet();
         var enrollmentsMock = enrollments.ToList().BuildMockDbSet();
@@ -35,7 +37,8 @@ public class EnrollmentServiceTests
         dbContextMock.SetupGet(c => c.PromoCodes).Returns(promoCodesMock.Object);
         dbContextMock.Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System);
+        return new EnrollmentService(NullLogger<EnrollmentService>.Instance, dbContextMock.Object, TimeProvider.System,
+            (notifierMock ?? new Mock<IEnrollmentNotifier>()).Object);
     }
 
     private static DomainCourse CreatePublishedPaidCourse(int id = 1, int createdByUserId = 1, decimal price = 1000m)
@@ -770,6 +773,58 @@ public class EnrollmentServiceTests
 
         Assert.Equal(EnrollmentStatus.Active, result.Status);
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_FreeCourse_StagesConfirmationEmail()
+    {
+        var course = CreatePublishedCourse();
+        var notifierMock = new Mock<IEnrollmentNotifier>();
+        var service = CreateService([course], [], out _, notifierMock: notifierMock);
+
+        await service.EnrollAsync(course.Id, actingUserId: 7);
+
+        notifierMock.Verify(n => n.StageEnrollmentConfirmationAsync(7, "Title", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_PaidCourse_DoesNotEmailUntilPaid()
+    {
+        var course = CreatePublishedPaidCourse();
+        var notifierMock = new Mock<IEnrollmentNotifier>();
+        var service = CreateService([course], [], out _, notifierMock: notifierMock);
+
+        await service.EnrollAsync(course.Id, actingUserId: 7);
+
+        notifierMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ActivatePaidEnrollmentAsync_Pending_StagesConfirmationEmail()
+    {
+        var course = CreatePublishedPaidCourse(price: 1000m);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.PendingPayment, 1000m);
+        EntityIdSetter.SetId(enrollment, 11);
+        var notifierMock = new Mock<IEnrollmentNotifier>();
+        var service = CreateService([course], [enrollment], out _, notifierMock: notifierMock);
+
+        await service.ActivatePaidEnrollmentAsync(11, 1000m);
+
+        notifierMock.Verify(n => n.StageEnrollmentConfirmationAsync(7, "Paid", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ActivatePaidEnrollmentAsync_AlreadyActive_DoesNotEmailAgain()
+    {
+        var course = CreatePublishedPaidCourse(price: 1000m);
+        var enrollment = DomainEnrollment.Create(course.Id, userId: 7, DateTime.UtcNow, EnrollmentStatus.Active, 1000m);
+        EntityIdSetter.SetId(enrollment, 11);
+        var notifierMock = new Mock<IEnrollmentNotifier>();
+        var service = CreateService([course], [enrollment], out _, notifierMock: notifierMock);
+
+        await service.ActivatePaidEnrollmentAsync(11, 1000m);
+
+        notifierMock.VerifyNoOtherCalls();
     }
 
     [Fact]

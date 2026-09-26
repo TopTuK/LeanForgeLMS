@@ -91,6 +91,27 @@ internal sealed class GrpcIdentityService(ILogger<GrpcIdentityService> logger,
         }
     }
 
+    public async Task<UserDto?> UpdateUserLanguageAsync(int userId, string language)
+    {
+        _logger.LogInformation("GrpcIdentityService::UpdateUserLanguageAsync: called with UserId={usrId} Language={Language}", userId, language);
+
+        var request = new UpdateUserLanguageRequest
+        {
+            Id = userId,
+            Language = language,
+        };
+
+        try
+        {
+            var reply = await _userServiceRpcClient.UpdateUserLanguageAsync(request);
+            return reply.Adapt<UserDto>();
+        }
+        catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public async Task<UserDto> EnsureUserWithRoleAsync(EnsureUserWithRoleDto userRequestDto)
     {
         _logger.LogInformation("GrpcIdentityService::EnsureUserWithRoleAsync: called with Email={Email} Role={Role}",

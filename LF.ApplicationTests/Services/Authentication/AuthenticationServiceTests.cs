@@ -65,6 +65,24 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
+    public async Task AuthenticateVkUserAsync_DelegatesToIdentityService()
+    {
+        // Arrange
+        var request = new UserAuthentificationDto { Email = "vk@x.com", FirstName = "V", LastName = "K" };
+        var expected = new UserDto { Id = 10, Email = request.Email, FirstName = "V", LastName = "K" };
+        var identityMock = new Mock<IGrpcIdentityService>();
+        identityMock.Setup(s => s.GetOrCreateUserAsync(request)).ReturnsAsync(expected);
+        var service = new AuthenticationService(NullLogger<AuthenticationService>.Instance, identityMock.Object);
+
+        // Act
+        var result = await service.AuthenticateVkUserAsync(request);
+
+        // Assert
+        Assert.Same(expected, result);
+        identityMock.Verify(s => s.GetOrCreateUserAsync(request), Times.Once);
+    }
+
+    [Fact]
     public async Task AuthenticateDevUserAsync_DelegatesToIdentityService()
     {
         // Arrange

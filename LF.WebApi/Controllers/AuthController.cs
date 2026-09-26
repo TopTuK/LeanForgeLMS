@@ -1,5 +1,6 @@
 ﻿using LF.Application.ModelDto.Authentication;
 using LF.Application.ModelDto.User;
+using LF.WebApi.Common;
 using LF.WebApi.Models.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +19,7 @@ namespace LF.WebApi.Controllers
         IOptionsSnapshot<PmiAuthOptions> pmiAuthOptions,
         IOptionsSnapshot<GoogleAuthOptions> googleAuthOptions,
         IOptionsSnapshot<YandexAuthOptions> yandexAuthOptions,
+        IOptionsSnapshot<VkIdAuthOptions> vkIdAuthOptions,
         IWebHostEnvironment environment,
         LFAppAuth.IAuthenticationService authenticationService,
         LFAppAuth.ITokenService tokenService) : ControllerBase
@@ -29,6 +31,7 @@ namespace LF.WebApi.Controllers
         private readonly PmiAuthOptions _pmiAuthOptions = pmiAuthOptions.Value;
         private readonly GoogleAuthOptions _googleAuthOptions = googleAuthOptions.Value;
         private readonly YandexAuthOptions _yandexAuthOptions = yandexAuthOptions.Value;
+        private readonly VkIdAuthOptions _vkIdAuthOptions = vkIdAuthOptions.Value;
 
         private readonly LFAppAuth.IAuthenticationService _authenticationService = authenticationService;
         private readonly LFAppAuth.ITokenService _tokenService = tokenService;
@@ -122,6 +125,35 @@ namespace LF.WebApi.Controllers
                 _authenticationService.AuthenticateYandexUserAsync);
 
         [HttpGet]
+        [AllowAnonymous]
+        public IActionResult SignInVk([FromQuery] string? provider)
+        {
+            var vkIdProvider = VkIdProviders.Normalize(provider);
+            _logger.LogInformation("AuthController::SignInVk: Start VK ID authentication with provider {vkIdProvider}", vkIdProvider);
+
+            var schemeName = _vkIdAuthOptions.SchemeName;
+            var props = new AuthenticationProperties
+            {
+                RedirectUri = new PathString(_vkIdAuthOptions.RedirectUri),
+                Items =
+                {
+                    { "scheme", schemeName },
+                    { VkIdProviders.PropertiesKey, vkIdProvider },
+                }
+            };
+
+            _logger.LogInformation("AuthController::SignInVk: Start OAuth challenge with scheme name {schemeName}", schemeName);
+            return Challenge(props, schemeName);
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> SignInVkCallback()
+            => await HandleExternalSignInCallbackAsync(
+                "SignInVkCallback",
+                _authenticationService.AuthenticateVkUserAsync);
+
+        [HttpGet]
         [Authorize]
         public async Task<IActionResult> Logout()
         {
@@ -166,15 +198,20 @@ namespace LF.WebApi.Controllers
             {
                 var userAuthDto = ParseUserAuthDto(authResult.Principal);
 
-                if (userAuthDto.Sub is null || userAuthDto.Email is null)
+                if (string.IsNullOrWhiteSpace(userAuthDto.Sub) || string.IsNullOrWhiteSpace(userAuthDto.Email))
                 {
                     // Downstream lookup keys: log which claims actually arrived so a provider that
                     // changed its claim shape is obvious from the logs alone.
                     _logger.LogWarning(
-                        "AuthController::{actionName}: External principal is missing claims (sub present {hasSub}, email present {hasEmail}, name present {hasName}); received claim types {claimTypes}",
+                        "AuthController::{actionName}: External principal is missing claims (sub present {hasSub}, email present {hasEmail}, name present {hasName}); received claim types {claimTypes}. Redirecting to /login",
                         actionName, userAuthDto.Sub is not null, userAuthDto.Email is not null,
                         userAuthDto.FirstName is not null,
                         string.Join(',', authResult.Principal.Claims.Select(c => c.Type).Distinct()));
+
+                    // Users are looked up by email, so going on without one could match or create
+                    // the wrong account. VK ID in particular lets the user decline the email scope.
+                    await HttpContext.SignOutAsync(_authOptions.TempAuthCookieName);
+                    return LocalRedirect("/login?error=email_required");
                 }
 
                 _logger.LogInformation(
@@ -204,9 +241,10 @@ namespace LF.WebApi.Controllers
 
         private static UserAuthentificationDto ParseUserAuthDto(ClaimsPrincipal principal)
         {
-            string? firstName = null, lastName = string.Empty;
+            string? firstName = principal.Claims.FirstOrDefault(c => c.Type == "given_name")?.Value;
+            var lastName = principal.Claims.FirstOrDefault(c => c.Type == "family_name")?.Value ?? string.Empty;
             var name = principal.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
-            if (name is not null)
+            if (firstName is null && name is not null)
             {
                 var splitName = name.Split(' ');
                 firstName = splitName[0];

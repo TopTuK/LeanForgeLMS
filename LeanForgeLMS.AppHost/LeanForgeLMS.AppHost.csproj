@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LF.CourseService\LF.CourseService.csproj" />
     <ProjectReference Include="..\LF.IdentityService\Lf.IdentityService.csproj" />
+    <ProjectReference Include="..\LF.NotificationService\LF.NotificationService.csproj" />
     <ProjectReference Include="..\LF.PaymentService\LF.PaymentService.csproj" />
     <ProjectReference Include="..\LF.WebApi\LF.WebApi.csproj" />
   </ItemGroup>

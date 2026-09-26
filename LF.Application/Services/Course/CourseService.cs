@@ -5,6 +5,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.Services.Notifications;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,12 +18,16 @@ internal sealed class CourseService(
     ILogger<CourseService> logger,
     IAppDbContext dbContext,
     TimeProvider timeProvider,
-    IHtmlSanitizer htmlSanitizer) : ICourseService
+    IHtmlSanitizer htmlSanitizer,
+    IEnrollmentNotifier enrollmentNotifier,
+    ICourseChangeTracker courseChangeTracker) : ICourseService
 {
     private readonly ILogger<CourseService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly TimeProvider _timeProvider = timeProvider;
     private readonly IHtmlSanitizer _htmlSanitizer = htmlSanitizer;
+    private readonly IEnrollmentNotifier _enrollmentNotifier = enrollmentNotifier;
+    private readonly ICourseChangeTracker _courseChangeTracker = courseChangeTracker;
 
     public async Task<CourseDetailDto> CreateCourseAsync(CreateCourseDto dto, int createdByUserId)
     {
@@ -87,6 +92,7 @@ internal sealed class CourseService(
 
         var enrollment = DomainEnrollment.Create(courseId, targetUserId, _timeProvider.GetUtcNow().UtcDateTime, EnrollmentStatus.Active, 0m);
         _dbContext.Enrollments.Add(enrollment);
+        await _enrollmentNotifier.StageEnrollmentConfirmationAsync(targetUserId, course.Title);
         await _dbContext.SaveChangesAsync();
 
         var totalLessons = course.Chapters.Sum(ch => ch.Lessons.Count);
@@ -266,7 +272,8 @@ internal sealed class CourseService(
         if (chapter is null)
             return null;
 
-        chapter.AddLesson(dto.Title, _htmlSanitizer.Sanitize(dto.Content), dto.IncludeInPreview);
+        var lesson = chapter.AddLesson(dto.Title, _htmlSanitizer.Sanitize(dto.Content), dto.IncludeInPreview);
+        await _courseChangeTracker.TrackLessonChangeAsync(course, lesson, CourseContentChangeKind.LessonAdded);
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
@@ -288,9 +295,13 @@ internal sealed class CourseService(
         if (lesson is null)
             return null;
 
-        lesson.Rename(dto.Title);
-        lesson.UpdateContent(_htmlSanitizer.Sanitize(dto.Content));
+        // Non-short-circuiting '|': both edits must apply. The preview flag only affects the public
+        // course page, not what enrolled students see, so it is not announced.
+        var contentChanged = lesson.Rename(dto.Title) | lesson.UpdateContent(_htmlSanitizer.Sanitize(dto.Content));
         lesson.SetIncludeInPreview(dto.IncludeInPreview);
+        if (contentChanged)
+            await _courseChangeTracker.TrackLessonChangeAsync(course, lesson, CourseContentChangeKind.LessonUpdated);
+
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();
@@ -404,7 +415,9 @@ internal sealed class CourseService(
             inputs.Add(new LessonPartInput(part.PartType, html, storageObject, quizQuestions, part.QuizPassThresholdPercent, files));
         }
 
-        lesson.ReplaceParts(inputs);
+        if (lesson.ReplaceParts(inputs))
+            await _courseChangeTracker.TrackLessonChangeAsync(course, lesson, CourseContentChangeKind.LessonUpdated);
+
         await _dbContext.SaveChangesAsync();
 
         return course.Adapt<CourseDetailDto>();

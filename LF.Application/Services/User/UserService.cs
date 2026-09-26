@@ -90,6 +90,23 @@ internal sealed class UserService(ILogger<UserService> logger, IAppDbContext dbC
         return dbUser.Adapt<UserDto>();
     }
 
+    public async Task<UserDto?> UpdateUserLanguageAsync(int id, string language)
+    {
+        _logger.LogInformation("UserService::UpdateUserLanguageAsync: called with Id={usrId} Language={Language}", id, language);
+
+        var dbUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+        if (dbUser is null)
+        {
+            _logger.LogInformation("UserService::UpdateUserLanguageAsync: user with Id={usrId} not found", id);
+            return null;
+        }
+
+        if (dbUser.SetPreferredLanguage(language))
+            await _dbContext.SaveChangesAsync();
+
+        return dbUser.Adapt<UserDto>();
+    }
+
     public async Task<PagedUsersDto> ListUsersAsync(int page, int pageSize, string? search)
     {
         _logger.LogInformation("UserService::ListUsersAsync: called with Page={Page} PageSize={PageSize} Search={Search}", page, pageSize, search);

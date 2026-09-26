@@ -1,4 +1,5 @@
 using LF.Application;
+using LF.Application.Common.Options;
 using LF.CourseService.Services;
 using LF.Infrastructure;
 using Mapster;
@@ -19,6 +20,12 @@ try
     builder.Services.AddGrpc();
     builder.Services.AddCourseApplication();
     builder.Services.AddInfrastructureDatabase(builder.Configuration);
+
+    // Links in enrollment confirmation emails. Fails at startup rather than queueing emails with broken links.
+    builder.Services.AddOptions<AppUrlOptions>()
+        .BindConfiguration(AppUrlOptions.SectionName)
+        .Validate(options => options.IsValid, "App:PublicBaseUrl must be an absolute http(s) URL of the SPA.")
+        .ValidateOnStart();
 
     var app = builder.Build();
     app.UseDefaultRequestLogging();
