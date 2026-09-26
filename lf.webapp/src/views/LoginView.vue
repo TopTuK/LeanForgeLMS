@@ -1,13 +1,27 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { ArrowLeft } from 'lucide-vue-next';
 import authPmi from '@/assets/login/auth-pmi.png';
 import authGoogle from '@/assets/login/auth-google.png';
 import authYandex from '@/assets/login/auth-yandex.png';
+import authVk from '@/assets/login/auth-vk.svg';
+import authMailRu from '@/assets/login/auth-mailru.svg';
+import authOk from '@/assets/login/auth-ok.svg';
 import { trackLoginStarted } from '@/lib/analytics';
 
 const { tm } = useI18n();
+const route = useRoute();
+
+const isEmailRequiredError = computed(() => route.query.error === 'email_required');
+
+// One VK ID app signs in with VK, Mail.ru or OK; "provider" picks which login VK ID opens.
+const vkIdOptions = [
+  { provider: 'vkid', key: 'vk', analytics: 'vk', icon: authVk, no: '04' },
+  { provider: 'mail_ru', key: 'mailru', analytics: 'mail_ru', icon: authMailRu, no: '05' },
+  { provider: 'ok_ru', key: 'ok', analytics: 'ok', icon: authOk, no: '06' },
+];
 
 const benefits = computed(() => {
   const items = tm('login.benefits');
@@ -27,6 +41,11 @@ function signInWithGoogle() {
 function signInWithYandex() {
   trackLoginStarted('yandex');
   window.location.href = '/api/Auth/SignInYandex';
+}
+
+function signInWithVkId(option) {
+  trackLoginStarted(option.analytics);
+  window.location.href = `/api/Auth/SignInVk?provider=${option.provider}`;
 }
 </script>
 
@@ -72,6 +91,14 @@ function signInWithYandex() {
           class="mono-label login-console__tag"
           aria-hidden="true"
         >// auth</span>
+
+        <p
+          v-if="isEmailRequiredError"
+          role="alert"
+          class="login-console__error"
+        >
+          {{ $t('login.errors.emailRequired') }}
+        </p>
 
         <div class="login-console__options">
           <button
@@ -157,6 +184,38 @@ function signInWithYandex() {
             <span class="login-card__copy">
               <strong>{{ $t('login.yandex.title') }}</strong>
               <span>{{ $t('login.yandex.description') }}</span>
+            </span>
+            <span
+              class="login-card__arrow"
+              aria-hidden="true"
+            >→</span>
+          </button>
+
+          <button
+            v-for="option in vkIdOptions"
+            :key="option.provider"
+            type="button"
+            class="login-card"
+            @click="signInWithVkId(option)"
+          >
+            <span
+              class="login-card__no mono-label"
+              aria-hidden="true"
+            >{{ option.no }}</span>
+            <span
+              class="login-card__mark"
+              aria-hidden="true"
+            >
+              <img
+                :src="option.icon"
+                alt=""
+                width="44"
+                height="44"
+              >
+            </span>
+            <span class="login-card__copy">
+              <strong>{{ $t(`login.${option.key}.title`) }}</strong>
+              <span>{{ $t(`login.${option.key}.description`) }}</span>
             </span>
             <span
               class="login-card__arrow"
@@ -319,6 +378,18 @@ function signInWithYandex() {
   margin-bottom: 1.25rem;
   color: var(--band-ink-muted);
   text-align: left;
+}
+
+.login-console__error {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--band-ink);
+  background: color-mix(in srgb, var(--color-accent-coral) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent-coral) 55%, transparent);
+  border-radius: var(--radius-md);
 }
 
 .login-console__options {

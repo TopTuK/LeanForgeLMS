@@ -53,6 +53,7 @@ jobs:
           GoogleAuth__ClientSecret: ${{ secrets.GoogleAuth__ClientSecret }}
           YandexAuth__ClientId: ${{ secrets.YandexAuth__ClientId }}
           YandexAuth__ClientSecret: ${{ secrets.YandexAuth__ClientSecret }}
+          VkIdAuth__ClientSecret: ${{ secrets.VkIdAuth__ClientSecret }}
           Robokassa__MerchantLogin: ${{ secrets.Robokassa__MerchantLogin }}
           Robokassa__Password1: ${{ secrets.Robokassa__Password1 }}
           Robokassa__Password2: ${{ secrets.Robokassa__Password2 }}
@@ -70,6 +71,7 @@ jobs:
           WEBAPI_VIRTUAL_HOST: ${{ vars.WEBAPI_VIRTUAL_HOST || 'lms.s-sidorov.ru' }}
           WEBAPI_HOST_PORT: ${{ vars.WEBAPI_HOST_PORT || '8085' }}
           UNLEASH_API_URL: ${{ vars.UNLEASH_API_URL || 'https://features.s-sidorov.ru/api/' }}
+          VkIdAuth__ClientId: ${{ vars.VkIdAuth__ClientId || '54791326' }}
           Robokassa__HashAlgorithm: ${{ vars.Robokassa__HashAlgorithm || 'SHA256' }}
           Robokassa__IsTest: ${{ vars.Robokassa__IsTest || 'false' }}
           Robokassa__SuccessUrl: ${{ vars.Robokassa__SuccessUrl || 'https://lms.s-sidorov.ru/payments/success' }}
@@ -116,6 +118,8 @@ jobs:
             req GoogleAuth__ClientSecret
             req YandexAuth__ClientId
             req YandexAuth__ClientSecret
+            req VkIdAuth__ClientId
+            req VkIdAuth__ClientSecret
             echo ""
             req Robokassa__MerchantLogin
             req Robokassa__Password1

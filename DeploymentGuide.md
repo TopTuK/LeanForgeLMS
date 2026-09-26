@@ -75,6 +75,7 @@ proxy_busy_buffers_size 64k;
 | PMI Club (OIDC) | Primary login | Client ID + secret + discovery URL |
 | Google OAuth | Social login | Client ID + secret |
 | Yandex OAuth | Social login | Client ID + secret |
+| VK ID (id.vk.com) | Social login: VK, Mail.ru, OK | App ID + "Защищённый ключ" (secret). Redirect URL in the VK ID app: `https://<host>/auth/signin-vk` |
 | Robokassa | Paid enrollment | Merchant login + Password1 + Password2 |
 | **Unleash** | Feature flags | Server URL + **client** API token (see [§5](#5-feature-flags-unleash)) |
 | Sentry | Error monitoring | DSN — **optional**, blank disables it |
@@ -109,6 +110,7 @@ Values reach the apps through ASP.NET Core's double-underscore convention
 | `PmiAuth__ClientId` / `__ClientSecret` / `__OpenIdConfigurationUrl` | **Yes** | PMI Club OIDC |
 | `GoogleAuth__ClientId` / `__ClientSecret` | **Yes** | |
 | `YandexAuth__ClientId` / `__ClientSecret` | **Yes** | |
+| `VkIdAuth__ClientId` / `__ClientSecret` | **Yes** | VK ID app ID `54791326` + its protected key |
 | `Robokassa__MerchantLogin` / `__Password1` / `__Password2` | **Yes** | From the merchant cabinet |
 | `Robokassa__HashAlgorithm` | **Yes** | Must match the cabinet setting (`MD5`/`SHA256`/`SHA512`) |
 | `Robokassa__IsTest` | **Yes** | `false` for real payments |
@@ -164,6 +166,7 @@ Name each secret **exactly** as the `.env` key (names are case-insensitive):
 | `PmiAuth__ClientId` / `PmiAuth__ClientSecret` / `PmiAuth__OpenIdConfigurationUrl` | same |
 | `GoogleAuth__ClientId` / `GoogleAuth__ClientSecret` | same |
 | `YandexAuth__ClientId` / `YandexAuth__ClientSecret` | same |
+| `VkIdAuth__ClientSecret` | same |
 | `Robokassa__MerchantLogin` / `Robokassa__Password1` / `Robokassa__Password2` | same |
 
 **Optional secrets** — may be unset/blank: `Unleash__ApiKey` (blank ⇒ all flags off ⇒
@@ -178,6 +181,7 @@ default, so you only set the ones you want to override:
 | `WEBAPI_VIRTUAL_HOST` | `lms.s-sidorov.ru` |
 | `WEBAPI_HOST_PORT` | `8085` |
 | `UNLEASH_API_URL` | `https://features.s-sidorov.ru/api/` |
+| `VkIdAuth__ClientId` | `54791326` |
 | `Robokassa__HashAlgorithm` | `SHA256` |
 | `Robokassa__IsTest` | `false` |
 | `Robokassa__SuccessUrl` / `Robokassa__FailUrl` | `https://lms.s-sidorov.ru/payments/{success,fail}` |

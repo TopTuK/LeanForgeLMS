@@ -146,7 +146,7 @@ services:
       dockerfile: LF.WebApi/Dockerfile
     restart: unless-stopped
     networks:
-      - leanforge-public     # internet access for PmiAuth/GoogleAuth/YandexAuth OIDC
+      - leanforge-public     # internet access for PmiAuth/GoogleAuth/YandexAuth/VkIdAuth OIDC
       - leanforge-internal   # reach lf-identityservice/lf-courseservice via gRPC
     depends_on:
       postgres:
@@ -180,4 +180,4 @@ services:
       # Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
       Unleash__ApiUrl: ${UNLEASH_API_URL:-https://features.s-sidorov.ru/api/}
     env_file:
-      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret
+      - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret, VkIdAuth__ClientId/ClientSecret

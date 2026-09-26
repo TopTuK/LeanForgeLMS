@@ -828,6 +828,21 @@
             "title": "Continue with Yandex",
             "description": "Use your Yandex account to sign in."
         },
+        "vk": {
+            "title": "Continue with VK",
+            "description": "Use your VK account to sign in via VK ID."
+        },
+        "mailru": {
+            "title": "Continue with Mail.ru",
+            "description": "Use your Mail.ru account to sign in via VK ID."
+        },
+        "ok": {
+            "title": "Continue with OK",
+            "description": "Use your Odnoklassniki account to sign in via VK ID."
+        },
+        "errors": {
+            "emailRequired": "We could not get an email address from your account. Allow access to your email when signing in, or choose another sign-in option."
+        },
         "note": "Authentication is provided securely by the selected service.",
         "benefits": [
             "Self-paced chapters and lessons",
