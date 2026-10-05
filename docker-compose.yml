@@ -31,8 +31,9 @@ services:
     # No ports: — internal-only, not host-exposed.
 
   minio:
-    # MinIO withdrew minio/minio from Docker Hub (2026-09-11); quay.io is its official home.
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # MinIO withdrew minio/minio from Docker Hub (2026-09-11) and quay.io/minio/minio now
+    # requires auth (401). pgsty/minio is a maintained community build of the same server.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     restart: unless-stopped
     networks:
       - leanforge-internal
