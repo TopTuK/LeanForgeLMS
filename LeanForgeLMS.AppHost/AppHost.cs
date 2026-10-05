@@ -47,10 +47,13 @@ var smtpFromAddress = builder.AddParameter(
     () => builder.Configuration["SMTP_FROM_ADDRESS"] ?? builder.Configuration["SMTP_USERNAME"] ?? string.Empty);
 
 // The toolkit defaults to docker.io/minio/minio, which MinIO withdrew from Docker Hub
-// (2026-09-11). Same image and tag, served from quay.io — MinIO's official registry.
+// (2026-09-11); quay.io/minio/minio now requires auth too. pgsty/minio is a maintained
+// community build of the same server — keep the tag in sync with docker-compose*.yml.
 var minio = builder
     .AddMinioContainer("minio", minioUser, minioPassword, port: 9000)
-    .WithImageRegistry("quay.io")
+    .WithImageRegistry("docker.io")
+    .WithImage("pgsty/minio")
+    .WithImageTag("RELEASE.2026-08-04T00-00-00Z")
     .WithDataVolume("leanforge-minio-data");
 
 var identityService = builder
