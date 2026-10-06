@@ -3,9 +3,11 @@ using AspNet.Security.OAuth.Yandex;
 using Duende.IdentityModel.Client;
 using LF.AppDomain.Models.User.Enums;
 using LF.Application;
+using LF.Application.Common.Interfaces;
 using LF.Infrastructure;
 using LF.WebApi.Common;
 using LF.WebApi.Endpoints;
+using LF.WebApi.Hubs;
 using LF.WebApi.Models.Options;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -39,6 +41,9 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     // Needed for IStorageService/IStorageRepository (StorageObject metadata) — LF.WebApi is the only
     // host with both MinIO and DB access, since a course-cover/lesson-media upload needs both in one call.
     services.AddInfrastructureDatabase(configuration);
+    // Group chat push channel; the hub itself is mapped by GroupChatHubEndpoints.
+    services.AddSignalR();
+    services.AddScoped<IGroupChatNotifier, SignalRGroupChatNotifier>();
 }
 
 static void MapEndpointGroups(WebApplication app)

@@ -1,10 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bell, Menu, MessageCircleQuestion } from 'lucide-vue-next';
+import { Bell, CalendarDays, Menu, MessageCircleQuestion, Users } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useQuestionStore } from '@/stores/questionStore';
+import { useGroupChatStore } from '@/stores/groupChatStore';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton.vue';
 import LocaleToggleButton from '@/components/layout/LocaleToggleButton.vue';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,10 @@ const unreadBadge = computed(() => (unreadCount.value > 9 ? '9+' : String(unread
 const questionStore = useQuestionStore();
 const unreadQuestionCount = computed(() => questionStore.unreadCount);
 const unreadQuestionBadge = computed(() => (unreadQuestionCount.value > 9 ? '9+' : String(unreadQuestionCount.value)));
+
+const groupChatStore = useGroupChatStore();
+const unreadChatCount = computed(() => groupChatStore.totalUnread);
+const unreadChatBadge = computed(() => (unreadChatCount.value > 9 ? '9+' : String(unreadChatCount.value)));
 
 function closeMobile() {
   mobileOpen.value = false;
@@ -71,6 +76,32 @@ function go(name) {
           class="text-sm font-medium text-ink-muted transition hover:text-ink"
         >
           {{ $t('nav.courses') }}
+        </router-link>
+        <router-link
+          :to="{ name: 'Schedule' }"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-ink"
+        >
+          <CalendarDays
+            class="size-4"
+            aria-hidden="true"
+          />
+          {{ $t('nav.schedule') }}
+        </router-link>
+        <router-link
+          :to="{ name: 'Groups' }"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-ink"
+          :aria-label="unreadChatCount ? $t('nav.groups_unread', { count: unreadChatCount }) : undefined"
+        >
+          <Users
+            class="size-4"
+            aria-hidden="true"
+          />
+          {{ $t('nav.groups') }}
+          <span
+            v-if="unreadChatCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadChatBadge }}</span>
         </router-link>
         <router-link
           :to="{ name: 'Notifications' }"
@@ -166,6 +197,26 @@ function go(name) {
           @click="go('Courses')"
         >
           {{ $t('nav.courses') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          @click="go('Schedule')"
+        >
+          {{ $t('nav.schedule') }}
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium text-ink-muted hover:bg-surface-900 hover:text-ink"
+          :aria-label="unreadChatCount ? $t('nav.groups_unread', { count: unreadChatCount }) : undefined"
+          @click="go('Groups')"
+        >
+          {{ $t('nav.groups') }}
+          <span
+            v-if="unreadChatCount"
+            class="app-header__unread"
+            aria-hidden="true"
+          >{{ unreadChatBadge }}</span>
         </button>
         <button
           type="button"

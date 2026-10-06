@@ -1,5 +1,6 @@
 using LF.AppDomain.Entities.Course;
 using LF.AppDomain.Entities.Email;
+using LF.AppDomain.Entities.Groups;
 using LF.AppDomain.Entities.News;
 using LF.AppDomain.Entities.Payment;
 using LF.AppDomain.Entities.Qna;
@@ -28,6 +29,10 @@ internal sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbC
     public DbSet<LessonQuestionReadMarker> LessonQuestionReadMarkers { get; set; } = null!;
     public DbSet<EmailMessage> EmailMessages { get; set; } = null!;
     public DbSet<CourseContentChange> CourseContentChanges { get; set; } = null!;
+    public DbSet<StudentGroup> StudentGroups { get; set; } = null!;
+    public DbSet<Lecture> Lectures { get; set; } = null!;
+    public DbSet<GroupChatMessage> GroupChatMessages { get; set; } = null!;
+    public DbSet<GroupChatReadMarker> GroupChatReadMarkers { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

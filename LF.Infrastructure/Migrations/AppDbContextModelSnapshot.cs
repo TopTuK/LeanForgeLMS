@@ -555,6 +555,196 @@ namespace LF.Infrastructure.Migrations
                     b.ToTable("LFEmailMessages", (string)null);
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.GroupChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DeletedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId", "Id");
+
+                    b.ToTable("LFGroupChatMessages", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.GroupChatReadMarker", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LastSeenMessageId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GroupId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LFGroupChatReadMarkers", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.Lecture", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "StartsAt");
+
+                    b.ToTable("LFLectures", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.LectureGroup", b =>
+                {
+                    b.Property<int>("LectureId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("LectureId", "GroupId");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("LFLectureGroups", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.StudentGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CourseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("LFStudentGroups", (string)null);
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.StudentGroupMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("AddedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GroupId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LFStudentGroupMembers", (string)null);
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.News.NewsImage", b =>
                 {
                     b.Property<int>("Id")
@@ -1098,6 +1288,66 @@ namespace LF.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.GroupChatMessage", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Groups.StudentGroup", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.GroupChatReadMarker", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Groups.StudentGroup", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.Lecture", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.LectureGroup", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Groups.StudentGroup", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LF.AppDomain.Entities.Groups.Lecture", null)
+                        .WithMany("Groups")
+                        .HasForeignKey("LectureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.StudentGroup", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Course.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.StudentGroupMember", b =>
+                {
+                    b.HasOne("LF.AppDomain.Entities.Groups.StudentGroup", null)
+                        .WithMany("Members")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LF.AppDomain.Entities.News.NewsImage", b =>
                 {
                     b.HasOne("LF.AppDomain.Entities.News.NewsPost", null)
@@ -1178,6 +1428,16 @@ namespace LF.Infrastructure.Migrations
             modelBuilder.Entity("LF.AppDomain.Entities.Course.QuizQuestion", b =>
                 {
                     b.Navigation("Options");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.Lecture", b =>
+                {
+                    b.Navigation("Groups");
+                });
+
+            modelBuilder.Entity("LF.AppDomain.Entities.Groups.StudentGroup", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("LF.AppDomain.Entities.News.NewsPost", b =>
