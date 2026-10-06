@@ -91,8 +91,9 @@ public static class DependencyInjection
         return services;
     }
 
-    // Unleash-backed IFeatureFlagService for LF.WebApi. The three gRPC hosts deliberately do not
-    // call this: they run on an egress-less internal network and cannot reach the Unleash server.
+    // Unleash-backed IFeatureFlagService for LF.WebApi and LF.NotificationService — both sit on
+    // the public-egress network. LF.IdentityService/LF.CourseService/LF.PaymentService deliberately
+    // do not call this: they run on an egress-less internal network and cannot reach the Unleash server.
     public static IServiceCollection AddInfrastructureFeatureFlags(this IServiceCollection services, IConfiguration configuration)
     {
         var section = configuration.GetSection(UnleashOptions.SectionName);

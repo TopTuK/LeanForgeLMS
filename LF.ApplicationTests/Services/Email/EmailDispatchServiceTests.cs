@@ -1,5 +1,6 @@
 using LF.AppDomain.Entities.Email;
 using LF.AppDomain.Models.Email.Enums;
+using LF.Application.Common;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Email;
@@ -23,7 +24,8 @@ public class EmailDispatchServiceTests
     private static EmailDispatchService CreateService(
         IReadOnlyCollection<EmailMessage> messages,
         out Mock<IAppDbContext> dbContextMock,
-        out Mock<IEmailSender> senderMock)
+        out Mock<IEmailSender> senderMock,
+        bool sendMailsEnabled = true)
     {
         var messagesMock = messages.ToList().BuildMockDbSet();
 
@@ -33,11 +35,17 @@ public class EmailDispatchServiceTests
 
         senderMock = new Mock<IEmailSender>();
 
+        var featureFlagsMock = new Mock<IFeatureFlagService>();
+        featureFlagsMock
+            .Setup(f => f.IsEnabledAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(sendMailsEnabled);
+
         return new EmailDispatchService(
             NullLogger<EmailDispatchService>.Instance,
             dbContextMock.Object,
             senderMock.Object,
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            featureFlagsMock.Object);
     }
 
     private static EmailMessage Message(int id, string to, DateTime? notBefore = null)
@@ -130,6 +138,45 @@ public class EmailDispatchServiceTests
         Assert.Equal(0, result.Total);
         senderMock.VerifyNoOtherCalls();
         dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchDueAsync_SendMailsFlagDisabled_SkipsDispatchEntirely()
+    {
+        var due = Message(1, "due@example.com");
+        var service = CreateService([due], out var dbContextMock, out var senderMock, sendMailsEnabled: false);
+
+        var result = await service.DispatchDueAsync(batchSize: 10, maxAttempts: 3);
+
+        Assert.Equal(new EmailDispatchResult(0, 0, 0), result);
+        senderMock.VerifyNoOtherCalls();
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Equal(EmailMessageStatus.Pending, due.Status);
+    }
+
+    [Fact]
+    public async Task DispatchDueAsync_ChecksSendMailsFlag()
+    {
+        var featureFlagsMock = new Mock<IFeatureFlagService>();
+        featureFlagsMock
+            .Setup(f => f.IsEnabledAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var dbContextMock = new Mock<IAppDbContext>();
+        dbContextMock.SetupGet(c => c.EmailMessages).Returns(new List<EmailMessage>().BuildMockDbSet().Object);
+
+        var service = new EmailDispatchService(
+            NullLogger<EmailDispatchService>.Instance,
+            dbContextMock.Object,
+            Mock.Of<IEmailSender>(),
+            new FixedTimeProvider(Now),
+            featureFlagsMock.Object);
+
+        await service.DispatchDueAsync(batchSize: 10, maxAttempts: 3);
+
+        featureFlagsMock.Verify(
+            f => f.IsEnabledAsync(FeatureFlags.SendMails, null, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Theory]

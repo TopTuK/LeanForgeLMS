@@ -128,6 +128,7 @@ public class DependencyInjectionTests
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddScoped(_ => Mock.Of<IAppDbContext>());
         services.AddScoped(_ => Mock.Of<IEmailSender>());
+        services.AddSingleton(Mock.Of<IFeatureFlagService>());
         services.Configure<AppUrlOptions>(o => o.PublicBaseUrl = "https://lms.example.com");
         services.AddNotificationApplication();
 

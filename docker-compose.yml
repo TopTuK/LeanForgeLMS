@@ -137,8 +137,11 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
       # Public SPA URL for links in course-update digest emails.
       App__PublicBaseUrl: "http://localhost:${WEBAPI_HOST_PORT:-8081}"
+      # Unleash feature flags (lf.send_mails kill-switch, checked live on every dispatch tick).
+      # Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
+      Unleash__ApiUrl: ${UNLEASH_API_URL:-https://features.s-sidorov.ru/api/}
     env_file:
-      - .env   # Smtp__Host/Port/Security/UserName/Password/FromAddress/FromName — blank Host disables delivery
+      - .env   # Smtp__Host/Port/Security/UserName/Password/FromAddress/FromName — blank Host disables delivery; Unleash__ApiKey
     # No ports: — no public API, not reachable from the host.
 
   lf-webapi:
@@ -176,9 +179,9 @@ services:
       # only container with both MinIO and DB access, since an upload needs both in one call.
       ConnectionStrings__leanforge: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-leanforge};Username=${POSTGRES_USER:-leanforge};Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
       SENTRY_DSN: ${SENTRY_DSN:-}   # optional backend error monitoring; empty = Sentry disabled
-      # Unleash feature flags (self-enrollment kill-switch). Only lf-webapi evaluates flags — it is
-      # the one container on leanforge-public, so the only one that can reach the server at all.
-      # Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
+      # Unleash feature flags (self-enrollment kill-switch). lf-webapi and lf-notificationservice
+      # evaluate flags — both are on leanforge-public, so both can reach the server; the egress-less
+      # gRPC services cannot. Unleash__ApiKey comes from .env; an empty key leaves every flag off (fail-closed).
       Unleash__ApiUrl: ${UNLEASH_API_URL:-https://features.s-sidorov.ru/api/}
     env_file:
       - .env   # DefaultAuth__JwtKey, PmiAuth__ClientId/ClientSecret/OpenIdConfigurationUrl, GoogleAuth__ClientId/ClientSecret, YandexAuth__ClientId/ClientSecret, VkIdAuth__ClientId/ClientSecret

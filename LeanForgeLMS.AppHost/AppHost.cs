@@ -27,8 +27,9 @@ var sentryDsn = builder.AddParameter(
     () => builder.Configuration["SENTRY_DSN"] ?? string.Empty,
     secret: true);
 
-// Unleash client API token for the feature flag server. Only lf-webapi needs it — the gRPC
-// services never evaluate flags. Empty when unset, which leaves every flag off.
+// Unleash client API token for the feature flag server. lf-webapi and lf-notificationservice
+// need it; the egress-less gRPC services never evaluate flags. Empty when unset, which leaves
+// every flag off.
 var unleashApiKey = builder.AddParameter(
     "unleash-api-key",
     () => builder.Configuration["UNLEASH_API_KEY"] ?? string.Empty,
@@ -84,6 +85,7 @@ builder
     .WithEnvironment("Smtp__UserName", smtpUserName)
     .WithEnvironment("Smtp__Password", smtpPassword)
     .WithEnvironment("Smtp__FromAddress", smtpFromAddress)
+    .WithEnvironment("Unleash__ApiKey", unleashApiKey)
     .WithReference(postgres)
     .WaitFor(postgres)
     .WaitForStart(identityService);
