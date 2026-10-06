@@ -35,17 +35,48 @@ async function ensureStarted() {
   return conn;
 }
 
-export async function joinGroupChat(groupId) {
-  const conn = await ensureStarted();
-  await conn.invoke('JoinGroup', groupId);
-  joinedGroups.add(groupId);
+// Several views (or an old and a new instance of the same view during navigation) can want the same
+// group. Each caller owns a token; the group stays joined while any token is held. Join/leave for one
+// group run strictly in order, so a leave can't overtake an in-flight join and strand the subscription.
+const owners = new Map();
+const queues = new Map();
+
+function enqueue(groupId, operation) {
+  const next = (queues.get(groupId) ?? Promise.resolve()).catch(() => {}).then(operation);
+  queues.set(groupId, next);
+  return next;
 }
 
-export async function leaveGroupChat(groupId) {
-  joinedGroups.delete(groupId);
-  if (connection?.state === HubConnectionState.Connected) {
-    await connection.invoke('LeaveGroup', groupId);
-  }
+// Returns { ready, leave }: `ready` settles once subscribed (rejects if the hub refuses), and `leave`
+// releases only this caller's ownership.
+export function joinGroupChat(groupId) {
+  const token = Symbol(`group-chat:${groupId}`);
+  if (!owners.has(groupId)) owners.set(groupId, new Set());
+  owners.get(groupId).add(token);
+
+  const ready = enqueue(groupId, async () => {
+    // Released before this join got its turn: don't subscribe on behalf of a view that is gone.
+    if (!owners.get(groupId)?.has(token) || joinedGroups.has(groupId)) return;
+    const conn = await ensureStarted();
+    await conn.invoke('JoinGroup', groupId);
+    joinedGroups.add(groupId);
+  });
+
+  const leave = () => {
+    const tokens = owners.get(groupId);
+    if (!tokens?.delete(token) || tokens.size > 0) return Promise.resolve();
+    owners.delete(groupId);
+
+    return enqueue(groupId, async () => {
+      // Re-acquired by another caller while this leave was queued.
+      if (owners.has(groupId) || !joinedGroups.delete(groupId)) return;
+      if (connection?.state === HubConnectionState.Connected) {
+        await connection.invoke('LeaveGroup', groupId);
+      }
+    });
+  };
+
+  return { ready, leave };
 }
 
 // Returns an unsubscribe function. The handler's return value is swallowed: the SignalR client treats

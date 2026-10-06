@@ -127,7 +127,8 @@ public sealed class CourseEndpoints : IEndpointGroup
   - **Lectures**: a UTC start time, a duration and an http(s) `MeetingUrl` (an external link; the LMS hosts no video). A lecture targets one or more groups, all from its own course.
   - **Chat**: sent over REST (`GroupChatEndpoints`) and pushed live by the SignalR hub `/hubs/group-chat` (`LF.WebApi/Hubs/GroupChatHub`, mapped by `GroupChatHubEndpoints`). The hub is push-only: `JoinGroup`/`LeaveGroup` plus the `messagePosted` and `messageDeleted` events. The Application layer only knows `IGroupChatNotifier`; `SignalRGroupChatNotifier` implements it.
     - The hub authenticates with the same HttpOnly session cookie on the same-origin WebSocket handshake. No query-string token is needed.
-    - SignalR groups are in-process, so this is correct only while LF.WebApi runs as a **single replica**. Scaling out needs a backplane.
+    - Subscriptions live in the in-process `GroupChatConnectionRegistry` (connection → user → group), not SignalR groups. Every push is re-filtered against the current recipient list that `GroupChatService` computes, so a connection whose user has lost access (removed from the group, or enrollment removed) stops receiving and is dropped. A push failure after commit is logged and never fails the request.
+    - This is in-process state, so it's correct only while LF.WebApi runs as a **single replica**. Scaling out needs a backplane and a shared registry.
     - Pushes are viewer-neutral (`IsMine=false`). The SPA tells its own messages apart by comparing `authorUserId` with `viewerUserId` from the history response.
     - SPA hub handlers must not return a value; `groupChatHub.onGroupChatEvent` wraps them for this reason.
   - **Teaching list**: `GET /api/teaching/courses` lists created **and** assigned courses. The gRPC `ListCourses` is owner-only, and assigned instructors still cannot open the content editor.

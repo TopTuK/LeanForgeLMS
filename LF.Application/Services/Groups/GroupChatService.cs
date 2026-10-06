@@ -1,4 +1,5 @@
 using LF.AppDomain.Entities.Groups;
+using LF.AppDomain.Models.Course.Enums;
 using LF.Application.Common.Access;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
@@ -73,7 +74,9 @@ internal sealed class GroupChatService(
         var dto = (await ToDtosAsync([message], courseId.Value, actingUserId, cancellationToken))[0];
 
         // Broadcast copy is viewer-neutral: it goes to every subscriber, the author's other tabs included.
-        await _notifier.MessagePostedAsync(CopyWithIsMine(dto, isMine: false), cancellationToken);
+        var broadcast = CopyWithIsMine(dto, isMine: false);
+        await PushAfterCommitAsync(groupId, courseId.Value, broadcast.Id,
+            (recipients, ct) => _notifier.MessagePostedAsync(broadcast, recipients, ct));
 
         return dto;
     }
@@ -106,7 +109,8 @@ internal sealed class GroupChatService(
         if (message.SoftDelete(actingUserId, _timeProvider.GetUtcNow().UtcDateTime))
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
-            await _notifier.MessageDeletedAsync(groupId, messageId, cancellationToken);
+            await PushAfterCommitAsync(groupId, courseId.Value, messageId,
+                (recipients, ct) => _notifier.MessageDeletedAsync(groupId, messageId, recipients, ct));
         }
 
         return (await ToDtosAsync([message], courseId.Value, actingUserId, cancellationToken))[0];
@@ -224,6 +228,55 @@ internal sealed class GroupChatService(
                 IsMine = m.AuthorUserId == viewerUserId,
             }),
         ];
+    }
+
+    // The change is already committed, so a failed push must not turn a successful request into an
+    // error (the client would retry and duplicate the message); readers catch up from history.
+    // CancellationToken.None: the author aborting their request must not cancel delivery to others.
+    private async Task PushAfterCommitAsync(
+        int groupId,
+        int courseId,
+        int messageId,
+        Func<IReadOnlyCollection<int>, CancellationToken, Task> push)
+    {
+        try
+        {
+            var recipients = await GetChatParticipantIdsAsync(groupId, courseId, CancellationToken.None);
+            await push(recipients, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GroupChatService::PushAfterCommitAsync: real-time push failed for group {GroupId} message {MessageId}",
+                groupId, messageId);
+        }
+    }
+
+    // Everyone who may read the group right now; mirrors HasAccessAsync minus the admin bypass, which
+    // the notifier applies per connection.
+    private async Task<IReadOnlyCollection<int>> GetChatParticipantIdsAsync(int groupId, int courseId, CancellationToken cancellationToken)
+    {
+        var creatorId = await _dbContext.Courses
+            .AsNoTracking()
+            .Where(c => c.Id == courseId)
+            .Select(c => c.CreatedByUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var instructorIds = await _dbContext.CourseInstructors
+            .AsNoTracking()
+            .Where(i => i.CourseId == courseId)
+            .Select(i => i.UserId)
+            .ToListAsync(cancellationToken);
+
+        var memberIds = await _dbContext.StudentGroups
+            .AsNoTracking()
+            .Where(g => g.Id == groupId)
+            .SelectMany(g => g.Members)
+            .Select(m => m.UserId)
+            .Where(userId => _dbContext.Enrollments.Any(e =>
+                e.CourseId == courseId && e.UserId == userId && e.Status == EnrollmentStatus.Active))
+            .ToListAsync(cancellationToken);
+
+        return [.. instructorIds.Concat(memberIds).Append(creatorId).ToHashSet()];
     }
 
     private static GroupChatMessageDto CopyWithIsMine(GroupChatMessageDto dto, bool isMine) => new()

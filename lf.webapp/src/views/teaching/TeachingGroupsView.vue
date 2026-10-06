@@ -129,10 +129,17 @@ async function confirmDelete() {
   }
 }
 
-function openPicker() {
+// Re-fetched on every open so students who enrolled while this page was open show up; candidates
+// still filters out the selected group's current members.
+async function openPicker() {
   picked.value = [];
   pickerSearch.value = '';
   pickerOpen.value = true;
+  try {
+    eligible.value = await fetchEligibleStudents(courseId.value);
+  } catch {
+    errorMessage.value = t('teaching.groups.load_error');
+  }
 }
 
 async function addPicked() {

@@ -1222,7 +1222,8 @@
             "cancelled": "Cancelled",
             "load_error": "Could not load lectures.",
             "save_error": "Could not save the lecture.",
-            "groups_required": "Select at least one group."
+            "groups_required": "Select at least one group.",
+            "starts_at_required": "Pick a valid start date and time."
         }
     },
     "schedule": {

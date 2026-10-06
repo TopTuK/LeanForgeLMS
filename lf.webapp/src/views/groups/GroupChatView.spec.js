@@ -29,10 +29,10 @@ vi.mock('@/services/groupChatService', () => ({
 }));
 
 const handlers = {};
+const leaves = {};
 vi.mock('@/services/groupChatHub', () => ({
   GroupChatEvents: { messagePosted: 'messagePosted', messageDeleted: 'messageDeleted' },
-  joinGroupChat: vi.fn().mockResolvedValue(undefined),
-  leaveGroupChat: vi.fn().mockResolvedValue(undefined),
+  joinGroupChat: vi.fn(),
   onGroupChatEvent: vi.fn((name, handler) => {
     handlers[name] = handler;
     return () => {};
@@ -67,6 +67,11 @@ describe('GroupChatView', () => {
     vi.clearAllMocks();
     // Handlers from the previous test belong to an unmounted component.
     Object.keys(handlers).forEach((name) => delete handlers[name]);
+    route.params.groupId = '3';
+    joinGroupChat.mockImplementation((id) => {
+      leaves[id] = vi.fn().mockResolvedValue(undefined);
+      return { ready: Promise.resolve(), leave: leaves[id] };
+    });
     fetchGroup.mockResolvedValue({
       id: 3,
       courseId: 7,
@@ -129,5 +134,34 @@ describe('GroupChatView', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent("You do not have access to this group's chat.");
     expect(joinGroupChat).not.toHaveBeenCalled();
+  });
+
+  it('switches groups in place: releases the old group and loads and joins the new one', async () => {
+    render();
+    await screen.findByText('Welcome!');
+    await waitFor(() => expect(joinGroupChat).toHaveBeenCalledWith(3));
+
+    fetchGroup.mockResolvedValue({
+      id: 4, courseId: 7, courseTitle: 'Kotlin Basics', name: 'Stream B', canManage: false, members: [],
+    });
+    fetchGroupMessages.mockResolvedValue({
+      items: [message({ id: 10, groupId: 4, body: 'Other room' })], hasMore: false, viewerUserId: VIEWER,
+    });
+    route.params.groupId = '4';
+
+    expect(await screen.findByText('Other room')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome!')).not.toBeInTheDocument();
+    expect(leaves[3]).toHaveBeenCalled();
+    await waitFor(() => expect(joinGroupChat).toHaveBeenCalledWith(4));
+  });
+
+  it('releases the joined group on unmount', async () => {
+    const { unmount } = render();
+    await screen.findByText('Welcome!');
+    await waitFor(() => expect(joinGroupChat).toHaveBeenCalledWith(3));
+
+    unmount();
+
+    expect(leaves[3]).toHaveBeenCalled();
   });
 });

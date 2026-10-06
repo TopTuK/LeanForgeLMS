@@ -25,8 +25,10 @@ export function toLocalInputValue(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// Null for an empty or partially typed value, which would otherwise make toISOString() throw.
 export function fromLocalInputValue(value) {
-  return new Date(value).toISOString();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 // Join opens shortly before the start so students can get in early, and closes when the lecture ends.

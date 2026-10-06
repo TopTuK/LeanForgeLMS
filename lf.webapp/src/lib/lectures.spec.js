@@ -29,6 +29,10 @@ describe('lectures lib', () => {
     expect(fromLocalInputValue(local)).toBe(iso);
   });
 
+  it.each([[''], ['not a date']])('returns null for an unusable input value %j', (value) => {
+    expect(fromLocalInputValue(value)).toBeNull();
+  });
+
   it.each([
     ['closed too early', '2026-10-07T09:40:00Z', false],
     ['open inside the 15 minute window', '2026-10-07T09:46:00Z', true],

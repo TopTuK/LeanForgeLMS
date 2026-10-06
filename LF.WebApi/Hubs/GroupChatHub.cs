@@ -11,15 +11,14 @@ namespace LF.WebApi.Hubs;
 // and error mapping live in one place. Authenticated by the same HttpOnly session cookie as the API,
 // which the browser sends on the same-origin WebSocket handshake.
 [Authorize]
-internal sealed class GroupChatHub(IGroupChatService chatService) : Hub
+internal sealed class GroupChatHub(IGroupChatService chatService, GroupChatConnectionRegistry registry) : Hub
 {
     public const string Path = "/hubs/group-chat";
     public const string MessagePostedEvent = "messagePosted";
     public const string MessageDeletedEvent = "messageDeleted";
 
     private readonly IGroupChatService _chatService = chatService;
-
-    public static string GroupKey(int groupId) => $"group:{groupId}";
+    private readonly GroupChatConnectionRegistry _registry = registry;
 
     public async Task JoinGroup(int groupId)
     {
@@ -29,9 +28,18 @@ internal sealed class GroupChatHub(IGroupChatService chatService) : Hub
         if (!await _chatService.CanAccessAsync(groupId, userId, isAdmin, Context.ConnectionAborted))
             throw new HubException("You do not have access to this group's chat.");
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, GroupKey(groupId), Context.ConnectionAborted);
+        _registry.Add(groupId, Context.ConnectionId, new GroupChatSubscriber(userId, isAdmin));
     }
 
-    public Task LeaveGroup(int groupId) =>
-        Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupKey(groupId), Context.ConnectionAborted);
+    public Task LeaveGroup(int groupId)
+    {
+        _registry.Remove(groupId, Context.ConnectionId);
+        return Task.CompletedTask;
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        _registry.RemoveConnection(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
+    }
 }

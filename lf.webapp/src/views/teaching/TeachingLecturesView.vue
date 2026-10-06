@@ -111,12 +111,18 @@ async function save() {
     return;
   }
 
+  const startsAt = fromLocalInputValue(form.value.startsAt);
+  if (!startsAt) {
+    formError.value = t('teaching.lectures.starts_at_required');
+    return;
+  }
+
   saving.value = true;
   formError.value = '';
   const payload = {
     title: form.value.title.trim(),
     description: form.value.description.trim() || null,
-    startsAt: fromLocalInputValue(form.value.startsAt),
+    startsAt,
     durationMinutes: Number(form.value.durationMinutes),
     meetingUrl: form.value.meetingUrl.trim() || null,
     groupIds: form.value.groupIds,

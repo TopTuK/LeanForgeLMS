@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ArrowLeft, Send, Trash2 } from 'lucide-vue-next';
@@ -10,7 +10,7 @@ import {
   postGroupMessage,
   removeGroupMessage,
 } from '@/services/groupChatService';
-import { GroupChatEvents, joinGroupChat, leaveGroupChat, onGroupChatEvent } from '@/services/groupChatHub';
+import { GroupChatEvents, joinGroupChat, onGroupChatEvent } from '@/services/groupChatHub';
 import { useGroupChatStore } from '@/stores/groupChatStore';
 import { formatLectureDateTime } from '@/lib/lectures';
 import GroupsPageShell from '@/components/groups/GroupsPageShell.vue';
@@ -38,7 +38,8 @@ const draft = ref('');
 const sending = ref(false);
 const scroller = ref(null);
 
-const unsubscribers = [];
+// The group this instance is currently showing: its live subscriptions and hub ownership handle.
+let session = null;
 
 const canSend = computed(() => draft.value.trim().length > 0 && draft.value.length <= MAX_BODY_LENGTH && !sending.value);
 
@@ -77,11 +78,13 @@ async function markRead() {
   }
 }
 
-async function load() {
+async function load(current) {
   loading.value = true;
   errorMessage.value = '';
   try {
-    const [detail, page] = await Promise.all([fetchGroup(groupId.value), fetchGroupMessages(groupId.value)]);
+    const [detail, page] = await Promise.all([fetchGroup(current.groupId), fetchGroupMessages(current.groupId)]);
+    // The route moved on to another group while this one was loading.
+    if (session !== current) return;
     group.value = detail;
     viewerUserId.value = page.viewerUserId;
     hasMore.value = page.hasMore;
@@ -89,9 +92,10 @@ async function load() {
     await scrollToBottom();
     markRead();
   } catch (err) {
+    if (session !== current) return;
     errorMessage.value = err?.response?.status === 403 ? t('chat.forbidden') : t('chat.load_error');
   } finally {
-    loading.value = false;
+    if (session === current) loading.value = false;
   }
 }
 
@@ -146,38 +150,59 @@ async function remove(message) {
   }
 }
 
-async function connectLive() {
-  unsubscribers.push(onGroupChatEvent(GroupChatEvents.messagePosted, async (message) => {
-    if (message.groupId !== groupId.value) return;
+async function connectLive(current) {
+  current.unsubscribers.push(onGroupChatEvent(GroupChatEvents.messagePosted, async (message) => {
+    if (message.groupId !== current.groupId) return;
     const stickToBottom = isNearBottom();
     upsert(message);
     if (stickToBottom) await scrollToBottom();
     if (document.visibilityState === 'visible') markRead();
   }));
 
-  unsubscribers.push(onGroupChatEvent(GroupChatEvents.messageDeleted, ({ groupId: id, messageId }) => {
-    if (id !== groupId.value) return;
+  current.unsubscribers.push(onGroupChatEvent(GroupChatEvents.messageDeleted, ({ groupId: id, messageId }) => {
+    if (id !== current.groupId) return;
     const existing = messages.value.find((m) => m.id === messageId);
     if (existing) upsert({ ...existing, isDeleted: true, body: null });
   }));
 
+  current.chat = joinGroupChat(current.groupId);
   try {
-    await joinGroupChat(groupId.value);
+    await current.chat.ready;
   } catch {
     // REST still works without the socket; the reader just won't see others' messages live.
-    liveUnavailable.value = true;
+    if (session === current) liveUnavailable.value = true;
   }
 }
 
-onMounted(async () => {
-  await load();
-  if (!errorMessage.value) connectLive();
-});
+// Releases exactly what this view subscribed for the group it was showing, not whatever the route says now.
+function teardown() {
+  if (!session) return;
+  session.unsubscribers.forEach((off) => off());
+  session.chat?.leave().catch(() => {});
+  session = null;
+}
 
-onBeforeUnmount(() => {
-  unsubscribers.forEach((off) => off());
-  leaveGroupChat(groupId.value).catch(() => {});
-});
+async function open(id) {
+  teardown();
+  group.value = null;
+  messages.value = [];
+  hasMore.value = false;
+  viewerUserId.value = null;
+  liveUnavailable.value = false;
+  draft.value = '';
+
+  const current = { groupId: id, unsubscribers: [], chat: null };
+  session = current;
+  await load(current);
+  if (session === current && !errorMessage.value) connectLive(current);
+}
+
+// The route component is reused when only :groupId changes, so switch groups in place.
+watch(groupId, (id) => open(id));
+
+onMounted(() => open(groupId.value));
+
+onBeforeUnmount(teardown);
 </script>
 
 <template>

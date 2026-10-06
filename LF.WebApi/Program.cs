@@ -43,6 +43,7 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     services.AddInfrastructureDatabase(configuration);
     // Group chat push channel; the hub itself is mapped by GroupChatHubEndpoints.
     services.AddSignalR();
+    services.AddSingleton<GroupChatConnectionRegistry>();
     services.AddScoped<IGroupChatNotifier, SignalRGroupChatNotifier>();
 }
 

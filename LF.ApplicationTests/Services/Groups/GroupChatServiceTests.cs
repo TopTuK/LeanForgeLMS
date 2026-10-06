@@ -37,7 +37,45 @@ public class GroupChatServiceTests
         Assert.Equal("Sasha Student", message.AuthorName);
         Assert.Single(world.GroupChatMessages);
         notifier.Verify(n => n.MessagePostedAsync(
-            It.Is<GroupChatMessageDto>(m => m.Id == message.Id && !m.IsMine), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<GroupChatMessageDto>(m => m.Id == message.Id && !m.IsMine),
+            It.IsAny<IReadOnlyCollection<int>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // Subscribers who lost access after joining the hub must be filtered out by the notifier, so the
+    // recipient list has to reflect current access: staff plus members with an Active enrollment.
+    [Fact]
+    public async Task PostAsync_RecipientsAreStaffAndActivelyEnrolledMembersOnly()
+    {
+        var world = new GroupTestWorld();
+        var group = world.AddGroup(memberIds: [StudentId, ClassmateId]);
+        world.Unenroll(ClassmateId, CourseId);
+        var notifier = new Mock<IGroupChatNotifier>();
+        IReadOnlyCollection<int>? recipients = null;
+        notifier.Setup(n => n.MessagePostedAsync(It.IsAny<GroupChatMessageDto>(), It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .Callback<GroupChatMessageDto, IReadOnlyCollection<int>, CancellationToken>((_, ids, _) => recipients = ids)
+            .Returns(Task.CompletedTask);
+
+        await CreateService(world, notifier).PostAsync(group.Id, "Hi", StudentId, isAdmin: false, Ct);
+
+        Assert.NotNull(recipients);
+        Assert.Equal([StudentId, CreatorId, InstructorId], recipients.Order());
+    }
+
+    // The message is already committed; a push failure must not turn the request into an error.
+    [Fact]
+    public async Task PostAsync_NotifierFailure_StillReturnsTheSavedMessage()
+    {
+        var world = new GroupTestWorld();
+        var group = world.AddGroup(memberIds: [StudentId]);
+        var notifier = new Mock<IGroupChatNotifier>();
+        notifier.Setup(n => n.MessagePostedAsync(It.IsAny<GroupChatMessageDto>(), It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("hub down"));
+
+        var message = await CreateService(world, notifier).PostAsync(group.Id, "Hi", StudentId, isAdmin: false, Ct);
+
+        Assert.NotNull(message);
+        Assert.Single(world.GroupChatMessages);
     }
 
     [Theory]
@@ -114,7 +152,23 @@ public class GroupChatServiceTests
         Assert.NotNull(deleted);
         Assert.True(deleted.IsDeleted);
         Assert.Null(deleted.Body);
-        notifier.Verify(n => n.MessageDeletedAsync(group.Id, message.Id, It.IsAny<CancellationToken>()), Times.Once);
+        notifier.Verify(n => n.MessageDeletedAsync(group.Id, message.Id, It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteMessageAsync_NotifierFailure_StillReturnsTheDeletedMessage()
+    {
+        var world = new GroupTestWorld();
+        var group = world.AddGroup(memberIds: [StudentId]);
+        var message = world.AddMessage(group.Id, StudentId);
+        var notifier = new Mock<IGroupChatNotifier>();
+        notifier.Setup(n => n.MessageDeletedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("hub down"));
+
+        var deleted = await CreateService(world, notifier).DeleteMessageAsync(group.Id, message.Id, StudentId, isAdmin: false, Ct);
+
+        Assert.NotNull(deleted);
+        Assert.True(deleted.IsDeleted);
     }
 
     [Fact]
