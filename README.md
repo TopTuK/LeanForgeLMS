@@ -5,13 +5,18 @@
 
 ## What it is
 
-Lean Forge LMS is a **Learning Management System for an online school for developers**. It
-lets instructors author courses — chapters and lessons built from ordered rich-text, image,
-video, audio, quiz and file blocks, with cover art and a publish workflow — and lets students
-browse a catalog, enroll (free or paid), work through lessons, pass quizzes, and track their
-progress. An admin area manages users, courses, categories, promo codes, and payment
-reporting, while a runtime **feature flag** turns student self-enrollment on or off without a
-redeploy. Courses can also be marked **private**, in which case only an admin enrolls students.
+Lean Forge LMS is a **full-fledged Learning Management System for small and medium schools**.
+It covers the day-to-day work of running a school online: instructors author courses, students
+learn and track progress, and staff organise groups, lectures, and payments. Schools can
+**customize it to fit how they teach** — course structure, enrollment rules, branding, and
+deployment are all under your control, and contributions that extend it further are welcome.
+
+Instructors author courses as chapters and lessons built from ordered rich-text, image, video,
+audio, quiz and file blocks, with cover art and a publish workflow. Students browse a catalog,
+enroll (free or paid), work through lessons, pass quizzes, and track their progress. An admin
+area manages users, courses, categories, promo codes, and payment reporting, while a runtime
+**feature flag** turns student self-enrollment on or off without a redeploy. Courses can also
+be marked **private**, in which case only an admin enrolls students.
 
 For live, cohort-style teaching, a course's creator and its assigned instructors can organise
 enrolled students into **student groups** (a student may belong to several groups of one
@@ -23,7 +28,7 @@ students and the course's teaching staff, with unread badges and moderation by s
 follows the enrollment: a student whose enrollment ends loses access to the group, its schedule
 and its chat automatically.
 
-It's a **solo-developer project** built on **.NET 10** and a **Vue 3** SPA. The backend runs
+It is built on **.NET 10** and a **Vue 3** SPA. The backend runs
 as four independently deployable processes — one public API/BFF plus three internal gRPC
 services (identity, courses, payments) — sharing one PostgreSQL database and one MinIO object
 store. Paid enrollment goes through **Robokassa** hosted checkout, and runtime feature flags
@@ -138,6 +143,9 @@ environment-variable reference is in [`DeploymentGuide.md`](./DeploymentGuide.md
 
 ## Contributing
 
-Architecture rules, anti-patterns, and detailed conventions for contributing (Clean
-Architecture layering, Minimal API endpoint groups, gRPC contract-change discipline,
-auth-wiring cautions) live in [`CLAUDE.md`](./CLAUDE.md).
+**Contributions are welcome.** Bug reports, documentation, translations, and pull requests
+that make the LMS more useful for schools are all appreciated.
+
+Architecture rules, anti-patterns, and detailed conventions (Clean Architecture layering,
+Minimal API endpoint groups, gRPC contract-change discipline, auth-wiring cautions) live in
+[`CLAUDE.md`](./CLAUDE.md).
