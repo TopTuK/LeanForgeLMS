@@ -17,6 +17,9 @@ internal sealed class GroupChatService(
 {
     private const string DeletedUserName = "—";
 
+    // Upper bound on post-commit real-time delivery; a client that misses a push reloads from history.
+    private static readonly TimeSpan PushTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ILogger<GroupChatService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly IGroupChatNotifier _notifier = notifier;
@@ -232,17 +235,20 @@ internal sealed class GroupChatService(
 
     // The change is already committed, so a failed push must not turn a successful request into an
     // error (the client would retry and duplicate the message); readers catch up from history.
-    // CancellationToken.None: the author aborting their request must not cancel delivery to others.
+    // The token is deliberately not the request's: the author aborting must not cancel delivery to
+    // others. It is bounded instead, because SignalR adds no send timeout of its own and a subscriber
+    // applying backpressure would otherwise keep this POST/DELETE response pending indefinitely.
     private async Task PushAfterCommitAsync(
         int groupId,
         int courseId,
         int messageId,
         Func<IReadOnlyCollection<int>, CancellationToken, Task> push)
     {
+        using var delivery = new CancellationTokenSource(PushTimeout, _timeProvider);
         try
         {
-            var recipients = await GetChatParticipantIdsAsync(groupId, courseId, CancellationToken.None);
-            await push(recipients, CancellationToken.None);
+            var recipients = await GetChatParticipantIdsAsync(groupId, courseId, delivery.Token);
+            await push(recipients, delivery.Token);
         }
         catch (Exception ex)
         {

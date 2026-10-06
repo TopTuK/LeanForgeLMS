@@ -16,8 +16,17 @@ public class GroupChatServiceTests
         public override DateTimeOffset GetUtcNow() => new(utcNow);
     }
 
-    private static GroupChatService CreateService(GroupTestWorld world, Mock<IGroupChatNotifier>? notifier = null) =>
-        new(NullLogger<GroupChatService>.Instance, world.DbContext.Object, (notifier ?? new Mock<IGroupChatNotifier>()).Object, new FixedTimeProvider(Now));
+    // Every timer elapses at once, so the post-commit delivery timeout expires without a real wait.
+    private sealed class ElapsingTimeProvider(DateTime utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(utcNow);
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            base.CreateTimer(callback, state, TimeSpan.Zero, period);
+    }
+
+    private static GroupChatService CreateService(GroupTestWorld world, Mock<IGroupChatNotifier>? notifier = null, TimeProvider? timeProvider = null) =>
+        new(NullLogger<GroupChatService>.Instance, world.DbContext.Object, (notifier ?? new Mock<IGroupChatNotifier>()).Object, timeProvider ?? new FixedTimeProvider(Now));
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -107,6 +116,36 @@ public class GroupChatServiceTests
 
         Assert.Empty(world.GroupChatMessages);
         notifier.VerifyNoOtherCalls();
+    }
+
+    // SignalR adds no send timeout of its own: a subscriber applying backpressure must not keep the
+    // already-committed request pending.
+    [Fact]
+    public async Task PostAsync_StalledPush_IsCancelledByTheDeliveryTimeout()
+    {
+        var world = new GroupTestWorld();
+        var group = world.AddGroup(memberIds: [StudentId]);
+        var notifier = new Mock<IGroupChatNotifier>();
+        var pushCancelled = false;
+        notifier.Setup(n => n.MessagePostedAsync(It.IsAny<GroupChatMessageDto>(), It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<CancellationToken>()))
+            .Returns<GroupChatMessageDto, IReadOnlyCollection<int>, CancellationToken>(async (_, _, token) =>
+            {
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    pushCancelled = true;
+                    throw;
+                }
+            });
+
+        var post = CreateService(world, notifier, new ElapsingTimeProvider(Now)).PostAsync(group.Id, "Hi", StudentId, isAdmin: false, Ct);
+
+        var message = await post.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        Assert.NotNull(message);
+        Assert.True(pushCancelled);
     }
 
     [Fact]
