@@ -5,4 +5,5 @@ namespace LF.Application.Common;
 public static class FeatureFlags
 {
     public const string SelfEnrollment = "lf.self_enrollment";
+    public const string SendMails = "lf.send_mails";
 }

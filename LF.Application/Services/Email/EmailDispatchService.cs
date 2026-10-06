@@ -1,5 +1,6 @@
 using LF.AppDomain.Entities.Email;
 using LF.AppDomain.Models.Email.Enums;
+using LF.Application.Common;
 using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Email;
@@ -12,17 +13,27 @@ internal sealed class EmailDispatchService(
     ILogger<EmailDispatchService> logger,
     IAppDbContext dbContext,
     IEmailSender emailSender,
-    TimeProvider timeProvider) : IEmailDispatchService
+    TimeProvider timeProvider,
+    IFeatureFlagService featureFlags) : IEmailDispatchService
 {
     private readonly ILogger<EmailDispatchService> _logger = logger;
     private readonly IAppDbContext _dbContext = dbContext;
     private readonly IEmailSender _emailSender = emailSender;
     private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly IFeatureFlagService _featureFlags = featureFlags;
 
     public async Task<EmailDispatchResult> DispatchDueAsync(int batchSize, int maxAttempts, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(batchSize, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxAttempts, 1);
+
+        // Checked live on every tick (not once at startup like the SMTP gate) so ops can flip the
+        // kill-switch without restarting the service. Due messages just stay Pending until it's on.
+        if (!await _featureFlags.IsEnabledAsync(FeatureFlags.SendMails, cancellationToken: cancellationToken))
+        {
+            _logger.LogDebug("EmailDispatchService::DispatchDueAsync: {Flag} is disabled, skipping dispatch", FeatureFlags.SendMails);
+            return new EmailDispatchResult(0, 0, 0);
+        }
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 

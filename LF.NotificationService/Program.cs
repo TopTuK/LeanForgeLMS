@@ -18,6 +18,8 @@ try
     builder.Services.AddInfrastructureDatabase(builder.Configuration);
     builder.Services.AddNotificationApplication();
     builder.Services.AddInfrastructureEmail(builder.Configuration, out var smtpConfigured);
+    // lf.send_mails kill-switch, checked live by EmailDispatchService on every dispatch tick.
+    builder.Services.AddInfrastructureFeatureFlags(builder.Configuration);
 
     var dispatchSection = builder.Configuration.GetSection(EmailDispatchOptions.SectionName);
     builder.Services.Configure<EmailDispatchOptions>(dispatchSection);
