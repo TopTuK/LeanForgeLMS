@@ -8,6 +8,8 @@ using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.Email;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.Groups;
+using LF.Application.Services.Lectures;
 using LF.Application.Services.News;
 using LF.Application.Services.Notifications;
 using LF.Application.Services.Payment;
@@ -16,6 +18,7 @@ using LF.Application.Services.Profile;
 using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
 using LF.Application.Services.Storage;
+using LF.Application.Services.Teaching;
 using LF.Application.Services.User;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -41,6 +44,7 @@ public class DependencyInjectionTests
         services.AddScoped(_ => Mock.Of<IStorageRepository>());
         services.AddScoped(_ => Mock.Of<IAppDbContext>());
         services.AddScoped(_ => Mock.Of<IFeatureFlagService>());
+        services.AddScoped(_ => Mock.Of<IGroupChatNotifier>());
         services.AddKeyedScoped("storage", (_, _) => Mock.Of<IFileStorageService>());
         services.AddAuthenticationApplication();
 
@@ -61,6 +65,10 @@ public class DependencyInjectionTests
         Assert.IsType<NewsService>(scope.ServiceProvider.GetRequiredService<INewsService>());
         Assert.IsType<AdminNewsService>(scope.ServiceProvider.GetRequiredService<IAdminNewsService>());
         Assert.IsType<EmailQueue>(scope.ServiceProvider.GetRequiredService<IEmailQueue>());
+        Assert.IsType<TeachingCourseService>(scope.ServiceProvider.GetRequiredService<ITeachingCourseService>());
+        Assert.IsType<StudentGroupService>(scope.ServiceProvider.GetRequiredService<IStudentGroupService>());
+        Assert.IsType<LectureService>(scope.ServiceProvider.GetRequiredService<ILectureService>());
+        Assert.IsType<GroupChatService>(scope.ServiceProvider.GetRequiredService<IGroupChatService>());
     }
 
     [Fact]

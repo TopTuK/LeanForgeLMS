@@ -6,17 +6,21 @@ anti-patterns, see [`CLAUDE.md`](./CLAUDE.md).
 
 ## Overview
 
-Lean Forge LMS runs as **four independently deployable ASP.NET Core processes** plus a Vue 3
+Lean Forge LMS runs as **five independently deployable ASP.NET Core processes** plus a Vue 3
 single-page app, backed by one PostgreSQL database and one MinIO object store:
 
 - **`LF.WebApi`** — the only public-facing process. Hosts the SPA, the authentication
-  pipeline (MVC controllers), and the Minimal API surface. Acts as a BFF / gateway.
+  pipeline (MVC controllers), the Minimal API surface and the group-chat SignalR hub. Acts as a
+  BFF / gateway.
 - **`LF.IdentityService`**, **`LF.CourseService`**, **`LF.PaymentService`** — internal
   gRPC-only services, each the single owner of one slice of the domain.
+- **`LF.NotificationService`** — a background worker with no public API. It delivers the email
+  outbox over SMTP and builds course-update digests on Quartz.NET schedules.
 
-Stack: **.NET 10 / C# 14**, EF Core + Npgsql, gRPC for inter-service calls, MinIO for
-blobs, Robokassa for payments. **.NET Aspire** orchestrates everything for local
-development; **Docker Compose** is the production deployment.
+Stack: **.NET 10 / C# 14**, EF Core + Npgsql, gRPC for inter-service calls, SignalR for live
+chat, MinIO for blobs, Robokassa for payments, MailKit + Quartz.NET for email, Unleash for
+feature flags. **.NET Aspire** orchestrates everything for local development; **Docker
+Compose** is the production deployment.
 
 Within every service, code follows **Clean Architecture** with dependencies pointing
 strictly inward (`Domain ← Application ← Infrastructure ← Api`).
@@ -24,21 +28,29 @@ strictly inward (`Domain ← Application ← Infrastructure ← Api`).
 ## Service topology
 
 - **`LF.WebApi`** — hosts the Vue SPA, the JWT/Cookie/OIDC/OAuth authentication pipeline
-  (MVC controllers), and the growing Minimal API surface (`IEndpointGroup`s, auto-discovered).
-  It reaches the three internal services only through their gRPC contracts. In Postgres it
-  touches only the ownerless / orchestration / platform-content tables it owns directly:
-  `StorageObjects`, `CoursePayments`, and the news tables (`NewsPosts`, `NewsImages`,
-  `NewsReadMarkers`) (see [Data & persistence](#data--persistence)).
+  (MVC controllers), the Minimal API surface (`IEndpointGroup`s, auto-discovered) and the
+  SignalR hub for group chat. It reaches the three gRPC services only through their contracts,
+  and reads/writes directly only the tables listed under
+  [the direct-DB exceptions](#the-direct-db-exceptions). It is the only process that talks to
+  MinIO, and one of two that talk to Unleash.
 - **`LF.IdentityService`** — internal gRPC service that owns all user identity data
-  (`Users`). It is also the **sole schema owner/migrator** for the shared database.
+  (`Users`, including each user's preferred email language). It is also the **sole schema
+  owner/migrator** for the shared database.
 - **`LF.CourseService`** — internal gRPC service that owns the course domain: courses,
-  categories, chapters, lessons (text / media / quiz / files parts), enrollments,
-  quiz attempts, and promo codes.
+  categories, chapters, lessons (text / media / quiz / files parts), enrollments, quiz
+  attempts, and promo codes. Inside the same unit of work it also *stages* enrollment
+  confirmation emails into the outbox and records lesson changes for update digests (see
+  [Email notifications](#email-notifications)).
 - **`LF.PaymentService`** — internal gRPC service that owns payment orders (`LFPaymentOrders`)
   and the Robokassa integration (signed checkout-URL construction, ResultURL/SuccessURL
   signature verification). It knows nothing about courses or enrollments — `LF.WebApi`
   orchestrates the two after a payment settles.
-- **PostgreSQL** (`leanforge`) — one database, shared by all four hosts; each host only
+- **`LF.NotificationService`** — background host (plain HTTP/1.1, no gRPC, no public API). Two
+  Quartz.NET jobs: `EmailDispatchJob` sends due outbox rows (`LFEmailMessages`) over SMTP
+  (MailKit), and `CourseUpdateDigestJob` turns pending lesson changes into one digest email
+  per course. It needs SMTP and Unleash egress, so it is the one internal service that also
+  sits on the public network.
+- **PostgreSQL** (`leanforge`) — one database, shared by all five hosts; each host only
   ever touches the tables it owns.
 - **MinIO** — S3-compatible object storage, reachable only from `LF.WebApi`, never from the
   browser. Two buckets: `avatars` (user avatars) and `storage` (course cover images,
@@ -52,9 +64,12 @@ graph LR
     Yandex["Yandex<br/>(OAuth 2.0 provider)"]
     VkId["VK ID<br/>(OAuth 2.1 provider: VK / Mail.ru / OK)"]
     Robokassa["Robokassa<br/>(hosted checkout + ResultURL webhook)"]
+    Unleash["Unleash<br/>(feature flags)"]
+    Smtp["SMTP server"]
 
     subgraph Public["Public network"]
-        WebApi["LF.WebApi<br/>MVC auth controllers + Minimal API<br/>JWT / Cookie / OIDC / OAuth<br/>owns StorageObjects, CoursePayments, News"]
+        WebApi["LF.WebApi<br/>MVC auth + Minimal API + SignalR hub<br/>JWT / Cookie / OIDC / OAuth"]
+        NotificationSvc["LF.NotificationService<br/>Quartz jobs: email dispatch + digests<br/>(also on the internal network)"]
     end
 
     subgraph Internal["Internal-only network"]
@@ -66,20 +81,25 @@ graph LR
     end
 
     Browser -- "HTTPS / JSON (JWT in HttpOnly cookie)" --> WebApi
+    Browser -- "WebSocket: /hubs/group-chat (same cookie)" --> WebApi
     Browser -- "redirect to hosted checkout" --> Robokassa
     Robokassa -- "ResultURL webhook (signed)" --> WebApi
-    WebApi -- "OIDC redirect" --> PMI
-    WebApi -- "OAuth redirect" --> Google
-    WebApi -- "OAuth redirect" --> Yandex
-    WebApi -- "OAuth redirect" --> VkId
+    WebApi -- "OIDC / OAuth redirects" --> PMI
+    WebApi --> Google
+    WebApi --> Yandex
+    WebApi --> VkId
+    WebApi -- "lf.self_enrollment" --> Unleash
     WebApi -- "gRPC: user_service.proto" --> IdentitySvc
     WebApi -- "gRPC: course_service.proto" --> CourseSvc
     WebApi -- "gRPC: payment_service.proto" --> PaymentSvc
     WebApi -- "S3 API (avatar + media bytes)" --> Minio
-    WebApi -- "StorageObjects / CoursePayments / News" --> Postgres
+    WebApi -- "direct-DB tables" --> Postgres
     IdentitySvc --> Postgres
     CourseSvc --> Postgres
     PaymentSvc --> Postgres
+    NotificationSvc -- "outbox + digests" --> Postgres
+    NotificationSvc -- "lf.send_mails" --> Unleash
+    NotificationSvc -- "SMTP (MailKit)" --> Smtp
 ```
 
 **Why the split exists.** Each internal service is the single owner of its slice of the
@@ -91,9 +111,15 @@ duplicated across processes. Payment settlement flows the same way: Robokassa's 
 webhook lands on `LF.WebApi`, which calls `LF.PaymentService` (verify signature, settle the
 order) and then `LF.CourseService` (`ConfirmEnrollmentPayment` — activate the enrollment,
 redeem the promo code); both calls are idempotent, so a webhook retry is safe.
+`LF.NotificationService` needs no contract at all: it communicates through the database (the
+email outbox and the pending-change table).
 
-**The direct-DB exceptions.** Three groups of tables are reached from `LF.WebApi` via
-`IAppDbContext` rather than a gRPC round-trip, each for a deliberate reason:
+### The direct-DB exceptions
+
+Some tables are reached from `LF.WebApi` via `IAppDbContext` rather than a gRPC round-trip,
+each for a deliberate reason. Where these features check course rules, they only *read* the
+course-domain tables (`Courses`, `CourseInstructors`, `Enrollments`, `Users`); `LF.WebApi`
+never writes course content or enrollments.
 
 - **`StorageObjects`** (avatar / cover-image / lesson-media metadata) is a generic, ownerless
   table, and `LF.WebApi` is the only process with both a MinIO client and a reason to write
@@ -104,9 +130,19 @@ redeem the promo code); both calls are idempotent, so a webhook retry is safe.
   `PromoCodes`, `PaymentOrders`) in a single `IAppDbContext`, so the ledger projection lives
   there.
 - **`NewsPosts` / `NewsImages` / `NewsReadMarkers`** are platform content, not course domain,
-  and every news image is a MinIO blob — the same reasoning as `StorageObjects`: `LF.WebApi` is
-  the only process that can write the post and manage its blobs in one place, so news needs no
-  gRPC contract at all. See [News & notifications](#news--notifications).
+  and every news image is a MinIO blob — the same reasoning as `StorageObjects`. See
+  [News & notifications](#news--notifications).
+- **`CourseInstructors`, `LessonQuestions` / `LessonQuestionMessages` /
+  `LessonQuestionReadMarkers`** — the teaching team and lesson Q&A need course, lesson,
+  enrollment and user joins in single queries and are used only by `LF.WebApi`. See
+  [Teaching team & lesson Q&A](#teaching-team--lesson-qa).
+- **Student groups, lectures and group chat** (`StudentGroups`, `StudentGroupMembers`,
+  `Lectures`, `LectureGroups`, `GroupChatMessages`, `GroupChatReadMarkers`) — the same joins,
+  plus a SignalR hub that can only live in the public process. See
+  [Student groups, lectures & group chat](#student-groups-lectures--group-chat).
+- **`EmailMessages`** (the outbox) — `LF.WebApi` only enqueues admin test emails;
+  course-related emails are staged by `LF.CourseService`. `LF.NotificationService` is the only
+  process that delivers them.
 
 Ownership is enforced by convention (which host's `Program.cs` / DI wires up which use-case
 services), not by database-level permissions.
@@ -118,64 +154,55 @@ graph BT
     Domain["LF.AppDomain<br/>(Domain)<br/>zero project references"]
     App["LF.Application<br/>(Application)"]
     Infra["LF.Infrastructure<br/>(Infrastructure)"]
-    WebApi["LF.WebApi (Api)"]
-    IdentitySvc["LF.IdentityService (Api)"]
-    CourseSvc["LF.CourseService (Api)"]
-    PaymentSvc["LF.PaymentService (Api)"]
+    Hosts["Api hosts<br/>LF.WebApi · LF.IdentityService · LF.CourseService<br/>LF.PaymentService · LF.NotificationService"]
 
     App --> Domain
     Infra --> App
     Infra --> Domain
-    WebApi --> Infra
-    WebApi --> App
-    WebApi --> Domain
-    IdentitySvc --> Infra
-    IdentitySvc --> App
-    IdentitySvc --> Domain
-    CourseSvc --> Infra
-    CourseSvc --> App
-    CourseSvc --> Domain
-    PaymentSvc --> Infra
-    PaymentSvc --> App
-    PaymentSvc --> Domain
+    Hosts --> Infra
+    Hosts --> App
+    Hosts --> Domain
 ```
 
 | Layer | Project | Responsibility |
 |---|---|---|
-| Domain | `LF.AppDomain` | Entities with behavior (`DbUser`, `Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `PaymentOrder`, `CoursePayment`, `StorageObject`, `NewsPost`, `NewsImage`, `NewsReadMarker`), enums (`UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `PaymentOrderStatus`, `CourseCoverType`, `CourseCoverColor`, `StorageObjectType`, `NewsVisibility`). Zero project or framework references by design. |
-| Application | `LF.Application` | Use-case services, DTOs, Mapster mapping configs, and the abstractions Infrastructure implements (`IAppDbContext`, `IFileStorageService`, `IFeatureFlagService`, `IPaymentGateway`, `IHtmlSanitizer`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcEnrollmentService`, `IGrpcPromoCodeService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
-| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql, one `IEntityTypeConfiguration` per entity), the gRPC clients to the three internal services, the MinIO-backed `IFileStorageService` (two keyed buckets), the Robokassa-backed `IPaymentGateway`, the Ganss-backed `IHtmlSanitizer`, the Unleash-backed `IFeatureFlagService`, `StorageRepository` (the one deliberate repository), and `DatabaseInitializer` (migrations + seeding + backfill). Split into narrow DI extensions so each host wires only what it needs. |
-| Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (auth controllers) + Minimal API (`IEndpointGroup`, auto-discovered) — the only public-facing process. The other three are bare gRPC hosts, internal-only. |
+| Domain | `LF.AppDomain` | Entities with behavior: users (`DbUser`); courses (`Course`, `Chapter`, `Lesson`, `LessonPart`, `LessonPartFile`, `Category`, `Enrollment`, `QuizQuestion`, `QuizOption`, `QuizAttempt`, `PromoCode`, `CourseInstructor`, `CourseContentChange`); payments (`PaymentOrder`, `CoursePayment`); storage (`StorageObject`); news (`NewsPost`, `NewsImage`, `NewsReadMarker`); Q&A (`LessonQuestion`, `LessonQuestionMessage`, `LessonQuestionReadMarker`); groups (`StudentGroup`, `StudentGroupMember`, `Lecture`, `LectureGroup`, `GroupChatMessage`, `GroupChatReadMarker`); email (`EmailMessage`). Enums: `UserRole`, `CoursePricingType`, `CourseEnrollmentMode`, `EnrollmentStatus`, `LessonPartType`, `QuestionType`, `PromoCodeDiscountType`, `CourseCoverType`, `CourseCoverColor`, `CourseContentChangeKind`, `PaymentOrderStatus`, `StorageObjectType`, `FileType`, `NewsVisibility`, `LessonQuestionStatus`, `QuestionAuthorRole`, `EmailMessageStatus`; plus the `UserLanguage` value helper. Zero project or framework references by design. |
+| Application | `LF.Application` | Use-case services, DTOs, Mapster mapping configs, email templates (`Templates/Email`, embedded resources), and the abstractions Infrastructure or a host implements (`IAppDbContext`, `IFileStorageService`, `IFeatureFlagService`, `IPaymentGateway`, `IHtmlSanitizer`, `IEmailSender`, `IGroupChatNotifier`, `IGrpcIdentityService`, `IGrpcCourseService`, `IGrpcEnrollmentService`, `IGrpcPromoCodeService`, `IGrpcPaymentService`, `IStorageRepository`). No mediator/dispatcher library — endpoints call these services directly. |
+| Infrastructure | `LF.Infrastructure` | EF Core (`AppDbContext`, Npgsql, one `IEntityTypeConfiguration` per entity, migrations), the gRPC clients to the three internal services, the MinIO-backed `IFileStorageService` (two keyed buckets), the Robokassa-backed `IPaymentGateway`, the Ganss-backed `IHtmlSanitizer`, the Unleash-backed `IFeatureFlagService`, the MailKit-backed `IEmailSender`, `StorageRepository` (the one deliberate repository), and `DatabaseInitializer` (migrations + seeding + backfill). Split into narrow DI extensions so each host wires only what it needs. |
+| Api | `LF.WebApi`, `LF.IdentityService`, `LF.CourseService`, `LF.PaymentService`, `LF.NotificationService` | Host projects. `LF.WebApi` is ASP.NET Core MVC (auth controllers) + Minimal API (`IEndpointGroup`, auto-discovered) + the SignalR hub (whose `SignalRGroupChatNotifier` implements `IGroupChatNotifier`) — the only public-facing process. Three are bare gRPC hosts, internal-only. `LF.NotificationService` hosts the Quartz.NET jobs. |
 
 **Use-case services, per host.** `LF.Application`'s DI is split by host, not one
 `AddApplication()` — ASP.NET Core validates the whole DI graph at `Build()`, so a single
 umbrella registration would crash whichever host doesn't have all the dependencies wired.
+`LF.ApplicationTests/DependencyInjectionTests` builds each graph with `ValidateOnBuild`.
 
 | Extension | Called by | Registers |
 |---|---|---|
-| `AddAuthenticationApplication()` | `LF.WebApi` | `AuthenticationService`, `TokenService`, `ProfileService`, `AdminUserService`, `CourseAuthoringService`, `EnrollmentLearningService`, `PromoCodeAdminService`, `StorageService`, `PaymentReportService`, `NewsService`, `AdminNewsService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
+| `AddAuthenticationApplication()` | `LF.WebApi` | Auth & profile (`AuthenticationService`, `TokenService`, `ProfileService`); admin (`AdminUserService`, `AdminCourseService`, `PromoCodeAdminService`, `PaymentReportService`, `AdminNewsService`, `AdminLessonQuestionService`); gRPC-facing wrappers (`CourseAuthoringService`, `EnrollmentLearningService`); `StorageService`; `NewsService`; Q&A and teaching team (`LessonQuestionService`, `CourseTeachingTeamService`); groups (`TeachingCourseService`, `StudentGroupService`, `LectureService`, `GroupChatService`); `EmailQueue`; `GanssHtmlSanitizer`; `TimeProvider.System`. The host adds `IGroupChatNotifier`. |
 | `AddUserApplication()` | `LF.IdentityService` | `UserService` |
-| `AddCourseApplication()` | `LF.CourseService` | `CourseService`, `EnrollmentService`, `PromoCodeService`, `GanssHtmlSanitizer` (`IHtmlSanitizer`), `TimeProvider.System` |
+| `AddCourseApplication()` | `LF.CourseService` | `CourseService`, `EnrollmentService`, `PromoCodeService`, `EnrollmentNotifier`, `CourseChangeTracker`, `EmailTemplateRenderer`, `GanssHtmlSanitizer`, `TimeProvider.System` (the host binds `AppUrlOptions` for email links) |
 | `AddPaymentApplication()` | `LF.PaymentService` | `PaymentOrderService`, `TimeProvider.System` |
+| `AddNotificationApplication()` | `LF.NotificationService` | `EmailDispatchService`, `CourseUpdateDigestService`, `EmailTemplateRenderer`, `TimeProvider.System` (the host binds `AppUrlOptions`) |
 
 `LF.Infrastructure` mirrors the split: `AddInfrastructureDatabase` (`AppDbContext` +
-`IAppDbContext` + `StorageRepository` + `DefaultAdmins` config), `AddInfrastructureGrpcClient`,
-`AddInfrastructureCourseGrpcClient` (course + enrollment + promo gRPC clients),
-`AddInfrastructurePaymentGrpcClient`, `AddInfrastructureRobokassa`,
+`IAppDbContext` + `StorageRepository` + `DefaultAdmins` config, all five hosts),
+`AddInfrastructureGrpcClient`, `AddInfrastructureCourseGrpcClient` (course + enrollment +
+promo gRPC clients), `AddInfrastructurePaymentGrpcClient`, `AddInfrastructureRobokassa`,
 `AddInfrastructureFileStorage` (both MinIO buckets + `MinioBucketInitializer`),
-`AddInfrastructureFeatureFlags` (Unleash client, `LF.WebApi` only).
+`AddInfrastructureFeatureFlags` (Unleash client; `LF.WebApi` and `LF.NotificationService`),
+`AddInfrastructureEmail` (`SmtpOptions` + `MailKitEmailSender`; reports whether SMTP is
+configured).
 
 **One intentional deviation from textbook Clean Architecture:**
 
-- **`AppDbContext` is registered in all four hosts**, but each only touches the tables it
-  owns (`Users` / the course domain / `PaymentOrders` / `CoursePayments` + `StorageObjects` +
-  the news tables).
-  Enforced by convention.
+- **`AppDbContext` is registered in all five hosts**, but each only touches the tables it
+  owns (`Users` / the course domain / `PaymentOrders` / the direct-DB tables / the email
+  outbox and pending digests). Enforced by convention.
 
 ## Runtime & cross-cutting concerns
 
 Everything below is provided by `LeanForgeLMS.ServiceDefaults` (`Extensions.cs`), referenced
-by all four backend hosts via `builder.AddServiceDefaults()`.
+by all five backend hosts via `builder.AddServiceDefaults()`.
 
 - **Logging — Serilog, two-stage.** `Extensions.CreateBootstrapLogger()` runs *before*
   `WebApplication.CreateBuilder` so startup exceptions are captured; `AddServiceDefaults()`
@@ -187,7 +214,7 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
   (InvalidArgument / NotFound / AlreadyExists / PermissionDenied / FailedPrecondition /
   Unauthenticated) → `Warning`, any other non-zero status → `Error`. Health/liveness polling
   is demoted to `Verbose`.
-- **Error monitoring — Sentry.** Wired once in `ServiceDefaults` for all four hosts (errors
+- **Error monitoring — Sentry.** Wired once in `ServiceDefaults` for all five hosts (errors
   + light performance tracing: 100% sampled in Development, 10% otherwise). Enabled only when
   the `SENTRY_DSN` environment variable is set; the SDK stays dormant otherwise.
 - **Telemetry — OpenTelemetry.** Traces (ASP.NET Core + HttpClient, health paths filtered
@@ -196,14 +223,19 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
   local dev.
 - **Health checks.** A `self` liveness check tagged `live`. `/health` (all checks) and
   `/alive` (`live` only) are mapped **only in Development** — see the known
-  [Aspire health-probe hang](#local-development).
+  [Aspire health-probe hang](#local-development). `LF.NotificationService` serves HTTP/1.1, so
+  its probe works; the three gRPC hosts are HTTP/2-only.
 - **Resilience & service discovery.** `ConfigureHttpClientDefaults` adds
   `AddStandardResilienceHandler()` (retry / circuit-breaker / timeout, Polly v8) and service
   discovery to every `HttpClient`, including the gRPC channels.
-- **Feature flags — Unleash** (`LF.WebApi` only, so *not* from `ServiceDefaults`). The
+- **Feature flags — Unleash** (`LF.WebApi` and `LF.NotificationService` only, so *not* from
+  `ServiceDefaults`; the three gRPC hosts have no egress and cannot reach Unleash). The
   `Unleash.Client` SDK lives in `LF.Infrastructure` behind the Application-layer
   `IFeatureFlagService` abstraction; flag names are constants in `LF.Application`'s
-  `FeatureFlags`. `AddInfrastructureFeatureFlags(configuration)` binds the `Unleash` config
+  `FeatureFlags`: `lf.self_enrollment` (checked in `LF.WebApi`, see
+  [the enrollment kill-switch](#pricing-promo-codes--the-enrollment-kill-switch)) and
+  `lf.send_mails` (checked by `LF.NotificationService` on every dispatch tick, see
+  [Email notifications](#email-notifications)). `AddInfrastructureFeatureFlags(configuration)` binds the `Unleash` config
   section (`ApiUrl` — note the `/api/` suffix the SDK appends `client/features` to — `ApiKey`,
   `FetchTogglesIntervalSeconds`) and registers a singleton client that polls toggles in the
   background, so `IsEnabledAsync` is an in-memory lookup with no per-call I/O.
@@ -212,12 +244,13 @@ by all four backend hosts via `builder.AddServiceDefaults()`.
   user request. That synchronous fetch **throws** if it fails (`TaskCanceledException` when the
   server is unreachable, `UnleashException` when the API key is rejected), so
   `UnleashClientBuilder` catches those and falls back to a background-polling client: a bad key
-  or a down Unleash can never stop `LF.WebApi` from booting, flags just stay off until a later
+  or a down Unleash can never stop a host from booting, flags just stay off until a later
   poll succeeds. When `ApiUrl`/`ApiKey` are missing or still the `"CHANGE_ME"`
   placeholder, a `DisabledFeatureFlagService` is registered instead and **every flag reads as
   off** — the DI graph still validates and the app still starts. The API key is never
   committed: `dotnet user-secrets` in dev, `Unleash__ApiKey` from `.env` in Docker, and an
-  Aspire secret parameter (`unleash-api-key`, sourced from `UNLEASH_API_KEY`) for AppHost runs.
+  Aspire secret parameter (`unleash-api-key`, sourced from `UNLEASH_API_KEY`, forwarded to both
+  hosts) for AppHost runs.
 - **Security headers (prod only).** `LF.WebApi/Program.cs` applies
   `NetEscapades.AspNetCore.SecurityHeaders` outside Development: default security headers
   plus a Content-Security-Policy (`script-src 'self' https://www.googletagmanager.com`,
@@ -278,7 +311,9 @@ wired up with different ASP.NET Core handlers:
    `NameIdentifier`, `email`, and `role` claims, and writes it into an **`HttpOnly`,
    `SameSite=Lax` cookie** (`Secure` outside Development). It then signs out of the temp
    cookie and redirects to `/courses`.
-5. `GET /api/Auth/Logout` (`[Authorize]`) deletes the cookie and redirects to `/`.
+5. `GET /api/Auth/Logout` (`[Authorize]`) deletes the cookie and redirects to `/`. There is no
+   server-side revocation: a copied JWT stays valid until it expires (`JwtExpiresDays`,
+   default 7).
 
 **How the SPA authenticates.** The token is never readable by page scripts.
 `lf.webapp/src/services/api.js` is just `axios.create({ baseURL: '/api', withCredentials: true })`
@@ -313,6 +348,12 @@ The JWT is issued with a literal `"role"` claim, but the JwtBearer handler's def
 `ClaimsPrincipal` is built — so the policies check `ClaimTypes.Role`, and checking the
 literal `"role"` string would 403 everyone including admins.
 
+**Preferred language.** Each user has a `PreferredLanguage` (`ru` / `en`, null until
+chosen), stored by `LF.IdentityService`. The SPA's locale toggle saves it through
+`PUT /api/profile/language` → the `UpdateUserLanguage` RPC, and on start-up
+`authStore.ensureInitialized` applies the stored value (or uploads the current locale when
+unset). Emails are rendered in this language.
+
 ### Development-only login shortcuts
 
 `GET /api/dev-auth/{role}` (`role` = `Student`, `Instructor`, `CourseCreator`, or `Admin`)
@@ -337,8 +378,14 @@ Owned entirely by `LF.CourseService`, exposed to `LF.WebApi` over `course_servic
 
 - **`Course`** — title, short introduction, description, a `Category`, an ordered list of
   `Chapter`s (each with an ordered list of `Lesson`s), a `CoverType` / `CoverColor` / cover
-  image, and an `IsPublished` flag. `Publish()` enforces that a course needs at least one
-  chapter and every chapter at least one lesson.
+  image, pricing and enrollment mode, and an `IsPublished` flag. `Publish()` enforces that a
+  course needs at least one chapter and every chapter at least one lesson. The details (title,
+  introduction, description, category, cover, pricing, enrollment mode) are edited on the course settings page
+  (`PUT /api/courses/{id}`) and only while the course is unpublished.
+- **Authoring rights** are ownership-based: only the course's creator (or an admin) can edit
+  its content and settings. Assigned instructors (see
+  [Teaching team & lesson Q&A](#teaching-team--lesson-qa)) answer questions and run groups and
+  lectures, but cannot edit content.
 - **`Lesson`** — a title plus an ordered list of `LessonPart`s (a legacy single `Content`
   HTML string is still supported for lessons authored before parts existed). Part types:
   - **Text** — rich HTML, server-sanitized on write (`IHtmlSanitizer` / Ganss) with an
@@ -351,7 +398,9 @@ Owned entirely by `LF.CourseService`, exposed to `LF.WebApi` over `course_servic
   - **Files** — a list of downloadable attachments, each a `LessonPartFile` → `StorageObject`.
 
   `Lesson.ReplaceParts(...)` is a full bulk-replace — the whole ordered set is swapped in one
-  call, matching how the editor batches local edits before saving.
+  call, matching how the editor batches local edits before saving. A lesson flagged
+  `IncludeInPreview` is readable from the catalog preview (`/api/enrollments/catalog/{courseId}`)
+  before enrolling.
 - **`Category`** — a flat, admin-managed tag set. Seeded with a protected `Common` category
   (`IsDefault = true`, undeletable) plus starter categories (Backend, Frontend, DevOps,
   Design, Career). A category still assigned to a course can't be deleted.
@@ -383,6 +432,8 @@ authoring side deliberately does not:
   enrollment and its `PaymentOrder`s, and reports `wasPaid`/`pricePaid` so the SPA can name the
   amount in its warning. **No refund is issued** — the payment stack has no refund path — and the
   `CoursePayment` ledger row survives.
+- **Unpublishing** — `POST /api/admin/courses/{id}/unpublish` takes a course out of the catalog;
+  existing enrollments keep their row but its content is withheld.
 - **Deleting a course** — `DELETE /api/admin/courses/{id}` is a hard delete. It **refuses with 409
   when any student has actually paid** (`Active` *and* `PricePaid > 0`; a `PendingPayment` row
   carries a price but no money moved) unless `?force=true`. The removal order is forced by the
@@ -401,6 +452,32 @@ than vanishing.
 The student side (`/api/enrollments`), the authoring side (`/api/courses`) and the admin side
 (`/api/admin/courses`) are separate endpoint groups with separate audiences — see
 [API surface](#api-surface).
+
+## Teaching team & lesson Q&A
+
+- **Teaching team.** A course's staff is its creator plus the instructors assigned to it
+  (`CourseInstructor`, `LFCourseInstructors`). The creator is staff implicitly and is never
+  stored as an assignment. Only the creator or an admin manages the team
+  (`/api/courses/{courseId}/instructors`, `CourseTeachingTeamService`, in the course settings
+  page). Only users whose role is Instructor, CourseCreator or Admin can be assigned.
+  `CourseAccessExtensions.IsTeachingStaffAsync` / `StaffCourseIds` are the shared predicates
+  for Q&A, groups, lectures and chat. `GET /api/teaching/courses` lists every course a user
+  teaches (created or assigned) for the Teaching tab.
+- **Lesson Q&A.** A student with an **Active** enrollment asks a question about a lesson; it
+  becomes a private thread (`LessonQuestion` + `LessonQuestionMessage`s) between that student
+  and the course's teaching staff. Threads are `Open` / `Answered` / `Closed`: a staff reply
+  marks the thread answered, and a student follow-up reopens it. Bodies are plain text, never
+  HTML. Messages are soft-deleted, so a moderated thread keeps its shape.
+  - Endpoints: `LessonQuestionEndpoints` (`/api/questions`, plus `/api/lessons/{lessonId}/questions`
+    for the panel on the lesson page). The inbox has a student scope and a staff scope, with
+    per-course and per-status totals.
+  - Unread state: one `LessonQuestionReadMarker` per (thread, viewer). A thread is unread when
+    someone else wrote its newest message after the viewer's marker. The SPA shows the count as
+    a header badge (`/questions`).
+  - Admins moderate every thread from **Admin → Q&A** (`/api/admin/questions`: list, reply, delete a
+    message, delete a thread).
+  - Authorization is per course and lives in the services; `QuestionAuthorizationException`
+    maps to 403.
 
 ## Pricing, promo codes & the enrollment kill-switch
 
@@ -501,7 +578,7 @@ images — from **Admin → News**. Each post is either **Public** or **MembersO
 kept as a draft.
 
 - **Ownership.** `LF.WebApi` owns `LFNewsPosts`, `LFNewsImages` and `LFNewsReadMarkers` directly
-  through `IAppDbContext` (see "The direct-DB exceptions" above) — no gRPC contract is involved.
+  through `IAppDbContext` (see [the direct-DB exceptions](#the-direct-db-exceptions)) — no gRPC contract is involved.
   `NewsService` (reading, unread state) and `AdminNewsService` (authoring) are registered by
   `AddAuthenticationApplication()`.
 - **Domain.** `NewsPost` owns its invariants: title ≤ 200 characters, non-empty body, at most 10
@@ -531,6 +608,54 @@ kept as a draft.
   published with `PublishedAt > LastSeenAt` (everything, before the first visit).
   `GET /api/notifications/unread-count` feeds the header badge; opening Notifications calls
   `POST /api/notifications/mark-seen`, which only ever moves the marker forward.
+
+## Email notifications
+
+Email uses a **transactional outbox**: producers only insert `EmailMessage` rows
+(`LFEmailMessages`), and `LF.NotificationService` delivers them.
+
+- **Producing.** Inject `IEmailQueue` and call `EnqueueAsync` (optional `NotBefore` for a
+  delayed send). Course-related emails are *staged* instead: they are added to the DbContext
+  without saving, so they commit in the same `SaveChangesAsync` as the change that caused them.
+  - **Enrollment confirmation.** `IEnrollmentNotifier.StageEnrollmentConfirmationAsync` runs
+    wherever an enrollment becomes Active: free enrollment, paid activation (not for
+    `PendingPayment`, and not on idempotent replays) and admin enrollment. All of these run in
+    `LF.CourseService`.
+  - **Course-update digests.** `CourseService` calls `ICourseChangeTracker` when a lesson is
+    added, or when its title, content or parts *actually* change. `Lesson.Rename` /
+    `UpdateContent` / `ReplaceParts` return `bool`, and `ReplaceParts` compares a fingerprint of
+    the student-visible content, because the editor rebuilds every part on each save.
+    Reordering and the preview flag are not tracked. The tracker keeps one pending
+    `CourseContentChange` per lesson (`LFCourseContentChanges`), and only for published courses.
+- **Templates.** `LF.Application/Templates/Email/{Name}.{ru|en}.html` (+ optional `.txt`), embedded
+  with `WithCulture="false"`. Without that, MSBuild would move the `*.ru.html` files into a
+  satellite assembly. `IEmailTemplateRenderer` takes the subject from `<title>`, HTML-encodes
+  `{{Key}}` values in the body, allows raw caller-encoded markup through `{{{Key}}}`, throws on a
+  missing value, and falls back to `ru`. Each email is rendered in the recipient's
+  `PreferredLanguage`. Links use `AppUrlOptions` (`App:PublicBaseUrl`, validated at start-up).
+- **Delivery.** `EmailDispatchJob` (Quartz.NET 4, `[DisallowConcurrentExecution]`, cron
+  `EmailDispatch:Cron`, default every 30 s) runs `IEmailDispatchService.DispatchDueAsync`, which
+  sends due rows through `IEmailSender` (`MailKitEmailSender`).
+  - **Retries.** Retry, backoff and the attempt cap live on the entity (`EmailMessage.RecordFailure`).
+    The sender maps transport errors to `EmailDeliveryException(IsTransient)`: SMTP 5xx is
+    permanent (`Failed`), everything else retries.
+  - **Kill-switch.** Every dispatch tick checks the Unleash flag `lf.send_mails`; while it is off,
+    due mail just stays `Pending`.
+  - **Single replica** by design: there is no row locking.
+- **Digests.** `CourseUpdateDigestJob` (`CourseUpdateDigest:Cron` / `QuietPeriodMinutes` /
+  `MaxCoursesPerRun`) sends one digest per course once its newest pending change is older than
+  the quiet period (default 30 min), so an editing session becomes one email.
+  - Recipients are Active enrollments that existed before the last change, each emailed in
+    their own language with a `/courses/learn/{enrollmentId}` link.
+  - The emails and the `NotifiedAt` marks commit in one `SaveChanges` per course.
+  - Changes to a course that is unpublished at digest time are discarded.
+  - The job runs even without SMTP, because it only writes outbox rows.
+- **Fails closed.** When `Smtp:Host` / `Smtp:FromAddress` are blank or `CHANGE_ME`, the dispatch
+  job is never scheduled and queued mail stays `Pending`. SMTP settings: user-secrets
+  `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` / `SMTP_FROM_ADDRESS` on the AppHost in dev,
+  `Smtp__*` in `.env` for Docker.
+- **Admin check.** `POST /api/admin/email/test` queues a test email, and
+  `GET /api/admin/email/{id}` shows its delivery status.
 
 ## Course covers, lesson media & the Storage service
 
@@ -576,16 +701,91 @@ storage abstraction:
 - MinIO is never reachable from the browser — the same internal-only-network posture as
   Postgres.
 
+## Student groups, lectures & group chat
+
+Teaching staff split a course's students into **groups**, schedule **online lectures** for those
+groups, and talk to them in a **per-group chat**. Students see their groups, a lecture schedule,
+and the chat.
+
+- **Ownership.** `LF.WebApi` owns the six tables directly through `IAppDbContext`; there is no
+  gRPC contract and `course_service.proto` is unchanged. The use-case services are
+  `IStudentGroupService`, `ILectureService`, `IGroupChatService` and `ITeachingCourseService`,
+  all registered by `AddAuthenticationApplication()`.
+- **Who manages what.** "Teaching staff" of a course means its creator (`Course.CreatedByUserId`)
+  plus every assigned instructor (`LFCourseInstructors`). Staff and admins create, rename and
+  delete groups, add and remove members, and schedule, edit, cancel and delete lectures.
+  Authorization is per course and lives in the services, because the global Instructor role
+  says nothing about a particular course. Services throw `GroupAuthorizationException`, which
+  endpoints map to 403.
+- **Who sees what.** A student sees a group only while they are a member **and** their enrollment
+  in its course is Active (`CourseAccessExtensions.MemberGroupIds`). Enrollment removal happens in
+  `LF.CourseService` and never touches group rows; access simply disappears with it, so no
+  cross-host cleanup is needed. Staff still see such members, flagged "not enrolled".
+- **Domain.**
+  - `StudentGroup` owns its members. Names are unique per course. A student can belong to
+    several groups of the same course, and only actively enrolled students can be added.
+  - `Lecture` stores a UTC `StartsAt`, a duration of 5-600 minutes, an optional external
+    `MeetingUrl` (absolute http/https only, because it is rendered as a link), and the groups it
+    targets. All targeted groups must belong to the lecture's course. The LMS hosts no video.
+    `Cancel` is one-way, and a cancelled lecture hides its link.
+  - `GroupChatMessage` is plain text (at most 4000 characters, never HTML) and is soft-deleted.
+    `GroupChatReadMarker` keeps the highest message id each user has seen, per group.
+- **Teaching list.** `GET /api/teaching/courses` returns the courses a user created **or** was
+  assigned to. The gRPC `ListCourses` is owner-only, which used to hide courses from assigned
+  instructors. Assigned instructors manage groups and lectures but still cannot open the content
+  editor (`CanEditContent`).
+- **Chat transport.** Messages are **written over REST** (`GroupChatEndpoints`), so validation,
+  authorization and error mapping stay in one place. They are **pushed over SignalR**: the
+  `GroupChatHub` at `/hubs/group-chat` is push-only (`JoinGroup`/`LeaveGroup`, then the
+  `messagePosted`/`messageDeleted` events).
+  - **Auth.** The hub authenticates with the same HttpOnly session cookie, sent on the
+    same-origin WebSocket handshake, so no query-string token is needed. It is mapped with
+    `CloseOnAuthenticationExpiration`, so an open connection is closed when its JWT expires.
+  - **Delivery.** `JoinGroup` checks access and records the connection, user and group in the
+    in-process `GroupChatConnectionRegistry`. Every push is re-filtered against the group's
+    *current* readers, computed by `GroupChatService`. A connection whose user has lost access
+    (removed from the group, or enrollment removed) stops receiving and is dropped from the
+    registry.
+  - **Failures.** Pushes run after the database commit, behind the Application-layer
+    `IGroupChatNotifier` (implemented by `SignalRGroupChatNotifier`). They are bounded by a
+    5-second delivery timeout that is independent of the author's request. A push failure is
+    logged and never fails the request; clients catch up from history.
+  - **Viewer-neutral pushes.** Pushes carry `IsMine=false`. The SPA recognises its own messages
+    by comparing `authorUserId` with the `viewerUserId` returned by the history endpoint.
+- **Unread badge.** `GET /api/groups/unread` counts other people's undeleted messages above each
+  group's read marker, for groups the user belongs to or teaches.
+  `POST /api/groups/{id}/messages/read` only ever moves the marker forward.
+- **SPA.**
+  - Students get **Schedule** (`/schedule`): an agenda by day, with Join enabled from 15 minutes
+    before the start. They also get **Groups** (`/groups`) and the group chat
+    (`/groups/:groupId/chat`).
+  - Staff get `/teaching/:courseId/groups` and `/teaching/:courseId/lectures`, linked from
+    Courses -> Teaching.
+  - `src/services/groupChatHub.js` holds one shared connection with automatic reconnect.
+    Join and leave are serialized per group with per-caller ownership handles.
+- **Single replica.** The registry and SignalR's connection state are in-process, so live
+  delivery is correct only while `LF.WebApi` runs as one instance. Scaling out needs a backplane
+  and a shared registry. REST and history stay correct either way.
+
 ## API surface
 
 New endpoints are Minimal API `IEndpointGroup`s in `LF.WebApi/Endpoints/`, auto-discovered by
 reflection in `Program.cs` (`MapEndpointGroups`). Existing auth is MVC (`AuthController`).
+Where a route needs per-course rights (teaching staff, enrolled student), the policy only
+requires authentication and the service enforces the rest.
 
 | Endpoint group | Route prefix | Authorization |
 |---|---|---|
-| `ProfileEndpoints` | `/api/profile` | authenticated |
-| `CourseEndpoints` | `/api/courses` | `CourseCreatorOrAdmin` (Instructor / CourseCreator / Admin) |
+| `ProfileEndpoints` | `/api/profile` (incl. `/language`, `/avatar`) | authenticated |
+| `CourseEndpoints` | `/api/courses` | `CourseCreatorOrAdmin` (Instructor / CourseCreator / Admin) + ownership in `LF.CourseService` |
+| `CourseInstructorEndpoints` | `/api/courses/{courseId}/instructors` | `CourseCreatorOrAdmin` + creator-or-admin in the service |
+| `TeachingEndpoints` | `/api/teaching/courses` | `CourseCreatorOrAdmin` |
 | `EnrollmentEndpoints` | `/api/enrollments` | authenticated |
+| `LessonQuestionEndpoints` | `/api/questions`, `/api/lessons/{lessonId}/questions` | authenticated; enrolled student / teaching staff in the service |
+| `StudentGroupEndpoints` | `/api/courses/{courseId}/groups`, `/api/groups` | authenticated; staff / active member in the service |
+| `LectureEndpoints` | `/api/courses/{courseId}/lectures`, `/api/lectures` | authenticated; staff in the service (`/mine` for anyone) |
+| `GroupChatEndpoints` | `/api/groups/{id}/messages`, `/api/groups/unread` | authenticated; staff / active member in the service |
+| `GroupChatHubEndpoints` (SignalR) | `/hubs/group-chat` | authenticated; closed when the JWT expires |
 | `PaymentEndpoints` | `/api/payments` | per route — `checkout` / `orders/{id}` authenticated; `robokassa/result` anonymous + signature-verified |
 | `PlatformEndpoints` | `/api/platform/config` | authenticated |
 | `NewsEndpoints` | `/api/news` | none — public posts only; the image route gates each request by post visibility |
@@ -596,12 +796,17 @@ reflection in `Program.cs` (`MapEndpointGroups`). Existing auth is MVC (`AuthCon
 | `AdminPromoCodeEndpoints` | `/api/admin/promo-codes` | `AdminOnly` |
 | `AdminPaymentReportEndpoints` | `/api/admin/payments` | `AdminOnly` |
 | `AdminNewsEndpoints` | `/api/admin/news` | `AdminOnly` |
+| `AdminLessonQuestionEndpoints` | `/api/admin/questions` | `AdminOnly` |
+| `AdminEmailEndpoints` | `/api/admin/email` | `AdminOnly` |
 | `DevAuthEndpoints` | `/api/dev-auth` | none — Development only, structurally absent otherwise |
 | `AuthController` (MVC) | `/api/Auth/*` | `[AllowAnonymous]` sign-in/callback, `[Authorize]` logout |
 
 Endpoints stay thin: they validate the request (FluentValidation, instantiated inline),
 delegate to an Application-layer use-case service injected as a delegate parameter, and map
-the result to a response DTO with `TypedResults`. There is no mediator/dispatcher layer.
+the result to a response DTO with `TypedResults`. There is no global exception handler: each
+endpoint maps the feature's authorization exception to 403, `InvalidOperationException` to 409,
+`ArgumentException` to a validation problem, and a `null` result to 404. There is no
+mediator/dispatcher layer.
 
 ## Inter-service contracts (gRPC)
 
@@ -611,6 +816,7 @@ the result to a response DTO with `TypedResults`. There is no mediator/dispatche
 | `LF.CourseService/Protos/course_service.proto` | `LF.CourseService` (`RpcCourseService`) | `LF.WebApi` (via `IGrpcCourseService` / `IGrpcEnrollmentService` / `IGrpcPromoCodeService`) |
 | `LF.PaymentService/Protos/payment_service.proto` | `LF.PaymentService` (`RpcPaymentService`) | `LF.WebApi` (via `IGrpcPaymentService`) |
 
+`LF.NotificationService` has no contract; it shares only the database.
 `LF.Infrastructure` references all three `.proto` files directly (as `Client`) — `LF.WebApi`
 has no project reference to the gRPC hosts, only to `LF.Infrastructure`. A `.proto` change is
 a cross-service boundary change: check the server (`Rpc*Service`) **and** the client wrapper
@@ -625,10 +831,14 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
 ## Data & persistence
 
 - **One shared PostgreSQL database** (`leanforge`). `AppDbContext` (Npgsql) implements
-  `IAppDbContext`; Application-layer services depend on the interface. `DbSet`s:
+  `IAppDbContext`; Application-layer services depend on the interface. All five hosts register
+  it. `DbSet`s:
   `Users`, `Courses`, `Categories`, `Enrollments`, `PromoCodes`, `PaymentOrders`,
-  `CoursePayments`, `StorageObjects`, `QuizAttempts`, `NewsPosts`, `NewsReadMarkers` (other
-  course entities and `NewsImage` are mapped and reached through navigations).
+  `CoursePayments`, `StorageObjects`, `QuizAttempts`, `NewsPosts`, `NewsReadMarkers`,
+  `CourseInstructors`, `LessonQuestions`, `LessonQuestionReadMarkers`, `EmailMessages`,
+  `CourseContentChanges`, `StudentGroups`, `Lectures`, `GroupChatMessages`,
+  `GroupChatReadMarkers`. Other course entities, `NewsImage`, `LessonQuestionMessage`,
+  `StudentGroupMember` and `LectureGroup` are mapped and reached through navigations.
 - **Table-per-owner.** Table names are `"LF" + PascalPlural` (`LFUsers`, `LFCourses`,
   `LFPaymentOrders`, `LFCoursePayments`, …). Money is `numeric(12,2)`;
   enums are stored as `int`.
@@ -638,11 +848,13 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
   owner's own tables (e.g. `Course` → `Chapter` → `Lesson`).
 - **Entity configuration** is one `internal sealed IEntityTypeConfiguration<T>` per entity,
   auto-applied via `ApplyConfigurationsFromAssembly`.
-- **Migrations** (`LF.Infrastructure/Migrations/`) — 15 to date, latest
-  `20260913211744_AddNews` (the news posts, images and read-marker tables). Only `LF.IdentityService` applies
+- **Migrations** (`LF.Infrastructure/Migrations/`) — 20 to date, latest
+  `20261006123417_AddStudentGroupsLecturesChat` (groups, members, lectures, lecture-group links,
+  chat messages and chat read markers). Only `LF.IdentityService` applies
   them at runtime (`DatabaseInitializer.InitializeDatabaseAsync` → `Database.MigrateAsync()`),
-  and it also seeds `DefaultAdmins` and the starter categories, and backfills `CoursePayments`. `LF.CourseService` / `LF.PaymentService` / `LF.WebApi`
-  just connect and assume the schema is current.
+  and it also seeds `DefaultAdmins` and the starter categories, and backfills `CoursePayments`.
+  The other four hosts just connect and assume the schema is current
+  (`LF.NotificationService` uses `WaitForStart(identityService)` under Aspire for that reason).
 
   ```bash
   dotnet ef migrations add <Name> \
@@ -658,26 +870,33 @@ domain exception or `null`. That chain is how, e.g., `EnrollmentDisabledExceptio
 
 ```
 LeanForgeLMS.slnx
-LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite),
-                                 #   lf-identityservice, lf-courseservice, lf-paymentservice, lf-webapi
+LeanForgeLMS.AppHost/            # .NET Aspire orchestration: postgres, minio, lf-webapp (Vite), the five
+                                 #   .NET hosts, optional ngrok (payment-check profile)
 LeanForgeLMS.ServiceDefaults/    # Shared Aspire defaults: Serilog, Sentry, OpenTelemetry, health
                                  #   checks, service discovery, HTTP resilience, request logging
-LF.AppDomain/                    # Domain layer — Entities/{User,Course,Payment,Platform,Storage},
+LF.AppDomain/                    # Domain layer — Entities/{User,Course,Payment,Storage,News,Qna,Groups,Email},
                                  #   Models/{...}/Enums
 LF.AppDomainTests/               # xUnit v3 unit tests for LF.AppDomain entities
-LF.Application/                  # Application layer — Services/*, ModelDto/*, Common/Interfaces, Common/Mapping
+LF.Application/                  # Application layer — Services/*, ModelDto/*, Common/{Interfaces,Access,
+                                 #   Exceptions,Mapping,Options}, Templates/Email (embedded)
 LF.ApplicationTests/             # xUnit v3 unit tests for LF.Application (Moq + MockQueryable.Moq)
-LF.Infrastructure/               # Infrastructure — Persistence/ (AppDbContext, Configurations,
-                                 #   Migrations, Seed), Services/{Identity,Course,Payment,Storage}
+LF.Infrastructure/               # Infrastructure — Persistence/ (AppDbContext, Configurations, Seed),
+                                 #   Migrations/, Services/{Identity,Course,Enrollment,Promo,Payment,Storage,Email,...}
 LF.WebApi/                       # Public host — MVC auth controllers, Endpoints/ (Minimal API),
+                                 #   Hubs/ (group chat SignalR hub + connection registry),
                                  #   Common/ (CsvWriter, ClaimsPrincipal ext), Program.cs auth pipeline
-LF.WebApiTests/                  # xUnit v3 tests — validators, endpoint discovery, CsvWriter
-LF.IdentityService/             # Internal gRPC host — Services/RpcUserService.cs, Protos/user_service.proto
-LF.CourseService/               # Internal gRPC host — Services/RpcCourseService.cs, Protos/course_service.proto
-LF.PaymentService/             # Internal gRPC host — Services/RpcPaymentService.cs, Protos/payment_service.proto
-LF.PaymentServiceTests/         # xUnit v3 tests for the Robokassa gateway + RpcPaymentService
+LF.WebApiTests/                  # xUnit v3 tests — validators, endpoint discovery, CsvWriter, feature flags
+LF.IdentityService/              # Internal gRPC host — Services/RpcUserService.cs, Protos/user_service.proto
+LF.CourseService/                # Internal gRPC host — Services/RpcCourseService.cs, Protos/course_service.proto
+LF.PaymentService/               # Internal gRPC host — Services/RpcPaymentService.cs, Protos/payment_service.proto
+LF.PaymentServiceTests/          # xUnit v3 tests for the Robokassa gateway + RpcPaymentService
+LF.NotificationService/          # Background host — Jobs/{EmailDispatchJob,CourseUpdateDigestJob} (Quartz.NET)
 lf.webapp/                       # Vue 3 + Vite SPA (build output → LF.WebApi/wwwroot)
-docker-compose.yml               # Production deployment (6 services)
+docker-compose.yml               # Self-contained Docker deployment (7 services, images built locally)
+docker-compose.production.yml    # Production: prebuilt ghcr.io images behind the shared nginx-proxy
+.github/workflows/               # tests.yml, webapp-tests.yml (PR checks); deploy-production.yml,
+                                 #   sync-production-env.yml (manual)
+DeploymentGuide.md               # Step-by-step production deployment
 ```
 
 ## Tech stack
@@ -694,20 +913,23 @@ docker-compose.yml               # Production deployment (6 services)
 | Authentication | JWT Bearer (primary, delivered in an HttpOnly cookie) + temp Cookie + OpenID Connect (Duende.IdentityModel) against PMI Club + OAuth 2.0 (`Microsoft.AspNetCore.Authentication.Google`) against Google + OAuth 2.0 (`AspNet.Security.OAuth.Yandex`) against Yandex + OAuth 2.1 (`AspNet.Security.OAuth.VkId`) against VK ID (VK / Mail.ru / OK) |
 | Object mapping | Mapster |
 | Validation | FluentValidation (`LF.WebApi` only, instantiated inline) |
-| HTML sanitization | `HtmlSanitizer` (Ganss) behind `IHtmlSanitizer`, in `LF.CourseService` (lesson HTML) and `LF.WebApi` (news posts) |
+| HTML sanitization | `HtmlSanitizer` (Ganss) behind `IHtmlSanitizer`, in `LF.CourseService` (lesson HTML) and `LF.WebApi` (news posts). Q&A and chat bodies are plain text and never rendered as HTML. |
+| Email | MailKit SMTP behind `IEmailSender` (`LF.Infrastructure`), transactional outbox in Postgres, `ru`/`en` HTML + text templates |
+| Background jobs | Quartz.NET 4 (`Quartz.Extensions.Hosting`) in `LF.NotificationService` |
 | Logging | Serilog (`Serilog.AspNetCore`), centralized in `ServiceDefaults`, colorized console, two-stage bootstrap, one summary line per request/RPC |
 | Observability | OpenTelemetry traces + metrics via `ServiceDefaults`, OTLP export when `OTEL_EXPORTER_OTLP_ENDPOINT` is set |
 | Error monitoring | Sentry (`Sentry.AspNetCore`), wired once in `ServiceDefaults`, enabled only when `SENTRY_DSN` is set |
-| Feature flags | Unleash (`Unleash.Client`) behind `IFeatureFlagService`, registered in `LF.WebApi` only; fails closed when unconfigured |
+| Real-time | ASP.NET Core SignalR (in-process, single replica) on `LF.WebApi`; `@microsoft/signalr` client in the SPA |
+| Feature flags | Unleash (`Unleash.Client`) behind `IFeatureFlagService`, registered in `LF.WebApi` and `LF.NotificationService`; fails closed when unconfigured |
 | Security headers | `NetEscapades.AspNetCore.SecurityHeaders` — prod-only CSP + default headers on `LF.WebApi` |
 | Backend testing | xUnit v3 + Moq + MockQueryable.Moq (unit tests). Integration testing with Testcontainers / WebApplicationFactory is aspirational — not built. |
 | Frontend | Vue 3 (Composition API, `<script setup>`) + Vite, Pinia, vue-router, vue-i18n (en/ru, default `ru`), Tailwind CSS v4, axios, a local shadcn-style component kit built on **reka-ui** + `class-variance-authority` in `src/components/ui/`, icons from `lucide-vue-next` |
 | Frontend testing | Vitest + `@testing-library/vue` — component, Pinia store, and service suites, co-located as `*.spec.js` |
-| Containerization | Multi-stage Dockerfiles; Docker Compose for production |
+| Containerization | Multi-stage Dockerfiles; Docker Compose; images published to ghcr.io by a manual GitHub Actions deploy |
 
 ## Deployment topology (Docker Compose)
 
-`docker-compose.yml` defines **six services** across two Docker networks:
+`docker-compose.yml` defines **seven services** across two Docker networks:
 
 | Service | Network(s) | Host-exposed? |
 |---|---|---|
@@ -716,31 +938,45 @@ docker-compose.yml               # Production deployment (6 services)
 | `lf-identityservice` | `leanforge-internal` | No — gRPC only |
 | `lf-courseservice` | `leanforge-internal` | No — gRPC only |
 | `lf-paymentservice` | `leanforge-internal` | No — gRPC only (Robokassa's classic flow needs no egress from it) |
+| `lf-notificationservice` | `leanforge-public` + `leanforge-internal` | No — public network for SMTP and Unleash egress only |
 | `lf-webapi` | `leanforge-public` + `leanforge-internal` | Yes (`${WEBAPI_HOST_PORT:-8081}` → `8080`) |
 
-`lf-webapi` is the only container with a published port and the only one on the public
-network — it needs outbound internet for the PMI OIDC / Google + Yandex + VK ID OAuth handshakes and it
-receives Robokassa's ResultURL webhook. Everything else is internal-only and unreachable
-from the host or the internet. `lf-webapi` gets its own `ConnectionStrings__leanforge` for
-the `StorageObjects` / `CoursePayments` / news access described above. It is also the only container
-that talks to Unleash, which is why the feature flag client is registered there and nowhere else.
+`leanforge-internal` is `internal: true` (no egress). `lf-webapi` is the only container with a
+published port — it needs outbound internet for the PMI OIDC / Google + Yandex + VK ID OAuth
+handshakes and Unleash, and it receives Robokassa's ResultURL webhook. It also serves the
+group-chat WebSocket (`/hubs/group-chat`). A reverse proxy in front of it must pass WebSocket
+upgrades, and it must stay a **single replica**, because chat delivery state is in-process (see
+[Student groups, lectures & group chat](#student-groups-lectures--group-chat)).
+`lf-notificationservice` joins the public network only for SMTP and Unleash and has no
+published port. `lf-courseservice` and `lf-notificationservice` both get `App__PublicBaseUrl` for
+email links.
 
 **There is no `lf-webapp` container** — `LF.WebApi/Dockerfile` is 3-stage: a `node:22` stage
 builds the SPA into `LF.WebApi/wwwroot`, then the .NET SDK stage publishes it into the image.
-The other three Dockerfiles are 2-stage (SDK build → aspnet runtime), no Node. In production
+The other four Dockerfiles are 2-stage (SDK build → aspnet runtime), no Node. In production
 `LF.WebApi` serves the SPA via `MapFallbackToFile("index.html")`; in development it proxies
 to the Vite dev server.
 
 ```bash
 cp .env.example .env   # POSTGRES_PASSWORD, MINIO_ROOT_USER/PASSWORD, DefaultAuth__JwtKey,
                        # PmiAuth__*, GoogleAuth__*, YandexAuth__*, VkIdAuth__*, Robokassa__* (+ SuccessUrl/FailUrl),
-                       # Unleash__ApiKey (blank = every flag off, so self-enrollment stays closed).
+                       # Unleash__ApiKey (blank = every flag off: no self-enrollment, no email delivery),
+                       # Smtp__Host/Port/Security/UserName/Password/FromAddress/FromName (blank Host = no delivery).
                        # SENTRY_DSN is optional — blank disables Sentry.
 docker compose up --build
 ```
 
-Step-by-step deployment instructions — server prep, GitHub Actions secrets, verification,
-rollback and troubleshooting — are in [`DeploymentGuide.md`](./DeploymentGuide.md).
+**Production** uses `docker-compose.production.yml`: the same seven services, but it pulls
+prebuilt images from `ghcr.io/toptuk/leanforgelms/*`. `lf-webapi` also joins the external
+`pmi_network`, where a shared nginx-proxy terminates TLS (`VIRTUAL_HOST`), and it publishes only
+on loopback. Deployment is the manual GitHub Actions workflow `deploy-production.yml`:
+1. Run the backend tests and the webapp lint, tests and build.
+2. Build and push the five images.
+3. Copy the compose file to the server over SSH and roll it out.
+
+`sync-production-env.yml` regenerates the server's `.env` from repository secrets.
+Step-by-step instructions — server prep, secrets, verification, rollback and troubleshooting —
+are in [`DeploymentGuide.md`](./DeploymentGuide.md).
 
 ## Local development
 
@@ -750,9 +986,19 @@ rollback and troubleshooting — are in [`DeploymentGuide.md`](./DeploymentGuide
 dotnet run --project LeanForgeLMS.AppHost
 ```
 
-Starts Postgres, MinIO, the Vite dev server, and all four .NET hosts; wires connection
+Starts Postgres, MinIO, the Vite dev server, and all five .NET hosts; wires connection
 strings / service discovery automatically; opens the Aspire dashboard (OTEL traces / metrics
 / logs for every resource).
+
+Email delivery is optional locally — without SMTP settings queued mail stays `Pending` (and
+`lf.send_mails` must also be on). To send real mail, set the AppHost parameters once:
+
+```bash
+dotnet user-secrets set SMTP_HOST         smtp.example.com --project LeanForgeLMS.AppHost
+dotnet user-secrets set SMTP_USERNAME     <user>           --project LeanForgeLMS.AppHost
+dotnet user-secrets set SMTP_PASSWORD     <password>       --project LeanForgeLMS.AppHost
+dotnet user-secrets set SMTP_FROM_ADDRESS noreply@example.com --project LeanForgeLMS.AppHost
+```
 
 Feature flags are optional locally — without a key every flag reads as off, which means
 self-enrollment is blocked. To exercise it, set the Unleash client API token once:
@@ -761,7 +1007,8 @@ self-enrollment is blocked. To exercise it, set the Unleash client API token onc
 # for `dotnet run --project LF.WebApi` (standalone)
 dotnet user-secrets set "Unleash:ApiKey" "default:development.<secret>" --project LF.WebApi
 
-# for `dotnet run --project LeanForgeLMS.AppHost` (forwarded as Unleash__ApiKey to lf-webapi)
+# for `dotnet run --project LeanForgeLMS.AppHost` (forwarded as Unleash__ApiKey to lf-webapi
+# and lf-notificationservice)
 dotnet user-secrets set UNLEASH_API_KEY "default:development.<secret>" --project LeanForgeLMS.AppHost
 ```
 
@@ -770,7 +1017,8 @@ dotnet user-secrets set UNLEASH_API_KEY "default:development.<secret>" --project
 > their `/health` endpoints HTTP/2-only. The AppHost's `WaitFor(...)` readiness probe uses
 > HTTP/1.1 and gets rejected, so `lf-webapi` can hang indefinitely waiting to start. If it
 > does: use the `payment-check` launch profile (which swaps `WaitFor` → `WaitForStart` for
-> the gRPC dependencies), or run the services standalone (below).
+> the gRPC dependencies), or run the services standalone (below). `lf-notificationservice`
+> already uses `WaitForStart(identityService)` for the same reason.
 
 ### Testing payments locally (ngrok)
 
@@ -807,6 +1055,7 @@ dotnet run --project LeanForgeLMS.AppHost --launch-profile payment-check
 dotnet run --project LF.IdentityService --no-launch-profile     # sole migrator; needs ConnectionStrings__leanforge
 dotnet run --project LF.CourseService  --no-launch-profile      # same "leanforge" database
 dotnet run --project LF.PaymentService --no-launch-profile      # + Robokassa__MerchantLogin/Password1/Password2
+dotnet run --project LF.NotificationService --no-launch-profile # + App__PublicBaseUrl, optional Smtp__* / Unleash__*
 dotnet run --project LF.WebApi         --no-launch-profile      # + PmiAuth/GoogleAuth/YandexAuth/VkIdAuth/DefaultAuth config,
                                                                 #   Services__lf-*service__http__0 addresses,
                                                                 #   DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2UNENCRYPTEDSUPPORT=1
@@ -822,28 +1071,36 @@ cd lf.webapp && npm run lint && npm test
 ```
 
 - **Backend** — xUnit v3. `LF.AppDomainTests` (entity behavior), `LF.ApplicationTests`
-  (use-case services, Moq + MockQueryable.Moq for `IAppDbContext`), `LF.WebApiTests`
-  (FluentValidation validators, endpoint-group discovery, `CsvWriter`), `LF.PaymentServiceTests`
-  (Robokassa gateway + `RpcPaymentService`). Testcontainers / WebApplicationFactory
-  integration testing is planned, not yet built.
+  (use-case services with Moq + MockQueryable.Moq for `IAppDbContext`, plus DI-graph validation
+  per host), `LF.WebApiTests` (FluentValidation validators, endpoint-group discovery,
+  `CsvWriter`, feature-flag registration), `LF.PaymentServiceTests` (Robokassa gateway +
+  `RpcPaymentService`). Testcontainers / WebApplicationFactory integration testing is planned,
+  not yet built.
 - **Frontend** — Vitest + `@testing-library/vue`; component, Pinia store, and service specs
   co-located as `*.spec.js`.
-- **CI** — `.github/workflows/tests.yml` runs `LF.ApplicationTests` and `LF.WebApiTests` (in
-  Release, with TRX reports) on every PR to `main`. `.github/workflows/webapp-tests.yml` runs
-  `npm ci` + `npm run lint:ci` + `npm run test:coverage` + `npm run build` on PRs that touch
-  `lf.webapp/**`.
+- **CI** — on every PR to `main`, `.github/workflows/tests.yml` runs `LF.ApplicationTests` and
+  `LF.WebApiTests` (Release, TRX reports), and `.github/workflows/webapp-tests.yml` runs
+  `npm ci` + `npm run lint:ci` + `npm run test:coverage` + `npm run build` when
+  `lf.webapp/**` changes. The manual `deploy-production.yml` runs the **whole** backend suite
+  and the webapp checks before it builds any image.
 
 ## Deferred / not yet built
 
 - **Caching** — no HybridCache / Redis anywhere, payments included.
-- **Inter-service messaging** — no Wolverine / MassTransit; gRPC direct calls only.
+- **Inter-service messaging** — no Wolverine / MassTransit; gRPC direct calls, plus the
+  database outbox for email.
 - **Payment refunds** and a **reconciliation job** for ResultURL webhooks that never arrive.
-- **Editing course settings** after creation — only chapters, lessons (and their parts), and
-  publishing can be changed post-creation.
-- **Course covers on the student-facing catalog / active / finished views** — creators see
-  their own covers; the browse/enrolled views don't render them yet.
+- **Editing a published course's details** — settings are editable only while unpublished;
+  content (chapters, lessons, parts) stays editable after publishing.
 - **Lesson video/audio upload size limits** (200 MB / 50 MB) — current placeholders, not
   verified against Kestrel / dev-proxy request-body-size limits.
-- **Admin course moderation** — `/admin/courses` is still a placeholder page.
+- **Group chat & lectures follow-ups** — lecture reminder emails (the email outbox already
+  fits), recurring lectures, direct messages, chat attachments, and a SignalR backplane for
+  running more than one `LF.WebApi` replica.
+- **Session revocation** — logout only deletes the cookie; a copied JWT (and with it a
+  REST call or chat connection) stays valid until it expires.
+- **Multi-replica email dispatch** — the dispatcher has no row locking, so
+  `LF.NotificationService` must run as one instance.
 - **Orphaned uploads** — a news image (or course cover) uploaded in an editor that is then
   abandoned without saving keeps its `StorageObject` row and blob. No cleanup job exists yet.
+

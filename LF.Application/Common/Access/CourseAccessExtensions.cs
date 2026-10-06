@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LF.Application.Common.Access;
 
-// The two course-scoped predicates the Q&A rules are built on. EnrollmentService inlines an
+// The course-scoped predicates the Q&A and student-group rules are built on. EnrollmentService inlines an
 // equivalent enrollment check in a couple of places over in LF.CourseService; these live here
 // because LF.WebApi needs them against the same shared database.
 internal static class CourseAccessExtensions
@@ -26,4 +26,26 @@ internal static class CourseAccessExtensions
             .AsNoTracking()
             .AnyAsync(i => i.CourseId == courseId && i.UserId == userId, cancellationToken);
     }
+
+    // Composable form of IsTeachingStaffAsync for "everything this user teaches" queries.
+    public static IQueryable<int> StaffCourseIds(this IAppDbContext dbContext, int userId) =>
+        dbContext.Courses
+            .AsNoTracking()
+            .Where(c => c.CreatedByUserId == userId)
+            .Select(c => c.Id)
+            .Union(dbContext.CourseInstructors
+                .AsNoTracking()
+                .Where(i => i.UserId == userId)
+                .Select(i => i.CourseId));
+
+    // Groups the user can see as a student: a membership row alone isn't enough, the enrollment in
+    // the group's course must still be Active. Enrollment removal happens over in LF.CourseService,
+    // so checking it here means stale memberships simply stop granting access.
+    public static IQueryable<int> MemberGroupIds(this IAppDbContext dbContext, int userId) =>
+        dbContext.StudentGroups
+            .AsNoTracking()
+            .Where(g => g.Members.Any(m => m.UserId == userId))
+            .Where(g => dbContext.Enrollments.Any(e =>
+                e.CourseId == g.CourseId && e.UserId == userId && e.Status == EnrollmentStatus.Active))
+            .Select(g => g.Id);
 }

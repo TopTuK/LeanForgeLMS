@@ -9,6 +9,8 @@ using LF.Application.Services.CourseAuthoring;
 using LF.Application.Services.CourseTeaching;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
+using LF.Application.Services.Groups;
+using LF.Application.Services.Lectures;
 using LF.Application.Services.News;
 using LF.Application.Services.Notifications;
 using LF.Application.Services.Payment;
@@ -18,6 +20,7 @@ using LF.Application.Services.Promo;
 using LF.Application.Services.PromoCodeAdmin;
 using LF.Application.Services.Qna;
 using LF.Application.Services.Storage;
+using LF.Application.Services.Teaching;
 using LF.Application.Services.User;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +61,13 @@ public static class DependencyInjection
         services.AddScoped<ILessonQuestionService, LessonQuestionService>();
         services.AddScoped<IAdminLessonQuestionService, AdminLessonQuestionService>();
         services.AddScoped<ICourseTeachingTeamService, CourseTeachingTeamService>();
+
+        // Groups, lectures and group chat live in LF.WebApi for the same reason as Q&A, and because the
+        // SignalR hub that pushes chat messages is hosted there. IGroupChatNotifier comes from the host.
+        services.AddScoped<ITeachingCourseService, TeachingCourseService>();
+        services.AddScoped<IStudentGroupService, StudentGroupService>();
+        services.AddScoped<ILectureService, LectureService>();
+        services.AddScoped<IGroupChatService, GroupChatService>();
 
         // Outbox producer only — delivery happens in LF.NotificationService.
         services.AddScoped<IEmailQueue, EmailQueue>();

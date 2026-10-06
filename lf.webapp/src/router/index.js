@@ -36,6 +36,11 @@ const NewsListView = () => import('@/views/news/NewsListView.vue');
 const NewsDetailView = () => import('@/views/news/NewsDetailView.vue');
 const NotificationsView = () => import('@/views/NotificationsView.vue');
 const QuestionsView = () => import('@/views/QuestionsView.vue');
+const MyGroupsView = () => import('@/views/groups/MyGroupsView.vue');
+const GroupChatView = () => import('@/views/groups/GroupChatView.vue');
+const ScheduleView = () => import('@/views/ScheduleView.vue');
+const TeachingGroupsView = () => import('@/views/teaching/TeachingGroupsView.vue');
+const TeachingLecturesView = () => import('@/views/teaching/TeachingLecturesView.vue');
 
 const routes = [
     {
@@ -125,6 +130,56 @@ const routes = [
         meta: {
             title: 'questions_view_title',
             requiresAuth: true,
+        }
+    },
+    {
+        path: '/groups',
+        name: 'Groups',
+        component: MyGroupsView,
+        meta: {
+            title: 'groups_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        // Access (member with an active enrollment, or teaching staff) is enforced by the API.
+        path: '/groups/:groupId(\\d+)/chat',
+        name: 'GroupChat',
+        component: GroupChatView,
+        meta: {
+            title: 'group_chat_view_title',
+            requiresAuth: true,
+        }
+    },
+    {
+        path: '/schedule',
+        name: 'Schedule',
+        component: ScheduleView,
+        meta: {
+            title: 'schedule_view_title',
+            requiresAuth: true,
+        }
+    },
+    // Instructor is allowed here (unlike the content editor): assigned instructors run groups and
+    // lectures for courses they don't own. Per-course access is checked by the API.
+    {
+        path: '/teaching/:courseId(\\d+)/groups',
+        name: 'TeachingGroups',
+        component: TeachingGroupsView,
+        meta: {
+            title: 'teaching_groups_view_title',
+            requiresAuth: true,
+            roles: ['Instructor', 'CourseCreator', 'Admin'],
+        }
+    },
+    {
+        path: '/teaching/:courseId(\\d+)/lectures',
+        name: 'TeachingLectures',
+        component: TeachingLecturesView,
+        meta: {
+            title: 'teaching_lectures_view_title',
+            requiresAuth: true,
+            roles: ['Instructor', 'CourseCreator', 'Admin'],
         }
     },
     {
