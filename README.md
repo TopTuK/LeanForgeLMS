@@ -13,6 +13,16 @@ progress. An admin area manages users, courses, categories, promo codes, and pay
 reporting, while a runtime **feature flag** turns student self-enrollment on or off without a
 redeploy. Courses can also be marked **private**, in which case only an admin enrolls students.
 
+For live, cohort-style teaching, a course's creator and its assigned instructors can organise
+enrolled students into **student groups** (a student may belong to several groups of one
+course) and schedule **online lectures** for them. Each lecture has a date and time, a duration
+and a link to an external meeting (Zoom, Telemost, etc.), and can be edited or cancelled.
+Students get a **Schedule** page with a one-click *Join* button that opens 15 minutes before the
+start, plus a **Groups** page. Every group has a **real-time chat** (SignalR) shared by its
+students and the course's teaching staff, with unread badges and moderation by staff. Access
+follows the enrollment: a student whose enrollment ends loses access to the group, its schedule
+and its chat automatically.
+
 It's a **solo-developer project** built on **.NET 10** and a **Vue 3** SPA. The backend runs
 as four independently deployable processes — one public API/BFF plus three internal gRPC
 services (identity, courses, payments) — sharing one PostgreSQL database and one MinIO object
