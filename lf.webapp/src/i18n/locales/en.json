@@ -502,6 +502,8 @@
             "open_lesson_editor": "Open editor",
             "remove_lesson": "Remove",
             "remove_lesson_confirm": "Remove \"{title}\"? This cannot be undone.",
+            "remove_chapter": "Remove chapter",
+            "remove_chapter_confirm": "Remove chapter \"{title}\" together with all of its lessons (lessons: {count})? Student questions on these lessons are deleted too. This cannot be undone.",
             "save": "Save",
             "cancel": "Cancel",
             "draft": "Draft",

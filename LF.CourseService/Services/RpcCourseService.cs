@@ -140,6 +140,16 @@ public class RpcCourseService(
         return ToReply(course);
     }
 
+    public override async Task<CourseDetailReply> RemoveChapter(RemoveChapterRequest request, ServerCallContext context)
+    {
+        _logger.LogInformation("RpcCourseService::RemoveChapter: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            request.CourseId, request.ChapterId, request.ActingUserId);
+
+        var course = await GuardedAsync(() =>
+            _courseService.RemoveChapterAsync(request.CourseId, request.ChapterId, request.ActingUserId, request.ActingIsAdmin));
+        return ToReply(course);
+    }
+
     public override async Task<CourseDetailReply> AddLesson(AddLessonRequest request, ServerCallContext context)
     {
         _logger.LogInformation("RpcCourseService::AddLesson: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",

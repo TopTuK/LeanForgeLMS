@@ -29,6 +29,9 @@ export const renameChapter = (courseId, chapterId, title) =>
 export const moveChapter = (courseId, chapterId, direction) =>
   api.post(`/courses/${courseId}/chapters/${chapterId}/move`, { direction }).then((r) => r.data);
 
+export const removeChapter = (courseId, chapterId) =>
+  api.delete(`/courses/${courseId}/chapters/${chapterId}`).then((r) => r.data);
+
 export const addLesson = (courseId, chapterId, payload) =>
   api.post(`/courses/${courseId}/chapters/${chapterId}/lessons`, payload).then((r) => r.data);
 

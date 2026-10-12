@@ -20,6 +20,7 @@ import {
   updateLesson,
   moveLesson,
   removeLesson,
+  removeChapter,
   publishCourse,
 } from '@/services/courseService';
 
@@ -42,6 +43,7 @@ describe('courseService', () => {
     ['updateLesson', () => updateLesson(1, 2, 3, { title: 'L2' }), 'put', ['/courses/1/chapters/2/lessons/3', { title: 'L2' }]],
     ['moveLesson', () => moveLesson(1, 2, 3, 'down'), 'post', ['/courses/1/chapters/2/lessons/3/move', { direction: 'down' }]],
     ['removeLesson', () => removeLesson(1, 2, 3), 'delete', ['/courses/1/chapters/2/lessons/3']],
+    ['removeChapter', () => removeChapter(1, 2), 'delete', ['/courses/1/chapters/2']],
     ['publishCourse', () => publishCourse(5), 'post', ['/courses/5/publish']],
   ])('%s calls the right endpoint and unwraps data', async (_name, call, method, args) => {
     await expect(call()).resolves.toBe('RESULT');

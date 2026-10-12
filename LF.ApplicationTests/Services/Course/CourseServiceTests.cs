@@ -503,6 +503,76 @@ public class CourseServiceTests
     }
 
     [Fact]
+    public async Task RemoveChapterAsync_RemovesChapterWithLessonsAndReturnsUpdatedDetail()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        chapter.AddLesson("Lesson 1");
+        chapter.AddLesson("Lesson 2");
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act
+        var result = await service.RemoveChapterAsync(course.Id, chapter.Id, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result!.Chapters);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveChapterAsync_Admin_RemovesFromAnotherUsersCourse()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act
+        var result = await service.RemoveChapterAsync(course.Id, chapter.Id, actingUserId: 2, isAdmin: true);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result!.Chapters);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveChapterAsync_NonOwner_ThrowsAndDoesNotSave()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        var chapter = course.AddChapter("Chapter 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<CourseAuthorizationException>(() =>
+            service.RemoveChapterAsync(course.Id, chapter.Id, actingUserId: 2, isAdmin: false));
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RemoveChapterAsync_UnknownChapter_ReturnsNull()
+    {
+        // Arrange
+        var category = Category.Create("Backend");
+        var course = DomainCourse.Create("Title", "Short", "Description", category, createdByUserId: 1, DateTime.UtcNow);
+        course.AddChapter("Chapter 1");
+        var service = CreateService([course], [category], out var dbContextMock);
+
+        // Act
+        var result = await service.RemoveChapterAsync(course.Id, chapterId: 999, actingUserId: 1, isAdmin: false);
+
+        // Assert
+        Assert.Null(result);
+        dbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ReplaceLessonPartsAsync_Owner_ReplacesAllParts()
     {
         // Arrange

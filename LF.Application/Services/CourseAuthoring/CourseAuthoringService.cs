@@ -89,6 +89,14 @@ internal sealed class CourseAuthoringService(
         return await _grpcCourseService.MoveChapterAsync(courseId, chapterId, direction, actingUserId, isAdmin);
     }
 
+    public async Task<CourseDetailDto?> RemoveChapterAsync(int courseId, int chapterId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseAuthoringService::RemoveChapterAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            courseId, chapterId, actingUserId);
+
+        return await _grpcCourseService.RemoveChapterAsync(courseId, chapterId, actingUserId, isAdmin);
+    }
+
     public async Task<CourseDetailDto?> AddLessonAsync(int courseId, int chapterId, AddLessonDto dto, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseAuthoringService::AddLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",

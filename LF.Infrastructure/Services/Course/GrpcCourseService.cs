@@ -158,6 +158,15 @@ internal sealed class GrpcCourseService(ILogger<GrpcCourseService> logger,
         return await CallOrDefaultAsync(() => _courseServiceRpcClient.MoveChapterAsync(request));
     }
 
+    public async Task<CourseDetailDto?> RemoveChapterAsync(int courseId, int chapterId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("GrpcCourseService::RemoveChapterAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            courseId, chapterId, actingUserId);
+
+        var request = new RemoveChapterRequest { CourseId = courseId, ChapterId = chapterId, ActingUserId = actingUserId, ActingIsAdmin = isAdmin };
+        return await CallOrDefaultAsync(() => _courseServiceRpcClient.RemoveChapterAsync(request));
+    }
+
     public async Task<CourseDetailDto?> AddLessonAsync(int courseId, int chapterId, AddLessonDto dto, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("GrpcCourseService::AddLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
