@@ -70,9 +70,12 @@ export const downloadCoursePdf = async (enrollmentId, lang) => {
     anchor.click();
     anchor.remove();
   } finally {
-    URL.revokeObjectURL(objectUrl);
+    // click() only queues the download; revoking right away can abort it in some browsers.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), PDF_OBJECT_URL_TTL_MS);
   }
 };
+
+export const PDF_OBJECT_URL_TTL_MS = 60_000;
 
 // Preview-lesson equivalents of the two helpers above, used on the course details page before
 // enrollment exists — same blob-fetch constraint (auth header can't reach a plain <img>/<a> src).

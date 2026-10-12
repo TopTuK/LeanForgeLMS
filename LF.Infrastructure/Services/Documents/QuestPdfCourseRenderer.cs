@@ -50,18 +50,31 @@ internal sealed class QuestPdfCourseRenderer : ICoursePdfRenderer
     }
 
     // Decoded up front so a corrupt upload is skipped instead of aborting layout halfway through.
+    // Admission runs on header dimensions before decoding, so a small file that would expand into a
+    // huge bitmap (decompression bomb) never reaches the decoder. A rejected image is left out.
     private Dictionary<ImageBlock, PdfImage> DecodeImages(CourseDocument document)
     {
         var images = new Dictionary<ImageBlock, PdfImage>(ReferenceEqualityComparer.Instance);
+        long encodedBytes = 0;
+        long decodedBytes = 0;
 
         var blocks = document.Description.Concat(document.Chapters.SelectMany(c => c.Lessons).SelectMany(l => l.Blocks));
         foreach (var block in Flatten(blocks).OfType<ImageBlock>())
         {
             if (images.ContainsKey(block)) continue;
 
+            var rejection = Admit(block.Data, images.Count, encodedBytes, decodedBytes, out var estimatedDecodedBytes);
+            if (rejection is not null)
+            {
+                _logger.LogWarning("QuestPdfCourseRenderer::DecodeImages: skipping an image of {SizeBytes} bytes: {Reason}", block.Data.Length, rejection);
+                continue;
+            }
+
             try
             {
                 images[block] = PdfImage.FromBinaryData(block.Data);
+                encodedBytes += block.Data.Length;
+                decodedBytes += estimatedDecodedBytes;
             }
             catch (DocumentComposeException ex)
             {
@@ -70,6 +83,44 @@ internal sealed class QuestPdfCourseRenderer : ICoursePdfRenderer
         }
 
         return images;
+    }
+
+    /// <returns>null when the image may be decoded; otherwise why it was rejected.</returns>
+    internal static string? Admit(byte[] data, int admittedCount, long admittedEncodedBytes, long admittedDecodedBytes, out long estimatedDecodedBytes)
+    {
+        estimatedDecodedBytes = 0;
+
+        if (admittedCount >= ImageLimits.MaxCount)
+            return "image count limit reached";
+        if (admittedEncodedBytes + data.Length > ImageLimits.MaxTotalEncodedBytes)
+            return "total encoded size limit reached";
+        if (!ImageHeaderReader.TryReadSize(data, out var width, out var height))
+            return "unrecognised or truncated image header";
+        if (width > ImageLimits.MaxDimension || height > ImageLimits.MaxDimension)
+            return $"dimensions {width}x{height} exceed {ImageLimits.MaxDimension}px";
+
+        var pixels = (long)width * height;
+        if (pixels > ImageLimits.MaxPixels)
+            return $"{pixels} pixels exceed {ImageLimits.MaxPixels}";
+
+        estimatedDecodedBytes = (long)(pixels * ImageLimits.BytesPerPixel * ImageLimits.DecoderHeadroom);
+        if (admittedDecodedBytes + estimatedDecodedBytes > ImageLimits.MaxTotalDecodedBytes)
+            return "decoded memory budget exhausted";
+
+        return null;
+    }
+
+    internal static class ImageLimits
+    {
+        public const int MaxCount = 200;
+        public const long MaxTotalEncodedBytes = 100L * 1024 * 1024;
+        public const int MaxDimension = 8_000;
+        public const long MaxPixels = 40_000_000;
+
+        // RGBA bitmap, plus headroom for the decoder's scratch buffers and format conversion.
+        public const int BytesPerPixel = 4;
+        public const double DecoderHeadroom = 1.5;
+        public const long MaxTotalDecodedBytes = 512L * 1024 * 1024;
     }
 
     private static IEnumerable<DocumentBlock> Flatten(IEnumerable<DocumentBlock> blocks)

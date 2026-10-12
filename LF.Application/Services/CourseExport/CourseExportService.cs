@@ -29,6 +29,11 @@ internal sealed class CourseExportService(
 
     internal const long MaxImageBytes = 10 * 1024 * 1024;
 
+    // Rendering is CPU- and memory-heavy, so concurrent exports are capped for the whole process.
+    // The service is scoped, hence a static gate rather than an instance one.
+    internal const int MaxConcurrentRenders = 2;
+    private static readonly SemaphoreSlim RenderGate = new(MaxConcurrentRenders, MaxConcurrentRenders);
+
     private readonly ILogger<CourseExportService> _logger = logger;
     private readonly IEnrollmentLearningService _enrollmentLearningService = enrollmentLearningService;
     private readonly IAppDbContext _dbContext = dbContext;
@@ -70,7 +75,19 @@ internal sealed class CourseExportService(
             labels,
             chapters);
 
-        var content = _pdfRenderer.Render(document);
+        byte[] content;
+        await RenderGate.WaitAsync(ct);
+        try
+        {
+            // Last chance to drop an abandoned request: once Render starts it runs to completion,
+            // the token cannot interrupt it.
+            ct.ThrowIfCancellationRequested();
+            content = _pdfRenderer.Render(document);
+        }
+        finally
+        {
+            RenderGate.Release();
+        }
 
         _logger.LogInformation("CourseExportService::ExportEnrollmentPdfAsync: rendered EnrollmentId={EnrollmentId} SizeBytes={SizeBytes}",
             enrollmentId, content.Length);

@@ -201,6 +201,63 @@ public class CourseExportServiceTests
         Assert.Contains("2026", _rendered.Labels.ExportedOn);
     }
 
+    [Fact]
+    public async Task ExportEnrollmentPdfAsync_CancelledRequest_NeverRenders()
+    {
+        // Arrange
+        SetupEnrollment(Enrollment());
+        var service = CreateService();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act / Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.ExportEnrollmentPdfAsync(EnrollmentId, StudentId, false, "ru", cts.Token));
+        _renderer.Verify(r => r.Render(It.IsAny<CourseDocument>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExportEnrollmentPdfAsync_ConcurrentExports_RenderAtMostTheGateLimitAtOnce()
+    {
+        // Arrange — each render blocks until released, so overlapping exports pile up at the gate.
+        SetupEnrollment(Enrollment());
+        var service = CreateService();
+        var release = new ManualResetEventSlim();
+        var running = 0;
+        var peak = 0;
+        _renderer.Setup(r => r.Render(It.IsAny<CourseDocument>())).Returns(() =>
+        {
+            var now = Interlocked.Increment(ref running);
+            InterlockedMax(ref peak, now);
+            release.Wait(TimeSpan.FromSeconds(10));
+            Interlocked.Decrement(ref running);
+            return [0x25];
+        });
+
+        // Act
+        var exports = Enumerable.Range(0, CourseExportService.MaxConcurrentRenders + 2)
+            .Select(_ => Task.Run(() => service.ExportEnrollmentPdfAsync(EnrollmentId, StudentId, false, "ru", TestContext.Current.CancellationToken)))
+            .ToList();
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (Volatile.Read(ref running) < CourseExportService.MaxConcurrentRenders && DateTime.UtcNow < deadline)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        release.Set();
+        await Task.WhenAll(exports);
+
+        // Assert
+        Assert.Equal(CourseExportService.MaxConcurrentRenders, peak);
+        _renderer.Verify(r => r.Render(It.IsAny<CourseDocument>()), Times.Exactly(exports.Count));
+    }
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        int current;
+        while ((current = Volatile.Read(ref target)) < value && Interlocked.CompareExchange(ref target, value, current) != current)
+        {
+        }
+    }
+
     [Theory]
     [InlineData("Intro / Basics: part 1?", "Intro-Basics-part-1.pdf")]
     [InlineData("   ", "course.pdf")]

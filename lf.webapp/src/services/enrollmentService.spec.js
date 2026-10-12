@@ -21,6 +21,7 @@ import {
   fetchCoursePreviewLessonPartFileObjectUrl,
   downloadCoursePdf,
   fileNameFromDisposition,
+  PDF_OBJECT_URL_TTL_MS,
 } from '@/services/enrollmentService';
 
 describe('enrollmentService', () => {
@@ -100,11 +101,21 @@ describe('enrollmentService', () => {
         savedAs = this.download;
       });
 
-      await downloadCoursePdf(7, 'ru');
+      vi.useFakeTimers();
+      try {
+        await downloadCoursePdf(7, 'ru');
 
-      expect(api.get).toHaveBeenCalledWith('/enrollments/7/export/pdf', { params: { lang: 'ru' }, responseType: 'blob' });
-      expect(savedAs).toBe('Курс.pdf');
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:media');
+        expect(api.get).toHaveBeenCalledWith('/enrollments/7/export/pdf', { params: { lang: 'ru' }, responseType: 'blob' });
+        expect(savedAs).toBe('Курс.pdf');
+
+        // The blob must outlive click() long enough for the browser to start the download.
+        vi.advanceTimersByTime(PDF_OBJECT_URL_TTL_MS - 1);
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:media');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
