@@ -38,6 +38,45 @@ export const fetchEnrollmentLessonPartFileObjectUrl = (enrollmentId, lessonId, p
   api.get(`/enrollments/${enrollmentId}/lessons/${lessonId}/parts/${partId}/files/${fileId}/media`, { responseType: 'blob' })
     .then((r) => URL.createObjectURL(r.data));
 
+// The PDF is rendered server-side for the caller's enrollment and saved through a blob anchor.
+// A Cyrillic course title only survives in filename* (RFC 5987), so that form wins over filename.
+export const fileNameFromDisposition = (disposition, fallback) => {
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition ?? '');
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1]);
+    } catch {
+      // Malformed escape — fall through to the plain filename.
+    }
+  }
+
+  const plain = /filename="?([^";]+)"?/i.exec(disposition ?? '');
+  return plain?.[1] ?? fallback;
+};
+
+export const downloadCoursePdf = async (enrollmentId, lang) => {
+  const response = await api.get(`/enrollments/${enrollmentId}/export/pdf`, {
+    params: { lang: lang || undefined },
+    responseType: 'blob',
+  });
+
+  const fileName = fileNameFromDisposition(response.headers['content-disposition'], 'course.pdf');
+  const objectUrl = URL.createObjectURL(response.data);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    // click() only queues the download; revoking right away can abort it in some browsers.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), PDF_OBJECT_URL_TTL_MS);
+  }
+};
+
+export const PDF_OBJECT_URL_TTL_MS = 60_000;
+
 // Preview-lesson equivalents of the two helpers above, used on the course details page before
 // enrollment exists — same blob-fetch constraint (auth header can't reach a plain <img>/<a> src).
 export const fetchCoursePreviewLessonMediaObjectUrl = (courseId, lessonId, partId) =>

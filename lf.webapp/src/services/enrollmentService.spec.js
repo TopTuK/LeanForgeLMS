@@ -19,6 +19,9 @@ import {
   fetchEnrollmentLessonPartFileObjectUrl,
   fetchCoursePreviewLessonMediaObjectUrl,
   fetchCoursePreviewLessonPartFileObjectUrl,
+  downloadCoursePdf,
+  fileNameFromDisposition,
+  PDF_OBJECT_URL_TTL_MS,
 } from '@/services/enrollmentService';
 
 describe('enrollmentService', () => {
@@ -84,5 +87,44 @@ describe('enrollmentService', () => {
     await expect(call()).resolves.toBe('blob:media');
     expect(api.get).toHaveBeenCalledWith(url, { responseType: 'blob' });
     expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+  });
+
+  describe('downloadCoursePdf', () => {
+    it('requests the PDF as a blob in the given language and saves it under the server file name', async () => {
+      api.get.mockResolvedValue({
+        data: new Blob(['%PDF']),
+        headers: { 'content-disposition': "attachment; filename=course.pdf; filename*=UTF-8''%D0%9A%D1%83%D1%80%D1%81.pdf" },
+      });
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+      let savedAs;
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () {
+        savedAs = this.download;
+      });
+
+      vi.useFakeTimers();
+      try {
+        await downloadCoursePdf(7, 'ru');
+
+        expect(api.get).toHaveBeenCalledWith('/enrollments/7/export/pdf', { params: { lang: 'ru' }, responseType: 'blob' });
+        expect(savedAs).toBe('Курс.pdf');
+
+        // The blob must outlive click() long enough for the browser to start the download.
+        vi.advanceTimersByTime(PDF_OBJECT_URL_TTL_MS - 1);
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:media');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it.each([
+    ["attachment; filename=a.pdf; filename*=UTF-8''%D0%9A.pdf", 'К.pdf'],
+    ['attachment; filename="plain.pdf"', 'plain.pdf'],
+    ["attachment; filename=fallback.pdf; filename*=UTF-8''%E0%A4%A", 'fallback.pdf'],
+    [undefined, 'course.pdf'],
+  ])('fileNameFromDisposition(%s) -> %s', (header, expected) => {
+    expect(fileNameFromDisposition(header, 'course.pdf')).toBe(expected);
   });
 });

@@ -13,7 +13,9 @@ deployment are all under your control, and contributions that extend it further 
 
 Instructors author courses as chapters and lessons built from ordered rich-text, image, video,
 audio, quiz and file blocks, with cover art and a publish workflow. Students browse a catalog,
-enroll (free or paid), work through lessons, pass quizzes, and track their progress. An admin
+enroll (free or paid), work through lessons, pass quizzes, and track their progress. Enrolled
+students can also **download a course as a PDF** for offline reading: a cover page, a clickable
+table of contents, and every lesson's text and images. An admin
 area manages users, courses, categories, promo codes, and payment reporting, while a runtime
 **feature flag** turns student self-enrollment on or off without a redeploy. Courses can also
 be marked **private**, in which case only an admin enrolls students.
@@ -32,9 +34,10 @@ It is built on **.NET 10** and a **Vue 3** SPA. The backend runs
 as four independently deployable processes — one public API/BFF plus three internal gRPC
 services (identity, courses, payments) — sharing one PostgreSQL database and one MinIO object
 store. Paid enrollment goes through **Robokassa** hosted checkout, and runtime feature flags
-come from **Unleash**. Usage statistics go to **Google Analytics 4**, only with the visitor's
-consent. Local development is orchestrated with **.NET Aspire**; production is
-plain **Docker Compose**.
+come from **Unleash**. Course PDFs are generated server-side with **QuestPDF** (Community
+license — free for organisations under $1M annual revenue). Usage statistics go to
+**Google Analytics 4**, only with the visitor's consent. Local development is orchestrated
+with **.NET Aspire**; production is plain **Docker Compose**.
 
 ## Author & deployment
 
@@ -99,7 +102,7 @@ The SPA reports usage to Google Analytics 4 (`G-KZGF9HH7RL`) via `vue-gtag`, wra
   params are stripped). No user id, email or name is sent — only a `role` user property.
 - **Tracked events.** `login_start` / `login`, `logout`, `enroll_course`, `begin_checkout`,
   `purchase`, `payment_failed`, `lesson_complete`, `course_complete`, `quiz_submit`,
-  `question_ask`, plus a `page_view` per route change.
+  `question_ask`, `course_pdf_download`, plus a `page_view` per route change.
 - **CSP.** The production Content-Security-Policy in `LF.WebApi/Program.cs` allows
   `www.googletagmanager.com` scripts and the Google Analytics collection hosts.
 

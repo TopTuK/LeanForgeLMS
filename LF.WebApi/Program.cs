@@ -41,6 +41,8 @@ static void ConfigureServices(IServiceCollection services, IConfiguration config
     // Needed for IStorageService/IStorageRepository (StorageObject metadata) — LF.WebApi is the only
     // host with both MinIO and DB access, since a course-cover/lesson-media upload needs both in one call.
     services.AddInfrastructureDatabase(configuration);
+    // Course PDF export (ICourseExportService needs the renderer).
+    services.AddInfrastructurePdf();
     // Group chat push channel; the hub itself is mapped by GroupChatHubEndpoints.
     services.AddSignalR();
     services.AddSingleton<GroupChatConnectionRegistry>();

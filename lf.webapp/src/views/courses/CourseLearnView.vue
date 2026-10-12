@@ -2,10 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, FileDown, PanelRightClose, PanelRightOpen } from 'lucide-vue-next';
 import {
   fetchEnrollment,
   completeLesson,
+  downloadCoursePdf,
   fetchEnrollmentLessonMediaObjectUrl,
   fetchEnrollmentLessonPartFileObjectUrl,
 } from '@/services/enrollmentService';
@@ -17,7 +18,7 @@ import { track } from '@/lib/analytics';
 
 const OUTLINE_STORAGE_KEY = 'course-learn-outline-collapsed';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -254,6 +255,23 @@ async function downloadFile(part, file) {
   }
 }
 
+const downloadingPdf = ref(false);
+
+async function downloadPdf() {
+  if (downloadingPdf.value) return;
+
+  downloadingPdf.value = true;
+  errorMessage.value = '';
+  try {
+    await downloadCoursePdf(enrollmentId.value, locale.value);
+    track('course_pdf_download', { course_id: enrollment.value?.courseId });
+  } catch {
+    errorMessage.value = t('courses.learn.download_pdf_error');
+  } finally {
+    downloadingPdf.value = false;
+  }
+}
+
 function goToCourses() {
   router.push({ name: 'CoursesActive' });
 }
@@ -339,22 +357,36 @@ function goToCourses() {
           </div>
         </div>
 
-        <button
-          type="button"
-          class="course-learn__structure-btn"
-          :aria-pressed="!outlineCollapsed"
-          @click="toggleOutline"
-        >
-          <PanelRightOpen
-            v-if="outlineCollapsed"
-            :size="16"
-          />
-          <PanelRightClose
-            v-else
-            :size="16"
-          />
-          {{ outlineCollapsed ? $t('courses.learn.show_structure') : $t('courses.learn.hide_structure') }}
-        </button>
+        <div class="course-learn__header-actions">
+          <button
+            type="button"
+            class="course-learn__structure-btn"
+            data-testid="download-pdf"
+            :disabled="downloadingPdf"
+            :aria-busy="downloadingPdf"
+            @click="downloadPdf"
+          >
+            <FileDown :size="16" />
+            {{ downloadingPdf ? $t('courses.learn.downloading_pdf') : $t('courses.learn.download_pdf') }}
+          </button>
+
+          <button
+            type="button"
+            class="course-learn__structure-btn"
+            :aria-pressed="!outlineCollapsed"
+            @click="toggleOutline"
+          >
+            <PanelRightOpen
+              v-if="outlineCollapsed"
+              :size="16"
+            />
+            <PanelRightClose
+              v-else
+              :size="16"
+            />
+            {{ outlineCollapsed ? $t('courses.learn.show_structure') : $t('courses.learn.hide_structure') }}
+          </button>
+        </div>
       </header>
 
       <p
@@ -655,9 +687,20 @@ function goToCourses() {
   cursor: pointer;
 }
 
-.course-learn__structure-btn:hover {
+.course-learn__structure-btn:hover:not(:disabled) {
   color: var(--color-ink);
   background: var(--color-surface-900);
+}
+
+.course-learn__structure-btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.course-learn__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .course-learn__alert {

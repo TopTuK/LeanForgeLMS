@@ -5,6 +5,7 @@ using LF.Application.Services.Admin;
 using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.CourseAuthoring;
+using LF.Application.Services.CourseExport;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.Email;
 using LF.Application.Services.EnrollmentLearning;
@@ -46,6 +47,7 @@ public class DependencyInjectionTests
         services.AddScoped(_ => Mock.Of<IFeatureFlagService>());
         services.AddScoped(_ => Mock.Of<IGroupChatNotifier>());
         services.AddKeyedScoped("storage", (_, _) => Mock.Of<IFileStorageService>());
+        services.AddSingleton(_ => Mock.Of<ICoursePdfRenderer>());
         services.AddAuthenticationApplication();
 
         // Act
@@ -69,6 +71,7 @@ public class DependencyInjectionTests
         Assert.IsType<StudentGroupService>(scope.ServiceProvider.GetRequiredService<IStudentGroupService>());
         Assert.IsType<LectureService>(scope.ServiceProvider.GetRequiredService<ILectureService>());
         Assert.IsType<GroupChatService>(scope.ServiceProvider.GetRequiredService<IGroupChatService>());
+        Assert.IsType<CourseExportService>(scope.ServiceProvider.GetRequiredService<ICourseExportService>());
     }
 
     [Fact]
