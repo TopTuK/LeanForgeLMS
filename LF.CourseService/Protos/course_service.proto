@@ -27,6 +27,8 @@ service CourseServiceRpc {
   rpc RenameChapter (RenameChapterRequest) returns (CourseDetailReply);
   // Move a chapter up or down within its course
   rpc MoveChapter (MoveChapterRequest) returns (CourseDetailReply);
+  // Remove a chapter together with all of its lessons
+  rpc RemoveChapter (RemoveChapterRequest) returns (CourseDetailReply);
   // Add a lesson to a chapter
   rpc AddLesson (AddLessonRequest) returns (CourseDetailReply);
   // Update a lesson's title/content/preview flag
@@ -350,6 +352,13 @@ message MoveChapterRequest {
   MoveDirection direction = 3;
   int32 acting_user_id = 4;
   bool acting_is_admin = 5;
+}
+
+message RemoveChapterRequest {
+  int32 course_id = 1;
+  int32 chapter_id = 2;
+  int32 acting_user_id = 3;
+  bool acting_is_admin = 4;
 }
 
 message AddLessonRequest {

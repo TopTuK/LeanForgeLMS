@@ -189,6 +189,41 @@ public class CourseTests
     }
 
     [Fact]
+    public void RemoveChapter_RemovesItWithItsLessonsAndRenumbersRemaining()
+    {
+        // Arrange
+        var course = CreateCourse();
+        var first = course.AddChapter("Chapter 1");
+        var second = course.AddChapter("Chapter 2");
+        var third = course.AddChapter("Chapter 3");
+        EntityIdSetter.SetId(first, 1);
+        EntityIdSetter.SetId(second, 2);
+        EntityIdSetter.SetId(third, 3);
+        second.AddLesson("Lesson 1");
+        second.AddLesson("Lesson 2");
+
+        // Act
+        course.RemoveChapter(second.Id);
+
+        // Assert
+        Assert.Equal([first, third], course.Chapters);
+        Assert.Equal(1, first.SortOrder);
+        Assert.Equal(2, third.SortOrder);
+    }
+
+    [Fact]
+    public void RemoveChapter_UnknownId_Throws()
+    {
+        // Arrange
+        var course = CreateCourse();
+        var chapter = course.AddChapter("Chapter 1");
+        EntityIdSetter.SetId(chapter, 1);
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => course.RemoveChapter(999));
+    }
+
+    [Fact]
     public void Create_DefaultsToNoCover()
     {
         // Act

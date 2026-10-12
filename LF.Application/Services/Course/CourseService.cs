@@ -257,6 +257,26 @@ internal sealed class CourseService(
         return course.Adapt<CourseDetailDto>();
     }
 
+    public async Task<CourseDetailDto?> RemoveChapterAsync(int courseId, int chapterId, int actingUserId, bool isAdmin)
+    {
+        _logger.LogInformation("CourseService::RemoveChapterAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",
+            courseId, chapterId, actingUserId);
+
+        var course = await LoadCourseForMutationAsync(courseId);
+        if (course is null)
+            return null;
+
+        EnsureOwnership(course, actingUserId, isAdmin);
+
+        if (course.Chapters.All(c => c.Id != chapterId))
+            return null;
+
+        course.RemoveChapter(chapterId);
+        await _dbContext.SaveChangesAsync();
+
+        return course.Adapt<CourseDetailDto>();
+    }
+
     public async Task<CourseDetailDto?> AddLessonAsync(int courseId, int chapterId, AddLessonDto dto, int actingUserId, bool isAdmin)
     {
         _logger.LogInformation("CourseService::AddLessonAsync: called with CourseId={CourseId} ChapterId={ChapterId} ActingUserId={ActingUserId}",

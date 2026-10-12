@@ -139,6 +139,17 @@ public sealed class Course
         return chapter;
     }
 
+    // The chapter's lessons go with it (cascade), along with their parts, Q&A and pending digest rows.
+    public void RemoveChapter(int chapterId)
+    {
+        var chapter = _chapters.FirstOrDefault(c => c.Id == chapterId)
+            ?? throw new InvalidOperationException($"Chapter {chapterId} not found on this course.");
+
+        _chapters.Remove(chapter);
+        for (var i = 0; i < _chapters.Count; i++)
+            _chapters[i].SetSortOrder(i + 1);
+    }
+
     public void MoveChapterUp(int chapterId) => ReorderChapter(chapterId, -1);
 
     public void MoveChapterDown(int chapterId) => ReorderChapter(chapterId, 1);

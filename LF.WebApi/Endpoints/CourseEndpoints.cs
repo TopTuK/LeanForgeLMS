@@ -308,6 +308,25 @@ public sealed class CourseEndpoints : IEndpointGroup
             }
         });
 
+        group.MapDelete("/{id:int}/chapters/{chapterId:int}", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ForbidHttpResult>>
+            (int id, int chapterId, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            try
+            {
+                var course = await courseService.RemoveChapterAsync(id, chapterId, userId.Value, isAdmin);
+                return course is null ? TypedResults.NotFound() : TypedResults.Ok(ToDetailResponse(course));
+            }
+            catch (CourseAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+        });
+
         group.MapPost("/{id:int}/chapters/{chapterId:int}/lessons", async Task<Results<Ok<CourseDetailResponse>, UnauthorizedHttpResult, NotFound, ValidationProblem, ForbidHttpResult>>
             (int id, int chapterId, AddLessonRequest request, ClaimsPrincipal user, ICourseAuthoringService courseService, CancellationToken ct) =>
         {

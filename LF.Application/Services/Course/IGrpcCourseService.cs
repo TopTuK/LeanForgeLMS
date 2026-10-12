@@ -15,6 +15,7 @@ public interface IGrpcCourseService
     Task<CourseDetailDto?> AddChapterAsync(int courseId, string title, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> RenameChapterAsync(int courseId, int chapterId, string title, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> MoveChapterAsync(int courseId, int chapterId, MoveDirection direction, int actingUserId, bool isAdmin);
+    Task<CourseDetailDto?> RemoveChapterAsync(int courseId, int chapterId, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> AddLessonAsync(int courseId, int chapterId, AddLessonDto dto, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> UpdateLessonAsync(int courseId, int chapterId, int lessonId, UpdateLessonDto dto, int actingUserId, bool isAdmin);
     Task<CourseDetailDto?> MoveLessonAsync(int courseId, int chapterId, int lessonId, MoveDirection direction, int actingUserId, bool isAdmin);

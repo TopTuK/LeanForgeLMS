@@ -23,6 +23,7 @@ import {
   addChapter,
   renameChapter,
   moveChapter,
+  removeChapter,
   addLesson,
   moveLesson,
   removeLesson,
@@ -59,6 +60,9 @@ const chapterRenameRef = ref(null);
 const removeLessonModalShown = ref(false);
 const removeLessonChapter = ref(null);
 const removeLessonTarget = ref(null);
+
+const removeChapterModalShown = ref(false);
+const removeChapterTarget = ref(null);
 
 const collapsedChapterIds = ref(new Set());
 
@@ -257,6 +261,15 @@ function openRemoveLessonModal(chapter, lesson) {
 
 function confirmRemoveLesson() {
   runMutation(() => removeLesson(courseId, removeLessonChapter.value.id, removeLessonTarget.value.id));
+}
+
+function openRemoveChapterModal(chapter) {
+  removeChapterTarget.value = chapter;
+  removeChapterModalShown.value = true;
+}
+
+function confirmRemoveChapter() {
+  runMutation(() => removeChapter(courseId, removeChapterTarget.value.id));
 }
 
 async function publish() {
@@ -512,6 +525,14 @@ const lessonCount = computed(() => (
                     <Plus :size="14" />
                     {{ $t('courses.editor.add_lesson') }}
                   </StudioButton>
+
+                  <StudioIconButton
+                    danger
+                    :label="$t('courses.editor.remove_chapter')"
+                    @click="openRemoveChapterModal(chapter)"
+                  >
+                    <Trash2 />
+                  </StudioIconButton>
                 </div>
 
                 <div
@@ -672,6 +693,22 @@ const lessonCount = computed(() => (
       @confirm="confirmRemoveLesson"
     >
       <p>{{ $t('courses.editor.remove_lesson_confirm', { title: removeLessonTarget?.title }) }}</p>
+    </StudioConfirmDialog>
+
+    <StudioConfirmDialog
+      v-model="removeChapterModalShown"
+      :title="$t('courses.editor.remove_chapter')"
+      :confirm-label="$t('courses.editor.remove_chapter')"
+      :cancel-label="$t('courses.editor.cancel')"
+      danger
+      @confirm="confirmRemoveChapter"
+    >
+      <p>
+        {{ $t('courses.editor.remove_chapter_confirm', {
+          title: removeChapterTarget?.title,
+          count: removeChapterTarget?.lessons?.length ?? 0,
+        }) }}
+      </p>
     </StudioConfirmDialog>
   </StudioShell>
 </template>
