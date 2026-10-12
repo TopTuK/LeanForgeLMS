@@ -6,6 +6,7 @@ using LF.Application.Services.Authentication;
 using LF.Application.Services.Course;
 using LF.Application.Services.Email;
 using LF.Application.Services.CourseAuthoring;
+using LF.Application.Services.CourseExport;
 using LF.Application.Services.CourseTeaching;
 using LF.Application.Services.Enrollment;
 using LF.Application.Services.EnrollmentLearning;
@@ -68,6 +69,10 @@ public static class DependencyInjection
         services.AddScoped<IStudentGroupService, StudentGroupService>();
         services.AddScoped<ILectureService, LectureService>();
         services.AddScoped<IGroupChatService, GroupChatService>();
+
+        // Course PDF export runs here because it needs the learn-view access check, MinIO images and the
+        // renderer in one process. ICoursePdfRenderer comes from AddInfrastructurePdf().
+        services.AddScoped<ICourseExportService, CourseExportService>();
 
         // Outbox producer only — delivery happens in LF.NotificationService.
         services.AddScoped<IEmailQueue, EmailQueue>();

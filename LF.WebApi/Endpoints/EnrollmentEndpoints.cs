@@ -3,6 +3,7 @@ using LF.Application.Common.Exceptions;
 using LF.Application.Common.Interfaces;
 using LF.Application.ModelDto.Course;
 using LF.Application.ModelDto.Enrollment;
+using LF.Application.Services.CourseExport;
 using LF.Application.Services.EnrollmentLearning;
 using LF.AppDomain.Models.Course.Enums;
 using LF.AppDomain.Models.User.Enums;
@@ -151,6 +152,29 @@ public sealed class EnrollmentEndpoints : IEndpointGroup
             catch (EnrollmentAuthorizationException)
             {
                 return TypedResults.Forbid();
+            }
+        });
+
+        group.MapGet("/{id:int}/export/pdf", async Task<Results<FileContentHttpResult, UnauthorizedHttpResult, NotFound, ForbidHttpResult, Conflict<string>>>
+            (int id, string? lang, ClaimsPrincipal user, ICourseExportService courseExportService, CancellationToken ct) =>
+        {
+            var userId = user.GetUserId();
+            if (userId is null) return TypedResults.Unauthorized();
+
+            var isAdmin = user.IsInRole(nameof(UserRole.Admin));
+
+            try
+            {
+                var file = await courseExportService.ExportEnrollmentPdfAsync(id, userId.Value, isAdmin, lang, ct);
+                return file is null ? TypedResults.NotFound() : TypedResults.File(file.Content, "application/pdf", file.FileName);
+            }
+            catch (EnrollmentAuthorizationException)
+            {
+                return TypedResults.Forbid();
+            }
+            catch (CourseUnavailableException ex)
+            {
+                return TypedResults.Conflict(ex.Message);
             }
         });
 

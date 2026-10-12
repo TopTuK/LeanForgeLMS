@@ -5,6 +5,7 @@ using LF.Application.Services.Payment;
 using LF.Application.Services.Promo;
 using LF.Application.Services.Storage;
 using LF.Application.Services.User;
+using LF.Infrastructure.Services.Documents;
 using LF.Infrastructure.Services.Email;
 using LF.Infrastructure.Services.FeatureFlags;
 using LF.Infrastructure.Services.Payment;
@@ -127,6 +128,16 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 
         isConfigured = section.Get<SmtpOptions>()?.IsConfigured == true;
+
+        return services;
+    }
+
+    // QuestPDF-backed ICoursePdfRenderer for LF.WebApi (course PDF export). Fonts are embedded, so the
+    // runtime image needs no font packages.
+    public static IServiceCollection AddInfrastructurePdf(this IServiceCollection services)
+    {
+        QuestPdfSetup.EnsureConfigured();
+        services.AddSingleton<ICoursePdfRenderer, QuestPdfCourseRenderer>();
 
         return services;
     }

@@ -134,6 +134,14 @@ public sealed class CourseEndpoints : IEndpointGroup
     - SPA hub handlers must not return a value; `groupChatHub.onGroupChatEvent` wraps them for this reason.
   - **Teaching list**: `GET /api/teaching/courses` lists created **and** assigned courses. The gRPC `ListCourses` is owner-only, and assigned instructors still cannot open the content editor.
 
+- **Course PDF export** — `GET /api/enrollments/{id}/export/pdf?lang=ru|en` (button in `CourseLearnView`), owned by **LF.WebApi**.
+  - `CourseExportService` (`LF.Application/Services/CourseExport/`) reuses `IEnrollmentLearningService.GetEnrollmentAsync`, so access rules match the learn view. An unpublished course is rejected with `CourseUnavailableException`, which maps to 409.
+  - The service builds a framework-free `CourseDocument` (`LF.Application/Common/Documents/`). `LessonHtmlBlockParser` turns sanitized lesson HTML into blocks; remote `<img>` sources are never fetched.
+  - The PDF contains text and Image parts only. Video, audio, files and quiz parts are left out.
+  - `ICoursePdfRenderer` is implemented by `QuestPdfCourseRenderer` in `LF.Infrastructure/Services/Documents/`, registered via `AddInfrastructurePdf()` (WebApi only).
+  - **QuestPDF Community license**: free for organizations under $1M annual revenue; above that a commercial license is required.
+  - Noto Sans fonts (OFL) are embedded resources and system fonts are off, so Cyrillic renders the same in the font-less Docker image.
+
 **Not yet decided / explicitly deferred:** caching (no HybridCache/Redis yet) and inter-service messaging (no Wolverine/MassTransit yet — `LF.IdentityService` currently would only be reachable via gRPC direct call, not a bus).
 
 ## Coding Standards
